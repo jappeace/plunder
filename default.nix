@@ -1,13 +1,13 @@
-{ mkDerivation, base, bytestring, hpack, sdl2, stdenv }:
+{ mkDerivation, base, bytestring, hpack, lens, sdl2, stdenv }:
 mkDerivation {
   pname = "template";
   version = "1.0.0";
   src = ./.;
   isLibrary = true;
   isExecutable = true;
-  libraryHaskellDepends = [ base bytestring sdl2 ];
+  libraryHaskellDepends = [ base bytestring lens sdl2 ];
   libraryToolDepends = [ hpack ];
-  executableHaskellDepends = [ base bytestring sdl2 ];
+  executableHaskellDepends = [ base bytestring lens sdl2 ];
   preConfigure = "hpack";
   license = stdenv.lib.licenses.mit;
 }

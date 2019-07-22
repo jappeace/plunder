@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1e7d1f7a1e38ce50963236d6aff12393a2f7ad758a23c3503f5d8dbf080b48ea
+-- hash: 237805b1ef9021e4df082c8d6e8e9dce709864d0a8b181da3cbb3e84bd326d59
 
 cabal-version:  >= 1.10
 name:           template
@@ -29,6 +29,7 @@ library
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , lens
     , sdl2
   default-language: Haskell2010
 
@@ -43,6 +44,7 @@ executable exe
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , lens
     , sdl2
     , template
   default-language: Haskell2010
