@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 945d88fb507f360724a503db257bc412972bd3b046a6752b10285e18b1386775
+-- hash: 1e7d1f7a1e38ce50963236d6aff12393a2f7ad758a23c3503f5d8dbf080b48ea
 
 cabal-version:  >= 1.10
 name:           template
@@ -28,6 +28,7 @@ library
   ghc-options: -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints -Wincomplete-record-updates -Widentities
   build-depends:
       base >=4.7 && <5
+    , bytestring
     , sdl2
   default-language: Haskell2010
 
@@ -41,6 +42,7 @@ executable exe
   ghc-options: -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints -Wincomplete-record-updates -Widentities -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , bytestring
     , sdl2
     , template
   default-language: Haskell2010
