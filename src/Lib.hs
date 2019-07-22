@@ -11,6 +11,14 @@ import qualified SDL
 import           SDL.Vect
 
 
+data Movement = Left
+              | Right
+              | SpeedUp
+              | SpeedDown
+
+gameLoop :: IO ()
+gameLoop = undefined
+
 
 screenWidth :: CInt
 screenHeight = 480
