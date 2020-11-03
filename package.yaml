@@ -53,6 +53,8 @@ dependencies:
 - vector
 - reflex-sdl2
 - sdl2
+- mtl
+- reflex
 
 library:
   source-dirs: src
