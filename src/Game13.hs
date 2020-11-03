@@ -12,10 +12,13 @@ import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
 import Guest
+import Layer
 
 app :: (ReflexSDL2 t m, MonadReader Renderer m) => m ()
 app = do
-  (_, dynLayers) <- runDynamicWriterT guest
+  (_, dynLayers) <- runDynamicWriterT $ do
+    guest
+    onQuit
   r <- ask
   performEvent_ $ ffor (updated dynLayers) $ \layers -> do
     rendererDrawColor r $= V4 0 0 0 255
@@ -44,3 +47,10 @@ libF = do
   destroyRenderer r
   destroyWindow window
   quit
+
+onQuit :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m, MonadReader Renderer m)
+  => m ()
+onQuit = do
+  evQuit <- getQuitEvent
+  performEvent_ $ liftIO (putStrLn "bye!") <$ evQuit
+  shutdownOn =<< delay 0 evQuit
