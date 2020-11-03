@@ -3,13 +3,11 @@ cabal-version: 1.12
 -- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 560b1341162d19cf50e673f51dbe11324ff2649cddf7d7e6524c4d7838f1018e
 
-name:           template
+name:           game13
 version:        1.0.0
-homepage:       https://github.com/jappeace/haskell-template-project#readme
-bug-reports:    https://github.com/jappeace/haskell-template-project/issues
+homepage:       https://github.com/jappeace/game13#readme
+bug-reports:    https://github.com/jappeace/game13/issues
 author:         Jappie Klooster
 maintainer:     jappieklooster@hotmail.com
 copyright:      2020 Jappie Klooster
@@ -23,13 +21,13 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/jappeace/haskell-template-project
+  location: https://github.com/jappeace/game13
 
 library
   exposed-modules:
       Lib
   other-modules:
-      Paths_template
+      Paths_game13
   hs-source-dirs:
       src
   default-extensions: EmptyCase FlexibleContexts FlexibleInstances InstanceSigs MultiParamTypeClasses LambdaCase MultiWayIf NamedFieldPuns TupleSections DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies GeneralizedNewtypeDeriving StandaloneDeriving OverloadedStrings TypeApplications
@@ -38,6 +36,7 @@ library
       base >=4.7 && <5
     , bytestring
     , lens
+    , reflex-sdl2
     , sdl2
     , vector
   default-language: Haskell2010
@@ -45,7 +44,7 @@ library
 executable exe
   main-is: exe.hs
   other-modules:
-      Paths_template
+      Paths_game13
   hs-source-dirs:
       app
   default-extensions: EmptyCase FlexibleContexts FlexibleInstances InstanceSigs MultiParamTypeClasses LambdaCase MultiWayIf NamedFieldPuns TupleSections DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies GeneralizedNewtypeDeriving StandaloneDeriving OverloadedStrings TypeApplications
@@ -53,8 +52,31 @@ executable exe
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , game13
     , lens
+    , reflex-sdl2
     , sdl2
-    , template
+    , vector
+  default-language: Haskell2010
+
+test-suite unit
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Test.TestSpec
+      Paths_game13
+  hs-source-dirs:
+      test
+  default-extensions: EmptyCase FlexibleContexts FlexibleInstances InstanceSigs MultiParamTypeClasses LambdaCase MultiWayIf NamedFieldPuns TupleSections DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies GeneralizedNewtypeDeriving StandaloneDeriving OverloadedStrings TypeApplications
+  ghc-options: -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints -Wincomplete-record-updates -Widentities
+  build-depends:
+      base >=4.7 && <5
+    , bytestring
+    , game13
+    , hspec
+    , hspec-core
+    , lens
+    , reflex-sdl2
+    , sdl2
     , vector
   default-language: Haskell2010

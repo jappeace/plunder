@@ -1,4 +1,4 @@
-{ pkgs ? import ./nix/pin.nix { },
+{ pkgs ? import ./nix/pin.nix { config.allowBroken = true; },
   # should be default ghc
   # https://github.com/NixOS/nixpkgs/blob/master/pkgs/top-level/all-packages.nix#L9029
   compiler ? "ghc884",
@@ -10,7 +10,8 @@ let
   # https://github.com/NixOS/nixpkgs/blob/dbacb52ad8/pkgs/development/haskell-modules/make-package-set.nix#L216
   src = ignore.gitignoreSource ./.;
   cabal2nix =
-    hpkgs.callCabal2nix "template" src {
+    hpkgs.callCabal2nix "game13" src {
+      reflex-sdl2 = pkgs.haskell.lib.doJailbreak (hpkgs.callPackage ./nix/reflex-sdl2.nix { });
     };
 in
 # https://github.com/NixOS/nixpkgs/blob/dbacb52ad8/pkgs/development/haskell-modules/generic-builder.nix#L13

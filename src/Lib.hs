@@ -5,19 +5,16 @@ module Lib
   )
 where
 
-import           Control.Concurrent     (threadDelay)
 import           Control.Lens
 import           Control.Monad
-import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Unsafe as BS
 import           Data.Foldable          (traverse_)
 import           Data.Maybe
 import qualified Data.Vector            as Vec
-import qualified Debug.Trace            as Tr
 import           Foreign.C.Types
 import           GHC.Int
 import qualified SDL
 import           SDL.Vect
+import           Reflex.SDL2
 
 data Assets = Assets
   { _assets_surfaces :: Vec.Vector SDL.Surface
