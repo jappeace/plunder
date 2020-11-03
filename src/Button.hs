@@ -4,8 +4,11 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE UndecidableInstances  #-}
-module Button where
+{-# LANGUAGE TemplateHaskell #-}
+module Button(button,
+              ButtonState(..),
+              ButtonSettings,
+              defSettings, button_postion, button_size) where
 
 import           Control.Concurrent   (threadDelay)
 import           Control.Monad        (forM_, guard, void)
@@ -13,6 +16,8 @@ import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
 import Layer
+import Control.Lens
+import Foreign.C.Types(CInt)
 
 ffor2 :: Reflex t => Dynamic t a -> Dynamic t b -> (a -> b -> c) -> Dynamic t c
 ffor2 a b f = zipDynWith f a b
@@ -32,14 +37,24 @@ buttonState isInside isDown
   | isDown       = ButtonStateDown
   | otherwise    = ButtonStateOver
 
+data ButtonSettings = ButtonSettings
+  { _button_postion :: V2 CInt
+  , _button_size :: V2 CInt
+  }
+makeLenses ''ButtonSettings
+
+defSettings :: ButtonSettings
+defSettings = ButtonSettings
+  { _button_postion = V2 50 50
+  , _button_size = V2 100 50
+  }
+
 button
   :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m, MonadReader Renderer m)
-  => m (Event t ButtonState)
-button = do
+  => ButtonSettings -> m (Event t ButtonState)
+button settings = do
   evMotionData <- getMouseMotionEvent
-  let position = V2 100 100
-      size     = V2 100 100
-      V2 tlx tly = position
+  let V2 tlx tly = position
       V2 brx bry = position + size
       evMotionPos = fmap fromIntegral . mouseMotionEventPos <$> evMotionData
       evMouseIsInside = ffor evMotionPos $ \(P (V2 x y)) ->
@@ -65,3 +80,6 @@ button = do
     fillRect r $ Just $ Rectangle (P position) size
 
   updated <$> holdUniqDyn dButtonState
+  where
+      position = settings ^. button_postion
+      size     = settings ^. button_size
