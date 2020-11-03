@@ -1,21 +1,29 @@
--- This file has been generated from package.yaml by hpack version 0.28.2.
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
 --
 -- hash: 560b1341162d19cf50e673f51dbe11324ff2649cddf7d7e6524c4d7838f1018e
 
-cabal-version:  >= 1.10
 name:           template
 version:        1.0.0
+homepage:       https://github.com/jappeace/haskell-template-project#readme
+bug-reports:    https://github.com/jappeace/haskell-template-project/issues
 author:         Jappie Klooster
 maintainer:     jappieklooster@hotmail.com
-copyright:      2019 Jappie Klooster
+copyright:      2020 Jappie Klooster
 license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
-    LICENSE
     Readme.md
+    LICENSE
+    Changelog.md
+
+source-repository head
+  type: git
+  location: https://github.com/jappeace/haskell-template-project
 
 library
   exposed-modules:

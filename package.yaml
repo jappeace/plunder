@@ -3,11 +3,13 @@ version:             1.0.0
 license:             MIT
 author:              "Jappie Klooster"
 maintainer:          "jappieklooster@hotmail.com"
-copyright:           "2019 Jappie Klooster"
+copyright:           "2020 Jappie Klooster"
+github:              "jappeace/haskell-template-project"
 
 extra-source-files:
 - Readme.md
 - LICENSE
+- Changelog.md
 
 ghc-options:
     - -Wall
@@ -64,3 +66,13 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+
+tests:
+  unit:
+    main:                Spec.hs
+    source-dirs:
+    - test
+    dependencies:
+    - hspec
+    - hspec-core
+    - template

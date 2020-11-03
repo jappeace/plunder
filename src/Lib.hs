@@ -2,7 +2,8 @@
 
 module Lib
   ( libF
-  ) where
+  )
+where
 
 import           Control.Concurrent     (threadDelay)
 import           Control.Lens
