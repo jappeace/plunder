@@ -15,6 +15,7 @@ import           Reflex.SDL2
 import Button
 import Layer
 import Control.Lens
+import Hexagon
 
 motionToColor :: InputMotion -> V4 Int
 motionToColor Released = V4 255 0 0   128
@@ -38,13 +39,14 @@ guest = do
   -- Get a handle on our renderer
   ------------------------------------------------------------------------------
   r <- ask
+  hexagon defHex
 
   ------------------------------------------------------------------------------
   -- A button!
   ------------------------------------------------------------------------------
-  evBtnState <- button defSettings
+  evBtnState <- button defButton
   let evBtnPressed = fmapMaybe (guard . (== ButtonStateDown)) evBtnState
   performEvent_ $ ffor evBtnPressed $ const $ liftIO $ putStrLn "Button pressed!"
 
-  evButtonTwo <- button $ button_postion .~ V2 300 200 $ defSettings
+  evButtonTwo <- button $ button_postion .~ V2 300 200 $ defButton
   performEvent_ $ ffor (fmapMaybe (guard . (== ButtonStateDown)) evButtonTwo ) $ const $ liftIO $ putStrLn "Button pressed!"

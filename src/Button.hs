@@ -8,7 +8,7 @@
 module Button(button,
               ButtonState(..),
               ButtonSettings,
-              defSettings, button_postion, button_size) where
+              defButton, button_postion, button_size) where
 
 import           Control.Concurrent   (threadDelay)
 import           Control.Monad        (forM_, guard, void)
@@ -43,8 +43,8 @@ data ButtonSettings = ButtonSettings
   }
 makeLenses ''ButtonSettings
 
-defSettings :: ButtonSettings
-defSettings = ButtonSettings
+defButton :: ButtonSettings
+defButton = ButtonSettings
   { _button_postion = V2 50 50
   , _button_size = V2 100 50
   }
