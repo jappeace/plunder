@@ -28,6 +28,7 @@ library
       Button
       Game13
       Guest
+      Hexagon
       Layer
   other-modules:
       Paths_game13
