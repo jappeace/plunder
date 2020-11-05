@@ -8,3 +8,13 @@
 ## game13 Map stare game with advanced hexagons
 
 There will be hexagons. And more!
+
+### Current features
+
++ We can render a hexagon
+
+
+### Roadmap
+
++ Rumors say there maybe a hexagon GRID.
+
