@@ -10,15 +10,13 @@ module Hexagon(hexagon ,
               HexagonSettings,
               defHex, hexagon_postion, hexagon_size) where
 
-import           Control.Concurrent   (threadDelay)
-import           Control.Monad        (forM_, guard, void)
-import           Control.Monad.Reader (MonadReader (..), runReaderT)
-import           Reflex
+import           Control.Monad.Reader (MonadReader (..))
 import           Reflex.SDL2
-import Layer
 import Control.Lens
 import Foreign.C.Types(CInt)
 import qualified Data.Vector.Storable as S
+import Layer
+import           Reflex
 
 data HexagonSettings = HexagonSettings
   { _hexagon_postion :: V2 CInt
@@ -59,7 +57,7 @@ calcPoints settings = do
     topLeftPoint = bottomLeftPoint - V2 0 ribLength
 
     ribLength :: CInt
-    ribLength = ((size ^. _y) `quot` 3)
+    ribLength = ((size ^. _y) `quot` 2)
 
     size :: V2 CInt
     size = settings ^. hexagon_size
@@ -71,10 +69,16 @@ calcPoints settings = do
     midleTransform = V2 ((size ^. _x) `quot` 2) ribLength
 
 
-hexagon :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m, MonadReader Renderer m)
+hexagon :: (ReflexSDL2 t m, MonadReader Renderer m, DynamicWriter t [Layer m] m)
   =>  HexagonSettings -> m ()
 hexagon settings = do
   r <- ask
-  rendererDrawColor r $= V4 100 150 75 255
-  drawLines r $ calcPoints settings
+  evPB         <- holdDyn () =<< getPostBuild
+  commitLayer $ ffor evPB $ const $ do
+    rendererDrawColor r $= V4 128 128 128 255
+    drawLines r points
   pure ()
+
+  liftIO $ print points
+  where
+    points = calcPoints settings
