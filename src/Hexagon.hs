@@ -27,7 +27,7 @@ makeLenses ''HexagonSettings
 defHex :: HexagonSettings
 defHex = HexagonSettings
   { _hexagon_postion = V2 150 150
-  , _hexagon_size = V2 100 50
+  , _hexagon_size = V2 80 45
   }
 
 -- |                      top point
@@ -57,7 +57,10 @@ calcPoints settings = do
     topLeftPoint = bottomLeftPoint - V2 0 ribLength
 
     ribLength :: CInt
-    ribLength = ((size ^. _y) `quot` 2)
+    ribLength = floor $ (fromIntegral (size ^. _y) * twoThirds)
+
+    twoThirds :: Double
+    twoThirds = 2/3
 
     size :: V2 CInt
     size = settings ^. hexagon_size
@@ -68,7 +71,10 @@ calcPoints settings = do
     midleTransform :: V2 CInt
     midleTransform = V2 ((size ^. _x) `quot` 2) ribLength
 
-
+-- TODO:
+-- 1. label.
+-- 2. grid.
+-- 3. detect click.
 hexagon :: (ReflexSDL2 t m, MonadReader Renderer m, DynamicWriter t [Layer m] m)
   =>  HexagonSettings -> m ()
 hexagon settings = do
