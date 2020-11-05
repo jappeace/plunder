@@ -10,21 +10,12 @@ module Button(button,
               ButtonSettings,
               defButton, button_postion, button_size) where
 
-import           Control.Concurrent   (threadDelay)
-import           Control.Monad        (forM_, guard, void)
-import           Control.Monad.Reader (MonadReader (..), runReaderT)
+import           Control.Monad.Reader (MonadReader (..))
 import           Reflex
 import           Reflex.SDL2
 import Layer
 import Control.Lens
 import Foreign.C.Types(CInt)
-
-ffor2 :: Reflex t => Dynamic t a -> Dynamic t b -> (a -> b -> c) -> Dynamic t c
-ffor2 a b f = zipDynWith f a b
-
-ffor2up
-  :: Reflex t => Dynamic t a -> Dynamic t b1 -> ((a, b1) -> b) -> Dynamic t b
-ffor2up a b = ffor (zipDyn a b)
 
 data ButtonState = ButtonStateUp
                  | ButtonStateOver

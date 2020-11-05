@@ -7,9 +7,8 @@
 {-# LANGUAGE UndecidableInstances  #-}
 module Guest where
 
-import           Control.Concurrent   (threadDelay)
-import           Control.Monad        (forM_, guard, void)
-import           Control.Monad.Reader (MonadReader (..), runReaderT)
+import           Control.Monad
+import           Control.Monad.Reader (MonadReader (..))
 import           Reflex
 import           Reflex.SDL2
 import Button
@@ -38,7 +37,6 @@ guest = do
   ------------------------------------------------------------------------------
   -- Get a handle on our renderer
   ------------------------------------------------------------------------------
-  r <- ask
   hexagon defHex
 
   ------------------------------------------------------------------------------
