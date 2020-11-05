@@ -3,24 +3,24 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Hexagon(hexagon ,
               HexagonSettings,
               defHex, hexagon_postion, hexagon_size) where
 
+import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
-import           Reflex.SDL2
-import Control.Lens
-import Foreign.C.Types(CInt)
 import qualified Data.Vector.Storable as S
-import Layer
+import           Foreign.C.Types      (CInt)
+import           Layer
 import           Reflex
+import           Reflex.SDL2
 
 data HexagonSettings = HexagonSettings
   { _hexagon_postion :: V2 CInt
-  , _hexagon_size :: V2 CInt
+  , _hexagon_size    :: V2 CInt
   }
 makeLenses ''HexagonSettings
 
@@ -30,7 +30,10 @@ defHex = HexagonSettings
   , _hexagon_size = V2 80 45
   }
 
--- |                      top point
+-- | Calc the points to render, we are pointy top.
+--  https://www.redblobgames.com/grids/hexagons/#basics
+--
+--                        top point
 --   top left point                    top right point
 --   bottom left point                 bottom right point
 --                      bottom point
