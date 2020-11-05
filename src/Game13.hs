@@ -6,13 +6,11 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Game13 where
 
-import           Control.Concurrent   (threadDelay)
-import           Control.Monad        (forM_, guard, void)
+import           Control.Monad        (void)
 import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
 import Guest
-import Layer
 
 app :: (ReflexSDL2 t m, MonadReader Renderer m) => m ()
 app = do
@@ -48,8 +46,7 @@ libF = do
   destroyWindow window
   quit
 
-onQuit :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m, MonadReader Renderer m)
-  => m ()
+onQuit :: ReflexSDL2 t m => m ()
 onQuit = do
   evQuit <- getQuitEvent
   performEvent_ $ liftIO (putStrLn "bye!") <$ evQuit

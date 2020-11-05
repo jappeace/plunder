@@ -5,6 +5,16 @@
 [![Githbu actions build status](https://img.shields.io/github/workflow/status/jappeace/haskell-template-project/Test)](https://github.com/jappeace/haskell-template-project/actions)
 [![Jappiejappie](https://img.shields.io/badge/discord-jappiejappie-black?logo=discord)](https://discord.gg/Hp4agqy)
 
-## game13 Map stare game with advanced hexagons
+## game13 Map stare game with advanced ⬡⬡⬡ hexagons ⬡⬡⬡ 
 
 There will be hexagons. And more!
+
+### Current features
+
++ We can render a hexagon
+
+
+### Roadmap
+
++ Rumors say there maybe a hexagon GRID.
+
