@@ -27,8 +27,8 @@ renderAABB r color pos = do
 
 guest
   :: ReflexSDL2 t m => DynamicWriter t [Layer m] m => MonadReader Renderer m
-  => Window -> m ()
-guest window = do
+  =>  m ()
+guest = do
   -- Print some stuff after the network is built.
   evPB <- getPostBuild
   performEvent_ $ ffor evPB $ \() ->
@@ -37,7 +37,7 @@ guest window = do
   ------------------------------------------------------------------------------
   -- Get a handle on our renderer
   ------------------------------------------------------------------------------
-  hexagon window defHex
+  hexagon defHex
 
   ------------------------------------------------------------------------------
   -- A button!

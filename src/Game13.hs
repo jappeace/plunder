@@ -13,10 +13,10 @@ import           Reflex.SDL2
 import Guest
 import qualified SDL.Font as Font
 
-app :: (ReflexSDL2 t m, MonadReader Renderer m) => Window -> m ()
-app window = do
+app :: (ReflexSDL2 t m, MonadReader Renderer m) =>  m ()
+app = do
   (_, dynLayers) <- runDynamicWriterT $ do
-    guest window
+    guest
     onQuit
   r <- ask
   performEvent_ $ ffor (updated dynLayers) $ \layers -> do
@@ -43,7 +43,7 @@ libF = do
   rendererDrawBlendMode r $= BlendAlphaBlend
   -- Host the network with an example of how to embed your own effects.
   -- In this case it's a simple reader.
-  host $ (runReaderT (app window) r)
+  host $ (runReaderT app r)
   destroyRenderer r
   destroyWindow window
   quit

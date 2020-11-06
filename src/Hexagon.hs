@@ -18,7 +18,7 @@ import           Layer
 import           Reflex
 import           Reflex.SDL2
 import Data.Word
-import Font 
+import qualified Font
 import Data.Foldable
 import Data.Text(Text)
 
@@ -32,8 +32,8 @@ makeLenses ''HexagonSettings
 quotV2 :: V2 CInt -> V2 CInt -> V2 CInt
 quotV2 (V2 x y) (V2 x2 y2) = V2 (x `quot` x2) $ y `quot` y2
 
-topLeft :: HexagonSettings -> Point V2 CInt
-topLeft settings = settings ^. hexagon_postion - (_Point # halveSize)
+_topLeft :: HexagonSettings -> Point V2 CInt
+_topLeft settings = settings ^. hexagon_postion - (_Point # halveSize)
   where
     halveSize = view hexagon_size settings `quotV2` V2 2 2
 
@@ -97,18 +97,19 @@ someColor = V4 128 128 128 255
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 hexagon :: ReflexSDL2 t m
       => MonadReader Renderer m => DynamicWriter t [Layer m] m
-  =>  Window -> HexagonSettings -> m ()
-hexagon window settings = do
+  =>  HexagonSettings -> m ()
+hexagon settings = do
   r <- ask
-  font <- defaultFont
+  font <- Font.defaultFont
   evPB         <- holdDyn () =<< getPostBuild
   commitLayer $ ffor evPB $ const $ do
     rendererDrawColor r $= someColor
     drawLines r points
     for_ (settings ^. hesagon_label) $ \text -> do
-      textSurface <- solid font someColor text
-      fontSize <- fmap fromIntegral . uncurry V2 <$> size font text
-      textTexture <- createTextureFromSurface r textSurface
+      textSurface <- Font.solid font someColor text
+      fontSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
+      textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
+      freeSurface textSurface
       copy r textTexture Nothing $ Just $ Rectangle (settings ^. hexagon_postion - (_Point # fontSize `quotV2` V2 2 (-5))) $ fontSize
   pure ()
   where
