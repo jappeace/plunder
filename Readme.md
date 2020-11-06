@@ -18,3 +18,34 @@ There will be hexagons. And more!
 
 + Rumors say there maybe a hexagon GRID.
 
+
+
++ ....
+
+
++ ...
+
+
+
+
+
+
+
+
+
+
+
++ ....
+
+
+
++ .
+
+
+
+
+
++ . 
+
+
++ ^^^The ^^^eventual ^^^goal ^^^of ^^^the ^^^game ^^^is ^^^to ^^^have ^^^fun.
