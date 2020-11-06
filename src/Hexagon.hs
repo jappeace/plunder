@@ -17,17 +17,31 @@ import           Foreign.C.Types      (CInt)
 import           Layer
 import           Reflex
 import           Reflex.SDL2
+import Data.Word
+import Font 
+import Data.Foldable
+import Data.Text(Text)
 
 data HexagonSettings = HexagonSettings
-  { _hexagon_postion :: V2 CInt
+  { _hexagon_postion :: Point V2 CInt
   , _hexagon_size    :: V2 CInt
+  , _hesagon_label   :: Maybe Text
   }
 makeLenses ''HexagonSettings
 
+quotV2 :: V2 CInt -> V2 CInt -> V2 CInt
+quotV2 (V2 x y) (V2 x2 y2) = V2 (x `quot` x2) $ y `quot` y2
+
+topLeft :: HexagonSettings -> Point V2 CInt
+topLeft settings = settings ^. hexagon_postion - (_Point # halveSize)
+  where
+    halveSize = view hexagon_size settings `quotV2` V2 2 2
+
 defHex :: HexagonSettings
 defHex = HexagonSettings
-  { _hexagon_postion = V2 150 150
-  , _hexagon_size = V2 80 45
+  { _hexagon_postion = _Point # V2 150 150
+  , _hexagon_size    = V2 80 45
+  , _hesagon_label   = Just "1,4"
   }
 
 -- | Calc the points to render, we are pointy top.
@@ -69,25 +83,33 @@ calcPoints settings = do
     size = settings ^. hexagon_size
 
     position :: V2 CInt
-    position = settings ^. hexagon_postion
+    position = settings ^. hexagon_postion . _Point
 
     midleTransform :: V2 CInt
     midleTransform = V2 ((size ^. _x) `quot` 2) ribLength
+
+someColor :: V4 Word8
+someColor = V4 128 128 128 255
 
 -- TODO:
 -- 1. label.
 -- 2. grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
-hexagon :: (ReflexSDL2 t m, MonadReader Renderer m, DynamicWriter t [Layer m] m)
-  =>  HexagonSettings -> m ()
-hexagon settings = do
+hexagon :: ReflexSDL2 t m
+      => MonadReader Renderer m => DynamicWriter t [Layer m] m
+  =>  Window -> HexagonSettings -> m ()
+hexagon window settings = do
   r <- ask
+  font <- defaultFont
   evPB         <- holdDyn () =<< getPostBuild
   commitLayer $ ffor evPB $ const $ do
-    rendererDrawColor r $= V4 128 128 128 255
+    rendererDrawColor r $= someColor
     drawLines r points
+    for_ (settings ^. hesagon_label) $ \text -> do
+      textSurface <- solid font someColor text
+      fontSize <- fmap fromIntegral . uncurry V2 <$> size font text
+      textTexture <- createTextureFromSurface r textSurface
+      copy r textTexture Nothing $ Just $ Rectangle (settings ^. hexagon_postion - (_Point # fontSize `quotV2` V2 2 (-5))) $ fontSize
   pure ()
-
-  liftIO $ print points
   where
     points = calcPoints settings

@@ -55,6 +55,9 @@ dependencies:
 - sdl2
 - mtl
 - reflex
+- sdl2-ttf
+- file-embed
+- text
 
 library:
   source-dirs: src

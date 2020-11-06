@@ -7,16 +7,13 @@
 {-# LANGUAGE UndecidableInstances  #-}
 module Layer where
 
-import           Control.Concurrent   (threadDelay)
-import           Control.Monad        (forM_, guard, void)
-import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
 
 
 type Layer m = Performable m ()
 
-commitLayers :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m)
+commitLayers :: (DynamicWriter t [Layer m] m)
       => Dynamic t [Layer m] -> m ()
 commitLayers = tellDyn
 

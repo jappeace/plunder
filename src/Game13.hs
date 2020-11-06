@@ -11,11 +11,12 @@ import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
 import Guest
+import qualified SDL.Font as Font
 
-app :: (ReflexSDL2 t m, MonadReader Renderer m) => m ()
-app = do
+app :: (ReflexSDL2 t m, MonadReader Renderer m) => Window -> m ()
+app window = do
   (_, dynLayers) <- runDynamicWriterT $ do
-    guest
+    guest window
     onQuit
   r <- ask
   performEvent_ $ ffor (updated dynLayers) $ \layers -> do
@@ -27,6 +28,7 @@ app = do
 libF :: IO ()
 libF = do
   initializeAll
+  Font.initialize
   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
                          , windowResizable       = True
@@ -41,10 +43,11 @@ libF = do
   rendererDrawBlendMode r $= BlendAlphaBlend
   -- Host the network with an example of how to embed your own effects.
   -- In this case it's a simple reader.
-  host $ runReaderT app r
+  host $ (runReaderT (app window) r)
   destroyRenderer r
   destroyWindow window
   quit
+  Font.quit
 
 onQuit :: ReflexSDL2 t m => m ()
 onQuit = do
