@@ -92,7 +92,6 @@ someColor :: V4 Word8
 someColor = V4 128 128 128 255
 
 -- TODO:
--- 1. label.
 -- 2. grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 hexagon :: ReflexSDL2 t m
