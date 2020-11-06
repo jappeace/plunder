@@ -48,4 +48,4 @@ There will be hexagons. And more!
 + . 
 
 
-+ ^^^The ^^^eventual ^^^goal ^^^of ^^^the ^^^game ^^^is ^^^to ^^^have ^^^fun.
++ The eventual goal of the game is to have fun.
