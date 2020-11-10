@@ -8,7 +8,7 @@
 
 module Hexagon(hexagon ,
               HexagonSettings,
-              defHex, hexagon_postion, hexagon_size) where
+              defHex, hexagon_postion, hexagon_size, renderTile) where
 
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
@@ -21,11 +21,14 @@ import Data.Word
 import qualified Font
 import Data.Foldable
 import Data.Text(Text)
+import qualified Data.Text as Text
+import Grid
+import Text.Printf
 
 data HexagonSettings = HexagonSettings
   { _hexagon_postion :: Point V2 CInt
   , _hexagon_size    :: V2 CInt
-  , _hesagon_label   :: Maybe Text
+  , _hexagon_label   :: Maybe Text
   }
 makeLenses ''HexagonSettings
 
@@ -41,7 +44,7 @@ defHex :: HexagonSettings
 defHex = HexagonSettings
   { _hexagon_postion = _Point # V2 150 150
   , _hexagon_size    = V2 80 45
-  , _hesagon_label   = Just "1,4"
+  , _hexagon_label   = Nothing
   }
 
 -- | Calc the points to render, we are pointy top.
@@ -92,7 +95,6 @@ someColor :: V4 Word8
 someColor = V4 128 128 128 255
 
 -- TODO:
--- 2. grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 hexagon :: ReflexSDL2 t m
       => MonadReader Renderer m => DynamicWriter t [Layer m] m
@@ -104,7 +106,7 @@ hexagon settings = do
   commitLayer $ ffor evPB $ const $ do
     rendererDrawColor r $= someColor
     drawLines r points
-    for_ (settings ^. hesagon_label) $ \text -> do
+    for_ (settings ^. hexagon_label) $ \text -> do
       textSurface <- Font.solid font someColor text
       fontSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
       textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
@@ -113,3 +115,21 @@ hexagon settings = do
   pure ()
   where
     points = calcPoints settings
+
+renderTile :: Tile -> HexagonSettings
+renderTile tile = hexagon_postion .~ (_Point # V2 x y)
+                $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
+                $ defHex
+  where
+    x :: CInt
+    x = floor $ (fromIntegral $ defHex ^. hexagon_size . _x) *
+      (sqrt3 * (fromIntegral $ tile ^. _q) + sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
+
+    y :: CInt
+    y = floor $ 3.0 / two * (fromIntegral $ tile ^. _r)
+
+    two :: Double
+    two = 2.0
+
+sqrt3 :: Double
+sqrt3 = sqrt 3.0

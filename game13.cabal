@@ -28,6 +28,7 @@ library
       Button
       Font
       Game13
+      Grid
       Guest
       Hexagon
       Layer
@@ -40,6 +41,7 @@ library
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , containers
     , file-embed
     , lens
     , mtl
@@ -62,6 +64,7 @@ executable exe
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , containers
     , file-embed
     , game13
     , lens
@@ -87,6 +90,7 @@ test-suite unit
   build-depends:
       base >=4.7 && <5
     , bytestring
+    , containers
     , file-embed
     , game13
     , hspec

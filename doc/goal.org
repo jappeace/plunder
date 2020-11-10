@@ -1,0 +1,3 @@
+* DONE LABEL
+* TODO grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
+* TODO detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex

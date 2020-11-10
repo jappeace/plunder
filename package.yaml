@@ -58,6 +58,7 @@ dependencies:
 - sdl2-ttf
 - file-embed
 - text
+- containers
 
 library:
   source-dirs: src

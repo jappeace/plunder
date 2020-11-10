@@ -15,6 +15,8 @@ import Button
 import Layer
 import Control.Lens
 import Hexagon
+import Data.Foldable
+import Grid
 
 motionToColor :: InputMotion -> V4 Int
 motionToColor Released = V4 255 0 0   128
@@ -37,7 +39,8 @@ guest = do
   ------------------------------------------------------------------------------
   -- Get a handle on our renderer
   ------------------------------------------------------------------------------
-  hexagon defHex
+
+  traverse_ (hexagon . renderTile) $ unGrid initialGrid
 
   ------------------------------------------------------------------------------
   -- A button!
