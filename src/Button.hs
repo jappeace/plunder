@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TemplateHaskell #-}
+
 module Button(button,
               ButtonState(..),
               ButtonSettings,

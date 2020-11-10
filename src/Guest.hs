@@ -7,13 +7,10 @@
 {-# LANGUAGE UndecidableInstances  #-}
 module Guest where
 
-import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
 import           Reflex
 import           Reflex.SDL2
-import Button
 import Layer
-import Control.Lens
 import Hexagon
 import Data.Foldable
 import Grid
@@ -36,18 +33,4 @@ guest = do
   performEvent_ $ ffor evPB $ \() ->
     liftIO $ putStrLn "starting up..."
 
-  ------------------------------------------------------------------------------
-  -- Get a handle on our renderer
-  ------------------------------------------------------------------------------
-
   traverse_ (hexagon . renderTile) $ unGrid initialGrid
-
-  ------------------------------------------------------------------------------
-  -- A button!
-  ------------------------------------------------------------------------------
-  evBtnState <- button defButton
-  let evBtnPressed = fmapMaybe (guard . (== ButtonStateDown)) evBtnState
-  performEvent_ $ ffor evBtnPressed $ const $ liftIO $ putStrLn "Button pressed!"
-
-  evButtonTwo <- button $ button_postion .~ V2 300 200 $ defButton
-  performEvent_ $ ffor (fmapMaybe (guard . (== ButtonStateDown)) evButtonTwo ) $ const $ liftIO $ putStrLn "Button pressed!"

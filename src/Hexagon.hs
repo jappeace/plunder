@@ -116,6 +116,7 @@ hexagon settings = do
   where
     points = calcPoints settings
 
+-- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 renderTile :: Tile -> HexagonSettings
 renderTile tile = hexagon_postion .~ (_Point # V2 x y)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
@@ -128,14 +129,24 @@ renderTile tile = hexagon_postion .~ (_Point # V2 x y)
     y :: CInt
     y = floor $ size_y * (3.0 / two * (fromIntegral $ tile ^. _r))
 
-    size_x :: Double
-    size_x = (fromIntegral $ defHex ^. hexagon_size . _x) * (1/ sqrt3)
-
-    size_y :: Double
-    size_y = (fromIntegral $ defHex ^. hexagon_size . _y) * (0.87)
 
     two :: Double
     two = 2.0
+size_x :: Double
+size_x = (fromIntegral $ defHex ^. hexagon_size . _x) * (1/ sqrt3)
+
+size_y :: Double
+size_y = (fromIntegral $ defHex ^. hexagon_size . _y) * (0.87)
+
+-- https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
+detectTile :: Point V2 CInt -> Tile
+detectTile (P (V2 x y)) = Tile q r
+  where
+    -- TODO Implement size properly, this math is crazy
+    q :: Int
+    q = floor $ (sqrt(3)/3 * fromIntegral x - 1/3 * fromIntegral y) / size_x
+    r :: Int
+    r = floor $ 0
 
 sqrt3 :: Double
 sqrt3 = sqrt 3.0
