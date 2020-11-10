@@ -122,11 +122,17 @@ renderTile tile = hexagon_postion .~ (_Point # V2 x y)
                 $ defHex
   where
     x :: CInt
-    x = floor $ (fromIntegral $ defHex ^. hexagon_size . _x) *
+    x = floor $ size_x *
       (sqrt3 * (fromIntegral $ tile ^. _q) + sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
 
     y :: CInt
-    y = floor $ 3.0 / two * (fromIntegral $ tile ^. _r)
+    y = floor $ size_y * (3.0 / two * (fromIntegral $ tile ^. _r))
+
+    size_x :: Double
+    size_x = (fromIntegral $ defHex ^. hexagon_size . _x) * (1/ sqrt3)
+
+    size_y :: Double
+    size_y = (fromIntegral $ defHex ^. hexagon_size . _y) * (0.87)
 
     two :: Double
     two = 2.0

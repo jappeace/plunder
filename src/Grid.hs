@@ -11,6 +11,7 @@ module Grid(Grid(..), Tile(..), initialGrid, _r, _q) where
 import qualified Data.Map.Strict as SMap
 import Data.Map.Strict(Map)
 import           Control.Lens
+import Control.Monad
 
 newtype Grid = Grid { unGrid :: Map Tile Tile }
 
@@ -24,7 +25,10 @@ makeLenses ''Tile
 
 -- level
 initialGrid :: Grid
-initialGrid = Grid $ SMap.fromList $ (\x -> (Tile x x, Tile x x)) <$> size
+initialGrid = Grid $ SMap.fromList $ do
+  q <- size
+  r <- size
+  pure $ (Tile q r, Tile q r)
 
 size :: [Int]
 size = [0..6]
