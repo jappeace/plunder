@@ -33,4 +33,4 @@ guest = do
   performEvent_ $ ffor evPB $ \() ->
     liftIO $ putStrLn "starting up..."
 
-  traverse_ (hexagon . renderTile) $ unGrid initialGrid
+  traverse_ (hexagon . (renderTile defaultSize)) $ unGrid initialGrid
