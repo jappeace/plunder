@@ -1,10 +1,5 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Guest where
 
 import           Control.Monad.Reader (MonadReader (..))
@@ -14,6 +9,11 @@ import Layer
 import Hexagon
 import Data.Foldable
 import Grid
+import           Control.Lens
+import           Data.Generics.Product
+import           Data.Generics.Sum
+import Data.Int
+import Control.Monad
 
 motionToColor :: InputMotion -> V4 Int
 motionToColor Released = V4 255 0 0   128
@@ -24,13 +24,34 @@ renderAABB r color pos = do
   rendererDrawColor r $= (fromIntegral <$> color)
   fillRect r $ Just $ Rectangle (P $ fromIntegral <$> pos - 10) 20
 
-guest
-  :: ReflexSDL2 t m => DynamicWriter t [Layer m] m => MonadReader Renderer m
+leftClick :: Prism' MouseButton ()
+leftClick = _Ctor @"ButtonLeft"
+
+mouseButtons :: Lens' MouseButtonEventData MouseButton
+mouseButtons = field @"mouseButtonEventButton"
+
+mousePositions :: Lens' MouseButtonEventData (Point V2 Int32)
+mousePositions = field @"mouseButtonEventPos"
+
+guest :: forall t m . ReflexSDL2 t m => DynamicWriter t [Layer m] m => MonadReader Renderer m
   =>  m ()
 guest = do
   -- Print some stuff after the network is built.
   evPB <- getPostBuild
+  mouseButtonEvt <- getMouseButtonEvent
+
   performEvent_ $ ffor evPB $ \() ->
     liftIO $ putStrLn "starting up..."
 
-  traverse_ (hexagon . (renderTile defaultSize)) $ unGrid initialGrid
+  let evts ::  Event t MouseButtonEventData
+      evts = ffilter (has (mouseButtons.leftClick)) mouseButtonEvt
+  void $ holdView (renderWithTile Nothing) $ renderWithTile . Just . selectedTile <$> evts
+
+renderWithTile :: forall t m . ReflexSDL2 t m =>  DynamicWriter t [Layer m] m =>
+  MonadReader Renderer m => Maybe Tile ->  m ()
+renderWithTile _mtile = do
+  liftIO $ putStrLn $ "selecitng " <> show _mtile
+  traverse_ (hexagon . renderTile) $ unGrid initialGrid
+
+selectedTile :: MouseButtonEventData -> Tile
+selectedTile = detectTile . fmap fromIntegral . view mousePositions

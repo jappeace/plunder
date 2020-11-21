@@ -8,7 +8,7 @@
 
 module Hexagon(hexagon ,
               HexagonSettings,
-              defHex, hexagon_postion, hexagon_size, renderTile, defaultSize
+              defHex, hexagon_postion, renderTile, detectTile
               ) where
 
 import           Control.Lens
@@ -28,7 +28,6 @@ import Text.Printf
 
 data HexagonSettings = HexagonSettings
   { _hexagon_postion :: Point V2 CInt
-  , _hexagon_size    :: Int
   , _hexagon_label   :: Maybe Text
   }
 makeLenses ''HexagonSettings
@@ -36,16 +35,14 @@ makeLenses ''HexagonSettings
 quotV2 :: V2 CInt -> V2 CInt -> V2 CInt
 quotV2 (V2 x y) (V2 x2 y2) = V2 (x `quot` x2) $ y `quot` y2
 
-defaultSize :: Int
-defaultSize = 80
+size :: Int
+size = 80
 
 defHex :: HexagonSettings
 defHex = HexagonSettings
   { _hexagon_postion = _Point # V2 150 150
-  , _hexagon_size    = defaultSize
   , _hexagon_label   = Nothing
   }
-
 
 -- | The corners of a hexagon labeled.
 --
@@ -72,7 +69,8 @@ cornerToDegree = \case
 
 -- https://www.redblobgames.com/grids/hexagons/#angles
 pointyHexCorner :: Point V2 CInt -> Int -> HexCorner -> Point V2 CInt
-pointyHexCorner (P (V2 x y)) size corner = (P $ V2 (x + (floor $ fromIntegral size * cos rad)) (y + (floor $ fromIntegral size * sin rad)))
+pointyHexCorner (P (V2 x y)) size corner =
+  (P $ V2 (x + (floor $ fromIntegral size * cos rad)) (y + (floor $ fromIntegral size * sin rad)))
     where
       degree :: Double
       degree = fromIntegral $ cornerToDegree corner
@@ -83,7 +81,7 @@ pointyHexCorner (P (V2 x y)) size corner = (P $ V2 (x + (floor $ fromIntegral si
 --  https://www.redblobgames.com/grids/hexagons/#basics
 calcPoints :: HexagonSettings -> S.Vector (Point V2 CInt)
 calcPoints settings = do
-   S.fromList $ pointyHexCorner (settings ^. hexagon_postion) (settings ^. hexagon_size) <$> allCorners
+   S.fromList $ pointyHexCorner (settings ^. hexagon_postion) size <$> allCorners
   where
     allCorners :: [HexCorner]
     allCorners = [minBound..maxBound]
@@ -114,10 +112,9 @@ hexagon settings = do
     points = calcPoints settings
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-renderTile :: Int -> Tile -> HexagonSettings
-renderTile size tile = hexagon_postion .~ (_Point # V2 x y)
+renderTile :: Tile -> HexagonSettings
+renderTile tile = hexagon_postion .~ (_Point # V2 x y)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
-                $ hexagon_size .~ size
                 $ defHex
   where
     x :: CInt
@@ -127,19 +124,18 @@ renderTile size tile = hexagon_postion .~ (_Point # V2 x y)
     y :: CInt
     y = floor $ fromIntegral size * (3.0 / two * (fromIntegral $ tile ^. _r))
 
-
     two :: Double
     two = 2.0
 
 -- https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
--- detectTile :: Point V2 CInt -> Tile
--- detectTile (P (V2 x y)) = Tile q r
---   where
---     -- TODO Implement size properly, this math is crazy
---     q :: Int
---     q = floor $ (sqrt(3)/3 * fromIntegral x - 1/3 * fromIntegral y) / size_x
---     r :: Int
---     r = floor $ 0
+detectTile :: Point V2 CInt -> Tile
+detectTile (P (V2 x y)) = Tile q r
+  where
+    -- TODO Implement size properly, this math is crazy
+    q :: Int
+    q = floor $ (sqrt(3)/3 * fromIntegral x - 1/3 * fromIntegral y) / fromIntegral size
+    r :: Int
+    r = floor $ (2.0/3 * fromIntegral y) / fromIntegral size
 
 sqrt3 :: Double
 sqrt3 = sqrt 3.0

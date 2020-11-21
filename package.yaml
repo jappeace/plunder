@@ -59,6 +59,7 @@ dependencies:
 - file-embed
 - text
 - containers
+- generic-lens
 
 library:
   source-dirs: src

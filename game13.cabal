@@ -43,6 +43,7 @@ library
     , bytestring
     , containers
     , file-embed
+    , generic-lens
     , lens
     , mtl
     , reflex
@@ -67,6 +68,7 @@ executable exe
     , containers
     , file-embed
     , game13
+    , generic-lens
     , lens
     , mtl
     , reflex
@@ -93,6 +95,7 @@ test-suite unit
     , containers
     , file-embed
     , game13
+    , generic-lens
     , hspec
     , hspec-core
     , lens

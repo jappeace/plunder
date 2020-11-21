@@ -1,10 +1,4 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE TypeFamilies          #-}
 
 module Grid(Grid(..), Tile(..), initialGrid, _r, _q) where
 
@@ -19,7 +13,7 @@ newtype Grid = Grid { unGrid :: Map Tile Tile }
 data Tile = Tile
   { __q :: Int
   , __r :: Int
-  } deriving (Eq, Ord)
+  } deriving (Eq, Ord, Show)
 
 makeLenses ''Tile
 
