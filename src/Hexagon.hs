@@ -8,23 +8,23 @@
 
 module Hexagon(hexagon ,
               HexagonSettings,
-              defHex, hexagon_postion, renderTile, detectTile
+              defHex, hexagon_postion, renderTile, detectTile, detectPoint
               ) where
 
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
+import           Data.Foldable
+import           Data.Text            (Text)
+import qualified Data.Text            as Text
 import qualified Data.Vector.Storable as S
+import           Data.Word
+import qualified Font
 import           Foreign.C.Types      (CInt)
+import           Grid
 import           Layer
 import           Reflex
 import           Reflex.SDL2
-import Data.Word
-import qualified Font
-import Data.Foldable
-import Data.Text(Text)
-import qualified Data.Text as Text
-import Grid
-import Text.Printf
+import           Text.Printf
 
 data HexagonSettings = HexagonSettings
   { _hexagon_postion :: Point V2 CInt
@@ -113,9 +113,12 @@ hexagon settings = do
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 renderTile :: Tile -> HexagonSettings
-renderTile tile = hexagon_postion .~ (_Point # V2 x y)
+renderTile tile = hexagon_postion .~ (detectPoint tile)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
                 $ defHex
+
+detectPoint :: Tile -> Point V2 CInt
+detectPoint tile = (P $ V2 x y)
   where
     x :: CInt
     x = floor $ fromIntegral size *

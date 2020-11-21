@@ -1,11 +1,13 @@
-{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Grid(Grid(..), Tile(..), initialGrid, _r, _q) where
 
-import qualified Data.Map.Strict as SMap
-import Data.Map.Strict(Map)
 import           Control.Lens
-import Control.Monad
+import           Control.Monad
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as SMap
+import           GHC.Generics    (Generic)
+
 
 newtype Grid = Grid { unGrid :: Map Tile Tile }
 
@@ -13,7 +15,7 @@ newtype Grid = Grid { unGrid :: Map Tile Tile }
 data Tile = Tile
   { __q :: Int
   , __r :: Int
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Generic)
 
 makeLenses ''Tile
 

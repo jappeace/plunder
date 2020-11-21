@@ -84,3 +84,4 @@ tests:
     - hspec
     - hspec-core
     - game13
+    - QuickCheck
