@@ -69,8 +69,8 @@ cornerToDegree = \case
 
 -- https://www.redblobgames.com/grids/hexagons/#angles
 pointyHexCorner :: Point V2 CInt -> Int -> HexCorner -> Point V2 CInt
-pointyHexCorner (P (V2 x y)) size corner =
-  (P $ V2 (x + (floor $ fromIntegral size * cos rad)) (y + (floor $ fromIntegral size * sin rad)))
+pointyHexCorner (P (V2 x y)) size' corner =
+  (P $ V2 (x + (floor $ fromIntegral size' * cos rad)) (y + (floor $ fromIntegral size' * sin rad)))
     where
       degree :: Double
       degree = fromIntegral $ cornerToDegree corner
@@ -117,28 +117,37 @@ renderTile tile = hexagon_postion .~ (detectPoint tile)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
                 $ defHex
 
+-- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 detectPoint :: Tile -> Point V2 CInt
 detectPoint tile = (P $ V2 x y)
   where
     x :: CInt
     x = floor $ fromIntegral size *
-      (sqrt3 * (fromIntegral $ tile ^. _q) + sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
+      ((sqrt3 * (fromIntegral $ tile ^. _q))
+       +
+       (sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
+      )
 
     y :: CInt
-    y = floor $ fromIntegral size * (3.0 / two * (fromIntegral $ tile ^. _r))
-
-    two :: Double
-    two = 2.0
+    y = floor $ fromIntegral size *
+      (3.0 / two * (fromIntegral $ tile ^. _r))
 
 -- https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 detectTile :: Point V2 CInt -> Tile
-detectTile (P (V2 x y)) = Tile q r
+detectTile (P vec) = roundTile q r
   where
     -- TODO Implement size properly, this math is crazy
-    q :: Int
-    q = floor $ (sqrt(3)/3 * fromIntegral x - 1/3 * fromIntegral y) / fromIntegral size
-    r :: Int
-    r = floor $ (2.0/3 * fromIntegral y) / fromIntegral size
+    q :: Double
+    q = (
+      (sqrt3 / 3) * fromIntegral x - (1/3) * fromIntegral y) / fromIntegral size
+    r :: Double
+    r = ((two/3) * fromIntegral y) / fromIntegral size
+
+    y = vec ^. _y
+    x = vec ^. _x
 
 sqrt3 :: Double
 sqrt3 = sqrt 3.0
+
+two :: Double
+two = 2.0

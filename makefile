@@ -55,3 +55,6 @@ bundle:
 	rm -f result
 	nix-build nix/bundle.nix
 	mv result template
+
+test:
+	cabal new-test --ghc-options "-O0"
