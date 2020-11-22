@@ -49,6 +49,7 @@ library
     , reflex
     , reflex-sdl2
     , sdl2
+    , sdl2-gfx
     , sdl2-ttf
     , text
     , vector
@@ -74,6 +75,7 @@ executable exe
     , reflex
     , reflex-sdl2
     , sdl2
+    , sdl2-gfx
     , sdl2-ttf
     , text
     , vector
@@ -106,6 +108,7 @@ test-suite unit
     , reflex
     , reflex-sdl2
     , sdl2
+    , sdl2-gfx
     , sdl2-ttf
     , text
     , vector

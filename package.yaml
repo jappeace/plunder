@@ -60,6 +60,7 @@ dependencies:
 - text
 - containers
 - generic-lens
+- sdl2-gfx
 
 library:
   source-dirs: src

@@ -21,21 +21,24 @@ where
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
 import           Data.Foldable
+import           Data.Int
 import           Data.Text            (Text)
 import qualified Data.Text            as Text
 import qualified Data.Vector.Storable as S
-import           Data.Word
 import qualified Font
 import           Foreign.C.Types      (CInt)
 import           Grid
 import           Layer
 import           Reflex
 import           Reflex.SDL2
+import           SDL.Primitive
 import           Text.Printf
 
 data HexagonSettings = HexagonSettings
-  { _hexagon_postion :: Point V2 CInt
-  , _hexagon_label   :: Maybe Text
+  { _hexagon_postion   :: Point V2 CInt
+  , _hexagon_label     :: Maybe Text
+  , _hexagon_color     :: Color
+  , _hexagon_is_filled :: Bool
   }
 makeLenses ''HexagonSettings
 
@@ -48,6 +51,8 @@ hexSize = 80
 defHex :: HexagonSettings
 defHex = HexagonSettings { _hexagon_postion = _Point # V2 150 150
                          , _hexagon_label   = Nothing
+                         , _hexagon_color   = V4 128 128 128 255
+                        , _hexagon_is_filled = False
                          }
 
 -- | The corners of a hexagon labeled.
@@ -87,17 +92,17 @@ pointyHexCorner (P (V2 x y)) hexSize' corner =
 
 -- | Calc the points to render, we are pointy top.
 --  https://www.redblobgames.com/grids/hexagons/#basics
-calcPoints :: HexagonSettings -> S.Vector (Point V2 CInt)
-calcPoints settings = do
-  S.fromList
-    $   pointyHexCorner (settings ^. hexagon_postion) hexSize
-    <$> allCorners
+calcPoints :: HexagonSettings -> (S.Vector Int16, S.Vector Int16)
+calcPoints settings =
+  ( S.fromList $ fromIntegral . view _x <$> points
+  , S.fromList $ fromIntegral . view _y <$> points
+  )
  where
+  points :: [Point V2 CInt]
+  points =  pointyHexCorner (settings ^. hexagon_postion) hexSize <$> allCorners
   allCorners :: [HexCorner]
   allCorners = [minBound .. maxBound]
 
-someColor :: V4 Word8
-someColor = V4 128 128 128 255
 
 -- TODO:
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
@@ -110,10 +115,9 @@ hexagon settings = do
   font <- Font.defaultFont
   evPB <- holdDyn () =<< getPostBuild
   commitLayer $ ffor evPB $ const $ do
-    rendererDrawColor r $= someColor
-    drawLines r points
+    polgyonF r xPoints yPoints $ settings ^. hexagon_color
     for_ (settings ^. hexagon_label) $ \text -> do
-      textSurface <- Font.solid font someColor text
+      textSurface <- Font.solid font (settings ^. hexagon_color) text
       fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
       textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
       freeSurface textSurface
@@ -126,7 +130,9 @@ hexagon settings = do
             )
         $ fontHexSize
   pure ()
-  where points = calcPoints settings
+  where
+    (xPoints, yPoints) = calcPoints settings
+    polgyonF = if settings ^. hexagon_is_filled then fillPolygon else polygon
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 renderTile :: Tile -> HexagonSettings
