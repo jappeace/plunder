@@ -8,3 +8,5 @@ TAGS
 
 *.hi
 *.o
+
+assets/img/*
