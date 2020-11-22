@@ -5,6 +5,9 @@
 [![Githbu actions build status](https://img.shields.io/github/workflow/status/jappeace/haskell-template-project/Test)](https://github.com/jappeace/haskell-template-project/actions)
 [![Jappiejappie](https://img.shields.io/badge/discord-jappiejappie-black?logo=discord)](https://discord.gg/Hp4agqy)
 
+> We are the music makers and we are the dreamers of the dreams.
+> - Willy Wonka
+
 The primary goal of this project is to make a game that is fun.
 
 # Goals
@@ -16,7 +19,21 @@ This is a small breakdown of things I'll build next.
 + [ ] character can be ordered to move to another tile (indicated by an arrow?)
 + [ ] Character move after pressing the next turn button.
 
+# Motivation for project
 
+I've made several halve complete games in the passed,
+while all either technically impressive
+or architectually interesting.
+None of them were fun.
+
+So rather then making something impressive,
+I want to make something fun this time.
+I'm quite sure I can do this.
+I just need to know what fun is.
+
+The current name is a code name.
+It's also a joke on that I've already gained a fair bit of experience in this,
+but never actually released anything to *anyone* else.
 
 # Research into game design
 ## Basics vid
@@ -38,16 +55,3 @@ https://www.youtube.com/watch?v=dHMNeNapL1E
 
 It tells me to not worry to much about design.
 So let's write down something simple for now and stop this.
-
-# Motivation for project
-
-I've made several halve complete games in the passed,
-while all either technically impressive
-or architectually interesting.
-None of them were fun.
-
-
-So rather then making something impressive,
-I want to make something fun this time.
-I'm quite sure I can do this.
-I just need to know what fun is.
