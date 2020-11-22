@@ -7,3 +7,7 @@
 ** DONE Fill the polygon
 *** DONE Make sure the polygon fills in the final edge between maxBound minBound
 
+* TODO Load an image
+https://hackage.haskell.org/package/sdl2-2.5.2.0/docs/SDL-Raw-Video.html#v:loadBMP
+* TODO Display image on a hexagon
+* TODO Make an overlay to display info
