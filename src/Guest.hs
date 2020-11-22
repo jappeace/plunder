@@ -54,9 +54,16 @@ renderWithTile
    . ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => MonadReader Renderer m => Maybe Tile -> m ()
-renderWithTile _mtile = do
-  liftIO $ putStrLn $ "selecitng " <> show _mtile
-  traverse_ (hexagon . renderTile) $ unGrid initialGrid
+renderWithTile tile =
+  traverse_ (hexagon . maybe renderTile render tile) $ unGrid initialGrid
+
+render :: Tile -> Tile -> HexagonSettings
+render selected x = if selected /= x then def_settings else
+  (hexagon_color .~ V4 255 128 128 255) $
+  (hexagon_is_filled .~ True) $
+  def_settings
+  where
+    def_settings = renderTile x
 
 selectedTile :: MouseButtonEventData -> Tile
 selectedTile = pixelToTile . fmap fromIntegral . view mousePositions

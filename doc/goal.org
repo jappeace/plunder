@@ -3,6 +3,7 @@
 
 * DONE detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 * DONE Fix Quicckehck test
-* TODO Show selected tile on screen
-** TODO Fill the polygon
-*** TODO Make sure the polygon fills in the final edge between maxBound minBound
+* DONE Show selected tile on screen
+** DONE Fill the polygon
+*** DONE Make sure the polygon fills in the final edge between maxBound minBound
+

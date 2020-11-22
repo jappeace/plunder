@@ -11,6 +11,8 @@ module Hexagon
   , HexagonSettings
   , defHex
   , hexagon_postion
+  , hexagon_color
+  , hexagon_is_filled
   , renderTile
   , pixelToTile
   , tileToPixel
