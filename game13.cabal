@@ -31,6 +31,7 @@ library
       Grid
       Guest
       Hexagon
+      Image
       Layer
   other-modules:
       Paths_game13
@@ -50,6 +51,7 @@ library
     , reflex-sdl2
     , sdl2
     , sdl2-gfx
+    , sdl2-image
     , sdl2-ttf
     , text
     , vector
@@ -76,6 +78,7 @@ executable exe
     , reflex-sdl2
     , sdl2
     , sdl2-gfx
+    , sdl2-image
     , sdl2-ttf
     , text
     , vector
@@ -109,6 +112,7 @@ test-suite unit
     , reflex-sdl2
     , sdl2
     , sdl2-gfx
+    , sdl2-image
     , sdl2-ttf
     , text
     , vector

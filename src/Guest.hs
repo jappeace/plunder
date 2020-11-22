@@ -14,6 +14,7 @@ import           Data.Generics.Product
 import           Data.Generics.Sum
 import           Data.Int
 import           Control.Monad
+import Image
 
 motionToColor :: InputMotion -> V4 Int
 motionToColor Released = V4 255 0 0 128
@@ -48,6 +49,12 @@ guest = do
       evts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
   void $ holdView (renderWithTile Nothing)
        $ renderWithTile .   Just .   selectedTile <$> evts
+  viking <- loadViking
+  image $ ImageSettings {
+        _image_postion  = Rectangle (P $ V2 100 100) (V2 50 50)
+      , _image_content  = viking
+      }
+
 
 renderWithTile
   :: forall t m

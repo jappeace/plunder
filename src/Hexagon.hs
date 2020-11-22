@@ -20,6 +20,7 @@ module Hexagon
   )
 where
 
+import Image
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
 import           Data.Foldable
@@ -118,19 +119,18 @@ hexagon settings = do
   evPB <- holdDyn () =<< getPostBuild
   commitLayer $ ffor evPB $ const $ do
     polgyonF r xPoints yPoints $ settings ^. hexagon_color
-    for_ (settings ^. hexagon_label) $ \text -> do
+  for_ (settings ^. hexagon_label) $ \text -> do
       textSurface <- Font.solid font (settings ^. hexagon_color) text
       fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
       textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
       freeSurface textSurface
-      copy r textTexture Nothing
-        $ Just
-        $ Rectangle
-            (  settings
-            ^. hexagon_postion
-            -  (_Point # fontHexSize `quotV2` V2 2 (-5))
-            )
-        $ fontHexSize
+      image $ ImageSettings
+          { _image_postion   =  Rectangle
+              (  settings ^. hexagon_postion
+              -  (_Point # fontHexSize `quotV2` V2 2 (-5))
+              ) $ fontHexSize
+          , _image_content   = textTexture
+          }
   pure ()
   where
     (xPoints, yPoints) = calcPoints settings

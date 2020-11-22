@@ -61,6 +61,7 @@ dependencies:
 - containers
 - generic-lens
 - sdl2-gfx
+- sdl2-image
 
 library:
   source-dirs: src
