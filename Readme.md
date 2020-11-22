@@ -5,47 +5,50 @@
 [![Githbu actions build status](https://img.shields.io/github/workflow/status/jappeace/haskell-template-project/Test)](https://github.com/jappeace/haskell-template-project/actions)
 [![Jappiejappie](https://img.shields.io/badge/discord-jappiejappie-black?logo=discord)](https://discord.gg/Hp4agqy)
 
-## game13 Map stare game with advanced ⬡⬡⬡ hexagons ⬡⬡⬡ 
+The primary goal of this project is to make a game that is fun.
 
-There will be hexagons. And more!
+# Goals
 
-### Current features
++ Display a character on the grid.
++ character can be ordered to move to another tile (indicated by an arrow?)
++ Character move after pressing the next turn button.
 
-+ We can render a hexagon
+# Features
 
-
-### Roadmap
-
-+ Rumors say there maybe a hexagon GRID.
-
-
-
-+ ....
++ ⬡⬡⬡ hexagons ⬡⬡⬡ grid.
++ Click detection on hex.
 
 
-+ ...
+# Research into game design
+## Basics vid
+https://www.youtube.com/watch?v=z06QR-tz1_o
+Scope: Keep it small and simple
++ First goal is to make something I can play ASAP
+
+Don't lock into a single idea.
+Only build things I'm pretty sure I can do (no 3d lol).
+
+If stuck ask people.
+
+Design around resources. In this case my skills.
+So we probably want to use fewer assets or i should just practice making artwork.
+Shouldn't be to hard.
+
+## Make rules
+https://www.youtube.com/watch?v=dHMNeNapL1E
+
+It tells me to not worry to much about design.
+So let's write down something simple for now and stop this.
+
+# Motivation for project
+
+I've made several halve complete games in the passed,
+while all either technically impressive
+or architectually interesting.
+None of them were fun.
 
 
-
-
-
-
-
-
-
-
-
-+ ....
-
-
-
-+ .
-
-
-
-
-
-+ . 
-
-
-+ The eventual goal of the game is to have fun.
+So rather then making something impressive,
+I want to make something fun this time.
+I'm quite sure I can do this.
+I just need to know what fun is.
