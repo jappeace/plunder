@@ -8,15 +8,14 @@
 The primary goal of this project is to make a game that is fun.
 
 # Goals
+This is a small breakdown of things I'll build next.
 
-+ Display a character on the grid.
-+ character can be ordered to move to another tile (indicated by an arrow?)
-+ Character move after pressing the next turn button.
++ [x] ⬡⬡⬡ hexagons ⬡⬡⬡ grid.
++ [x] Click detection on hex.
++ [ ] Display a character on the grid.
++ [ ] character can be ordered to move to another tile (indicated by an arrow?)
++ [ ] Character move after pressing the next turn button.
 
-# Features
-
-+ ⬡⬡⬡ hexagons ⬡⬡⬡ grid.
-+ Click detection on hex.
 
 
 # Research into game design
