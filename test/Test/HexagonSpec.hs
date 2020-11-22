@@ -27,6 +27,7 @@ isoTile tile = counterexample (printf "actual result: %s" $ show other) $
 
 isoPoint :: Point V2 CInt -> Property
 isoPoint point' = counterexample (printf "actual result: %s" $ show other) $
-  other == point'
+  other + (P $ V2 (fromIntegral hexSize) $ fromIntegral hexSize) > point' &&
+    other - (P $ V2 (fromIntegral hexSize) $ fromIntegral hexSize) < point'
   where
     other = tileToPixel $ pixelToTile point'

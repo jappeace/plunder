@@ -2,6 +2,5 @@
 * DONE grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
 
 * DONE detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
-* TODO Quicckehck
-  forall \ tile -> (detectTile $ renderTile tile) === tile
+* DONE Fix Quicckehck test
 * TODO Show selected tile on screen
