@@ -16,7 +16,9 @@ This is a small breakdown of things I'll build next.
 
 + [x] ⬡⬡⬡ hexagons ⬡⬡⬡ grid.
 + [x] Click detection on hex.
-+ [ ] Display a character on the grid.
++ [ ] Display a character
+   +    [x] Display
+   +    [ ] on the grid.
 + [ ] character can be ordered to move to another tile (indicated by an arrow?)
 + [ ] Character move after pressing the next turn button.
 
