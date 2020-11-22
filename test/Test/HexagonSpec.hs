@@ -23,10 +23,10 @@ isoTile :: Tile -> Property
 isoTile tile = counterexample (printf "actual result: %s" $ show other) $
   other == tile
   where
-    other = detectTile $ detectPoint tile
+    other = pixelToTile $ tileToPixel tile
 
 isoPoint :: Point V2 CInt -> Property
 isoPoint point' = counterexample (printf "actual result: %s" $ show other) $
   other == point'
   where
-    other = detectPoint $ detectTile point'
+    other = tileToPixel $ pixelToTile point'

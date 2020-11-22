@@ -54,4 +54,4 @@ renderWithTile _mtile = do
   traverse_ (hexagon . renderTile) $ unGrid initialGrid
 
 selectedTile :: MouseButtonEventData -> Tile
-selectedTile = detectTile . fmap fromIntegral . view mousePositions
+selectedTile = pixelToTile . fmap fromIntegral . view mousePositions

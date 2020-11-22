@@ -6,10 +6,17 @@
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Hexagon(hexagon ,
-              HexagonSettings,
-              defHex, hexagon_postion, renderTile, detectTile, detectPoint
-              ) where
+module Hexagon
+  ( hexagon
+  , HexagonSettings
+  , defHex
+  , hexagon_postion
+  , renderTile
+  , pixelToTile
+  , tileToPixel
+  , hexSize
+  )
+where
 
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
@@ -35,14 +42,13 @@ makeLenses ''HexagonSettings
 quotV2 :: V2 CInt -> V2 CInt -> V2 CInt
 quotV2 (V2 x y) (V2 x2 y2) = V2 (x `quot` x2) $ y `quot` y2
 
-size :: Int
-size = 80
+hexSize :: Int
+hexSize = 80
 
 defHex :: HexagonSettings
-defHex = HexagonSettings
-  { _hexagon_postion = _Point # V2 150 150
-  , _hexagon_label   = Nothing
-  }
+defHex = HexagonSettings { _hexagon_postion = _Point # V2 150 150
+                         , _hexagon_label   = Nothing
+                         }
 
 -- | The corners of a hexagon labeled.
 --
@@ -60,91 +66,100 @@ data HexCorner = TopRightPoint
 
 cornerToDegree :: HexCorner -> Int
 cornerToDegree = \case
-              TopRightPoint     -> 330
-              BottomRightPoint  -> 30
-              BottomPoint       -> 90
-              BottomLeftPoint   -> 150
-              TopLeftPoint      -> 210
-              TopPoint          -> 270
+  TopRightPoint    -> 330
+  BottomRightPoint -> 30
+  BottomPoint      -> 90
+  BottomLeftPoint  -> 150
+  TopLeftPoint     -> 210
+  TopPoint         -> 270
 
 -- https://www.redblobgames.com/grids/hexagons/#angles
 pointyHexCorner :: Point V2 CInt -> Int -> HexCorner -> Point V2 CInt
-pointyHexCorner (P (V2 x y)) size' corner =
-  (P $ V2 (x + (floor $ fromIntegral size' * cos rad)) (y + (floor $ fromIntegral size' * sin rad)))
-    where
-      degree :: Double
-      degree = fromIntegral $ cornerToDegree corner
-      rad :: Double
-      rad = pi / 180 * (degree)
+pointyHexCorner (P (V2 x y)) hexSize' corner =
+  (P $ V2 (x + (floor $ fromIntegral hexSize' * cos rad))
+          (y + (floor $ fromIntegral hexSize' * sin rad))
+  )
+ where
+  degree :: Double
+  degree = fromIntegral $ cornerToDegree corner
+  rad :: Double
+  rad = pi / 180 * (degree)
 
 -- | Calc the points to render, we are pointy top.
 --  https://www.redblobgames.com/grids/hexagons/#basics
 calcPoints :: HexagonSettings -> S.Vector (Point V2 CInt)
 calcPoints settings = do
-   S.fromList $ pointyHexCorner (settings ^. hexagon_postion) size <$> allCorners
-  where
-    allCorners :: [HexCorner]
-    allCorners = [minBound..maxBound]
+  S.fromList
+    $   pointyHexCorner (settings ^. hexagon_postion) hexSize
+    <$> allCorners
+ where
+  allCorners :: [HexCorner]
+  allCorners = [minBound .. maxBound]
 
 someColor :: V4 Word8
 someColor = V4 128 128 128 255
 
 -- TODO:
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
-hexagon :: ReflexSDL2 t m
-      => MonadReader Renderer m => DynamicWriter t [Layer m] m
-  =>  HexagonSettings -> m ()
+hexagon
+  :: ReflexSDL2 t m
+  => MonadReader Renderer m
+  => DynamicWriter t [Layer m] m => HexagonSettings -> m ()
 hexagon settings = do
-  r <- ask
+  r    <- ask
   font <- Font.defaultFont
-  evPB         <- holdDyn () =<< getPostBuild
+  evPB <- holdDyn () =<< getPostBuild
   commitLayer $ ffor evPB $ const $ do
     rendererDrawColor r $= someColor
     drawLines r points
     for_ (settings ^. hexagon_label) $ \text -> do
       textSurface <- Font.solid font someColor text
-      fontSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
+      fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
       textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
       freeSurface textSurface
-      copy r textTexture Nothing $ Just $ Rectangle (settings ^. hexagon_postion - (_Point # fontSize `quotV2` V2 2 (-5))) $ fontSize
+      copy r textTexture Nothing
+        $ Just
+        $ Rectangle
+            (  settings
+            ^. hexagon_postion
+            -  (_Point # fontHexSize `quotV2` V2 2 (-5))
+            )
+        $ fontHexSize
   pure ()
-  where
-    points = calcPoints settings
+  where points = calcPoints settings
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 renderTile :: Tile -> HexagonSettings
-renderTile tile = hexagon_postion .~ (detectPoint tile)
+renderTile tile = hexagon_postion .~ (tileToPixel tile)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
                 $ defHex
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-detectPoint :: Tile -> Point V2 CInt
-detectPoint tile = (P $ V2 x y)
-  where
-    x :: CInt
-    x = floor $ fromIntegral size *
-      ((sqrt3 * (fromIntegral $ tile ^. _q))
-       +
-       (sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
-      )
-
-    y :: CInt
-    y = floor $ fromIntegral size *
-      (3.0 / two * (fromIntegral $ tile ^. _r))
+tileToPixel :: Tile -> Point V2 CInt
+tileToPixel tile = (P $ V2 x y)
+ where
+  x :: CInt
+  x =
+    floor
+      $ fromIntegral hexSize
+      * ( (sqrt3 * (fromIntegral $ tile ^. _q))
+        + (sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
+        )
+  y :: CInt
+  y = floor $ fromIntegral hexSize * (3.0 / two * (fromIntegral $ tile ^. _r))
 
 -- https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
-detectTile :: Point V2 CInt -> Tile
-detectTile (P vec) = roundTile q r
-  where
-    -- TODO Implement size properly, this math is crazy
-    q :: Double
-    q = (
-      (sqrt3 / 3) * fromIntegral x - (1/3) * fromIntegral y) / fromIntegral size
-    r :: Double
-    r = ((two/3) * fromIntegral y) / fromIntegral size
-
-    y = vec ^. _y
-    x = vec ^. _x
+pixelToTile :: Point V2 CInt -> Tile
+pixelToTile (P vec) = roundTile q r
+ where
+    -- TODO Implement hexSize properly, this math is crazy
+  q :: Double
+  q = ((sqrt3 / 3) * fromIntegral x - (1 / 3) * fromIntegral y)
+    / fromIntegral hexSize
+  r :: Double
+  r = ((two / 3) * fromIntegral y) / fromIntegral hexSize
+  y = vec ^. _y
+  x = vec ^. _x
 
 sqrt3 :: Double
 sqrt3 = sqrt 3.0

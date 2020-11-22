@@ -1,6 +1,7 @@
 * DONE LABEL
 * DONE grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
 
-* TODO detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
+* DONE detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 * TODO Quicckehck
   forall \ tile -> (detectTile $ renderTile tile) === tile
+* TODO Show selected tile on screen
