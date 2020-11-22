@@ -6,7 +6,7 @@
 [![Jappiejappie](https://img.shields.io/badge/discord-jappiejappie-black?logo=discord)](https://discord.gg/Hp4agqy)
 
 > We are the music makers and we are the dreamers of the dreams.
-> - Willy Wonka
+> \- Willy Wonka
 
 The primary goal of this project is to make a game that is fun.
 
