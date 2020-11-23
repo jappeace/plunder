@@ -40,25 +40,6 @@ mousePositions = field @"mouseButtonEventPos"
 initialCharPos :: Tile
 initialCharPos = Tile 2 3
 
-data ArrowKeys = ArrowUp
-               | ArrowDown
-               | ArrowLeft
-               | ArrowRight
-
-arrowKey :: Keycode -> Maybe ArrowKeys
-arrowKey KeycodeUp = Just ArrowUp
-arrowKey KeycodeDown = Just ArrowDown
-arrowKey KeycodeLeft = Just ArrowLeft
-arrowKey KeycodeRight = Just ArrowRight
-arrowKey _ = Nothing
-
-updatePlayerState :: Tile -> ArrowKeys -> Tile
-updatePlayerState tile = \case
-    ArrowUp    -> _q +~ 1 $ tile
-    ArrowDown  -> _q -~ 1 $ tile
-    ArrowLeft  -> _r +~ 1 $ tile
-    ArrowRight -> _r -~ 1 $ tile
-
 shouldCharacterMove :: Maybe Tile -> Tile -> Tile -> Bool
 shouldCharacterMove Nothing _ _ = False
 shouldCharacterMove (Just selected) towards charPos =
