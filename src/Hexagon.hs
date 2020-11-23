@@ -16,7 +16,6 @@ module Hexagon
   , renderTile
   , pixelToTile
   , tileToPixel
-  , hexSize
   )
 where
 
@@ -48,14 +47,11 @@ makeLenses ''HexagonSettings
 quotV2 :: V2 CInt -> V2 CInt -> V2 CInt
 quotV2 (V2 x y) (V2 x2 y2) = V2 (x `quot` x2) $ y `quot` y2
 
-hexSize :: Int
-hexSize = 80
-
 defHex :: HexagonSettings
 defHex = HexagonSettings { _hexagon_postion = _Point # V2 150 150
                          , _hexagon_label   = Nothing
                          , _hexagon_color   = V4 128 128 128 255
-                        , _hexagon_is_filled = False
+                         , _hexagon_is_filled = False
                          }
 
 -- | The corners of a hexagon labeled.
@@ -124,7 +120,7 @@ hexagon settings = do
       fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
       textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
       freeSurface textSurface
-      image $ ImageSettings
+      image $ pure $ ImageSettings
           { _image_postion   =  Rectangle
               (  settings ^. hexagon_postion
               -  (_Point # fontHexSize `quotV2` V2 2 (-5))
@@ -141,36 +137,3 @@ renderTile :: Tile -> HexagonSettings
 renderTile tile = hexagon_postion .~ (tileToPixel tile)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
                 $ defHex
-
--- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-tileToPixel :: Tile -> Point V2 CInt
-tileToPixel tile = (P $ V2 x y)
- where
-  x :: CInt
-  x =
-    floor
-      $ fromIntegral hexSize
-      * ( (sqrt3 * (fromIntegral $ tile ^. _q))
-        + (sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
-        )
-  y :: CInt
-  y = floor $ fromIntegral hexSize * (3.0 / two * (fromIntegral $ tile ^. _r))
-
--- https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
-pixelToTile :: Point V2 CInt -> Tile
-pixelToTile (P vec) = roundTile q r
- where
-    -- TODO Implement hexSize properly, this math is crazy
-  q :: Double
-  q = ((sqrt3 / 3) * fromIntegral x - (1 / 3) * fromIntegral y)
-    / fromIntegral hexSize
-  r :: Double
-  r = ((two / 3) * fromIntegral y) / fromIntegral hexSize
-  y = vec ^. _y
-  x = vec ^. _x
-
-sqrt3 :: Double
-sqrt3 = sqrt 3.0
-
-two :: Double
-two = 2.0

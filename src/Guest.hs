@@ -34,6 +34,28 @@ mouseButtons = field @"mouseButtonEventButton"
 mousePositions :: Lens' MouseButtonEventData (Point V2 Int32)
 mousePositions = field @"mouseButtonEventPos"
 
+initialCharPos :: Tile
+initialCharPos = Tile 2 3
+
+data ArrowKeys = ArrowUp
+               | ArrowDown
+               | ArrowLeft
+               | ArrowRight
+
+arrowKey :: Keycode -> Maybe ArrowKeys
+arrowKey KeycodeUp = Just ArrowUp
+arrowKey KeycodeDown = Just ArrowDown
+arrowKey KeycodeLeft = Just ArrowLeft
+arrowKey KeycodeRight = Just ArrowRight
+arrowKey _ = Nothing
+
+updatePlayerState :: Tile -> ArrowKeys -> Tile
+updatePlayerState tile = \case
+    ArrowUp    -> _q +~ 1 $ tile
+    ArrowDown  -> _q -~ 1 $ tile
+    ArrowLeft  -> _r +~ 1 $ tile
+    ArrowRight -> _r -~ 1 $ tile
+
 guest
   :: forall t m
    . ReflexSDL2 t m
@@ -50,10 +72,11 @@ guest = do
   void $ holdView (renderWithTile Nothing)
        $ renderWithTile .   Just .   selectedTile <$> evts
   viking <- loadViking
-  image $ ImageSettings {
-        _image_postion  = Rectangle (P $ V2 100 100) (V2 50 50)
-      , _image_content  = viking
-      }
+
+  arrowKeyEvt <- mapMaybe (arrowKey . keysymKeycode . keyboardEventKeysym) <$> getKeyboardEvent
+  dynamicPlayerPos <- accum updatePlayerState initialCharPos arrowKeyEvt
+  image $ renderImage viking <$> dynamicPlayerPos
+
 
 
 renderWithTile

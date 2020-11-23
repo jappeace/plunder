@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
-module Image(ImageSettings(..), loadViking, image) where
+module Image(ImageSettings(..), loadViking, image, renderImage ) where
 
+import Grid
 import           Reflex
 import Data.ByteString hiding (copy)
 import Control.Monad.IO.Class
@@ -28,10 +29,15 @@ makeLenses ''ImageSettings
 image :: ReflexSDL2 t m
     => MonadReader Renderer m
     => DynamicWriter t [Layer m] m
-    => ImageSettings -> m ()
-image settings = do
-  evPB <- holdDyn () =<< getPostBuild
+    => Dynamic t ImageSettings -> m ()
+image settingsDyn = do
   renderer    <- ask
-  commitLayer $ ffor evPB $ const $ do
+  commitLayer $ ffor settingsDyn $ \settings -> do
       copy renderer (settings ^. image_content) Nothing $
         settings ^? image_postion
+
+renderImage :: Texture -> Tile -> ImageSettings
+renderImage text tile = ImageSettings {
+        _image_postion  = Rectangle (tileToPixel tile) (V2 50 50)
+      , _image_content  = text
+      }
