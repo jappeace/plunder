@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 module Guest where
@@ -16,6 +17,8 @@ import           Data.Generics.Sum
 import           Data.Int
 import           Control.Monad
 import Image
+import Data.Maybe
+import Text.Printf
 
 motionToColor :: InputMotion -> V4 Int
 motionToColor Released = V4 255 0 0 128
@@ -41,24 +44,27 @@ mousePositions = field @"mouseButtonEventPos"
 initialCharPos :: Tile
 initialCharPos = Tile 2 3
 
-shouldCharacterMove :: Maybe Tile -> Tile -> Tile -> Bool
-shouldCharacterMove Nothing _ _ = False
-shouldCharacterMove (Just selected) charPos towards =
-  if selected /= charPos then
-    False
-  else
-    towards `elem`  neigbours selected
-
-updateCharacter :: Maybe Tile -> Tile -> Tile -> Tile
-updateCharacter mSelected charPos towards =
-  if shouldCharacterMove mSelected towards charPos then
-    towards
-  else charPos
-
 data GameState = GameState
-  { game_selected :: Maybe Tile
-  , game_char_pos :: Tile
-  }
+  { _game_selected :: Maybe Tile
+  , _game_char_pos :: Tile
+  } deriving Show
+makeLenses ''GameState
+
+initialState :: GameState
+initialState = GameState Nothing initialCharPos
+
+shouldCharacterMove :: GameState -> Tile -> Bool
+shouldCharacterMove state towards = fromMaybe False $ do
+  selected <- state ^. game_selected
+  pure $ (selected == state ^. game_char_pos) &&
+         towards `elem`  neigbours selected
+
+updateState :: GameState -> Tile -> GameState
+updateState state towards =
+  if shouldCharacterMove state towards then
+    game_char_pos .~ towards $ state
+  else state
+
 
 guest
   :: forall t m
@@ -87,13 +93,20 @@ guest = do
   void $ holdView (pure ())
        $ hexagon . renderSelected <$> leftCickedTile
 
-  performEvent_ $ ffor rightClickedTileEvt (\x -> liftIO $ print ("rightmouseclick", x))
   viking <- loadViking
 
-  rec dynamicPlayerPos <- holdDyn initialCharPos $ (current $ updateCharacter <$> calcMouseClickTileDyn <*> dynamicPlayerPos) <@> rightClickedTileEvt
-  performEvent_ $ ffor (updated dynamicPlayerPos) (\x -> liftIO $ print ("playerpos", x) )
-  image $ renderImage viking <$> dynamicPlayerPos
+  performEvent_ $ ffor rightClickedTileEvt (\x -> liftIO $ print ("rightmouseclick", x))
+  gameState <- mkGameState calcMouseClickTileDyn rightClickedTileEvt
 
+  performEvent_ $ ffor (updated gameState) (liftIO . putStrLn . printf "gamestate %s" . show)
+  image $ renderImage viking . view game_char_pos <$> gameState
+
+mkGameState :: forall t m . ReflexSDL2 t m => Dynamic t (Maybe Tile) -> Event t Tile -> m (Dynamic t GameState)
+mkGameState calcMouseClickTileDyn rightClickedTileEvt = do
+  rec dynamicPlayerPos <- holdDyn initialState $ (current $ updateState <$> gameState) <@> rightClickedTileEvt
+      let gameState :: Dynamic t GameState
+          gameState = GameState <$> calcMouseClickTileDyn <*> (view game_char_pos <$> dynamicPlayerPos)
+  pure dynamicPlayerPos
 
 renderSelected :: Tile -> HexagonSettings
 renderSelected = (hexagon_color .~ V4 255 128 128 255)
