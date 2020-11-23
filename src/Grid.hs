@@ -10,11 +10,11 @@ module Grid
   , tileToPixel
   , pixelToTile
   , hexSize
+  , neigbours
   )
 where
 
 import           Control.Lens
-import           Control.Monad
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
@@ -102,4 +102,17 @@ sqrt3 :: Double
 sqrt3 = sqrt 3.0
 
 two :: Double
-two = 2.0
+two = 2.0 -- no better descriptive name in the universe, magick numbers DIE!
+
+neigbours :: Tile -> [Tile]
+neigbours parent =
+       filter (\x -> not $ has (at x) $ unGrid initialGrid) $ neighList <*> [parent]
+  where
+    neighList :: [Tile -> Tile]
+    neighList = [ (_q +~ 1)
+                , (_r +~ 1)
+                , (_q -~ 1) . (_r +~ 1)
+                , (_q -~ 1)
+                , (_r -~ 1)
+                , (_q +~ 1) . (_r -~ 1)
+                ]

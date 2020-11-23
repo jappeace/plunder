@@ -28,6 +28,9 @@ renderAABB r color pos = do
 leftClick :: Prism' MouseButton ()
 leftClick = _Ctor @"ButtonLeft"
 
+rightClick :: Prism' MouseButton ()
+rightClick = _Ctor @"ButtonRight"
+
 mouseButtons :: Lens' MouseButtonEventData MouseButton
 mouseButtons = field @"mouseButtonEventButton"
 
@@ -56,6 +59,14 @@ updatePlayerState tile = \case
     ArrowLeft  -> _r +~ 1 $ tile
     ArrowRight -> _r -~ 1 $ tile
 
+shouldCharacterMove :: Maybe Tile -> Tile -> Tile -> Bool
+shouldCharacterMove Nothing _ _ = False
+shouldCharacterMove (Just selected) towards whereIsHeOn =
+  if selected /= whereIsHeOn then
+    False
+  else
+    towards `elem`  neigbours selected
+
 guest
   :: forall t m
    . ReflexSDL2 t m
@@ -67,10 +78,22 @@ guest = do
 
   performEvent_ $ ffor evPB $ \() -> liftIO $ putStrLn "starting up..."
 
-  let evts :: Event t MouseButtonEventData
-      evts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
-  void $ holdView (renderWithTile Nothing)
-       $ renderWithTile .   Just .   selectedTile <$> evts
+  let leftMouseClickEvts :: Event t MouseButtonEventData
+      leftMouseClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
+      rightMouseClickEvts :: Event t MouseButtonEventData
+      rightMouseClickEvts = ffilter (has (mouseButtons . rightClick)) mouseButtonEvt
+      leftCickedTile :: Event t Tile
+      leftCickedTile = calcMouseClickTile <$> leftMouseClickEvts
+      rightClickedTileEvt :: Event t Tile
+      rightClickedTileEvt = calcMouseClickTile <$> rightMouseClickEvts
+
+  calcMouseClickTile <- holdDyn Nothing $ Just <$> leftCickedTile
+
+  traverse_ (hexagon . renderTile) $ unGrid initialGrid
+
+  void $ holdView (pure ())
+       $ hexagon . renderSelected <$> leftCickedTile
+
   viking <- loadViking
 
   arrowKeyEvt <- mapMaybe (arrowKey . keysymKeycode . keyboardEventKeysym) <$> getKeyboardEvent
@@ -78,22 +101,10 @@ guest = do
   image $ renderImage viking <$> dynamicPlayerPos
 
 
+renderSelected :: Tile -> HexagonSettings
+renderSelected = (hexagon_color .~ V4 255 128 128 255)
+               . (hexagon_is_filled .~ True)
+               . renderTile
 
-renderWithTile
-  :: forall t m
-   . ReflexSDL2 t m
-  => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m => Maybe Tile -> m ()
-renderWithTile tile =
-  traverse_ (hexagon . maybe renderTile render tile) $ unGrid initialGrid
-
-render :: Tile -> Tile -> HexagonSettings
-render selected x = if selected /= x then def_settings else
-  (hexagon_color .~ V4 255 128 128 255) $
-  (hexagon_is_filled .~ True) $
-  def_settings
-  where
-    def_settings = renderTile x
-
-selectedTile :: MouseButtonEventData -> Tile
-selectedTile = pixelToTile . fmap fromIntegral . view mousePositions
+calcMouseClickTile :: MouseButtonEventData -> Tile
+calcMouseClickTile = pixelToTile . fmap fromIntegral . view mousePositions
