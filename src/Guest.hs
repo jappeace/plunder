@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecursiveDo #-}
 module Guest where
 
 import           Control.Monad.Reader           ( MonadReader(..) )
@@ -42,18 +43,22 @@ initialCharPos = Tile 2 3
 
 shouldCharacterMove :: Maybe Tile -> Tile -> Tile -> Bool
 shouldCharacterMove Nothing _ _ = False
-shouldCharacterMove (Just selected) towards charPos =
+shouldCharacterMove (Just selected) charPos towards =
   if selected /= charPos then
     False
   else
     towards `elem`  neigbours selected
 
 updateCharacter :: Maybe Tile -> Tile -> Tile -> Tile
-updateCharacter mSelected towards charPos =
+updateCharacter mSelected charPos towards =
   if shouldCharacterMove mSelected towards charPos then
     towards
   else charPos
 
+data GameState = GameState
+  { game_selected :: Maybe Tile
+  , game_char_pos :: Tile
+  }
 
 guest
   :: forall t m
@@ -75,17 +80,18 @@ guest = do
       rightClickedTileEvt :: Event t Tile
       rightClickedTileEvt = calcMouseClickTile <$> rightMouseClickEvts
 
-  calcMouseClickTile <- holdDyn Nothing $ Just <$> leftCickedTile
+  calcMouseClickTileDyn <- holdDyn Nothing $ Just <$> leftCickedTile
 
   traverse_ (hexagon . renderTile) $ unGrid initialGrid
 
   void $ holdView (pure ())
        $ hexagon . renderSelected <$> leftCickedTile
 
+  performEvent_ $ ffor rightClickedTileEvt (\x -> liftIO $ print ("rightmouseclick", x))
   viking <- loadViking
 
-  arrowKeyEvt <- mapMaybe (arrowKey . keysymKeycode . keyboardEventKeysym) <$> getKeyboardEvent
-  dynamicPlayerPos <- accum updatePlayerState initialCharPos arrowKeyEvt
+  rec dynamicPlayerPos <- holdDyn initialCharPos $ (current $ updateCharacter <$> calcMouseClickTileDyn <*> dynamicPlayerPos) <@> rightClickedTileEvt
+  performEvent_ $ ffor (updated dynamicPlayerPos) (\x -> liftIO $ print ("playerpos", x) )
   image $ renderImage viking <$> dynamicPlayerPos
 
 
