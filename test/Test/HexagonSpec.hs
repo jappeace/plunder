@@ -19,15 +19,16 @@ spec = do
   describe "Tile to pixel and vice versa" $ do
     it "Tile should be isomorphic to Point V2 Cint" $ property isoTile
     it "Point V2 Cint should be isomorphic to Tile" $ property isoPoint
-  describe "neigbour function" $ do
+  describe "neighbor function" $ do
     it "should never generate more then 6" $ property $ \x -> length (neigbours x) <= 6
     it "should be bigger or equal to zero" $ property $ \x -> length (neigbours x) >= 0
     it "diff should be no bigger then one" $ property tileDiffNoBiggerThenOne
-    it "neigbours should be in grid " $ property niegBourInGrid
+    it "neighbors should be in grid " $ property niegBourInGrid
+    it "1,1 always has 6 neighbors" $ length (neigbours (Tile 1 1)) `shouldBe` 6
 
 niegBourInGrid :: Tile -> Property
 niegBourInGrid x =
-  counterexample (printf "ouptut neigbours: %s" $ show neighs ) $
+  counterexample (printf "output neigbours: %s" $ show neighs ) $
     all (`elem` (fmap snd $ Map.toList $ unGrid initialGrid)) neighs
   where
       neighs = neigbours x

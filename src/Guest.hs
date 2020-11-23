@@ -61,11 +61,18 @@ updatePlayerState tile = \case
 
 shouldCharacterMove :: Maybe Tile -> Tile -> Tile -> Bool
 shouldCharacterMove Nothing _ _ = False
-shouldCharacterMove (Just selected) towards whereIsHeOn =
-  if selected /= whereIsHeOn then
+shouldCharacterMove (Just selected) towards charPos =
+  if selected /= charPos then
     False
   else
     towards `elem`  neigbours selected
+
+updateCharacter :: Maybe Tile -> Tile -> Tile -> Tile
+updateCharacter mSelected towards charPos =
+  if shouldCharacterMove mSelected towards charPos then
+    towards
+  else charPos
+
 
 guest
   :: forall t m

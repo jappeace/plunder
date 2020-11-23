@@ -105,14 +105,14 @@ two :: Double
 two = 2.0 -- no better descriptive name in the universe, magick numbers DIE!
 
 neigbours :: Tile -> [Tile]
-neigbours parent =
-       filter (\x -> not $ has (at x) $ unGrid initialGrid) $ neighList <*> [parent]
+neigbours parent = filter (\x -> SMap.member x $ unGrid initialGrid)
+                 $ neighList <*> [parent]
   where
     neighList :: [Tile -> Tile]
-    neighList = [ (_q +~ 1)
-                , (_r +~ 1)
+    neighList = [ _q +~ 1
+                , _r +~ 1
                 , (_q -~ 1) . (_r +~ 1)
-                , (_q -~ 1)
-                , (_r -~ 1)
+                , _q -~ 1
+                , _r -~ 1
                 , (_q +~ 1) . (_r -~ 1)
                 ]
