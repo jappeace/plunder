@@ -20,7 +20,11 @@ This is a small breakdown of things I'll build next.
    +    [x] Display
    +    [x] on the grid.
 + [x] character can be ordered to move to another tile (indicated by an arrow?)
-+ [ ] Character move after pressing the next turn button.
+- [ ] Implement a combat system.
+    No need for AI yet
+  - [ ] Show a different unit on screen
+  - [ ] Move on top of unit causes a combat.
+  - [ ] combat is rock paper scissers + dice?
 
 # Motivation for project
 
