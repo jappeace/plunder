@@ -11,6 +11,8 @@ module Grid
   , pixelToAxial
   , hexSize
   , neigbours
+  , tile_coordinate
+  , tile_content
   )
 where
 
@@ -24,7 +26,7 @@ import           Foreign.C.Types      (CInt)
 hexSize :: Int
 hexSize = 80
 
-newtype Grid = MkGrid { unGrid :: Map Axial Axial }
+type Grid = Map Axial Tile
 
 -- 2. grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
 data Axial = MkAxial
@@ -32,14 +34,23 @@ data Axial = MkAxial
   , __r :: Int
   } deriving (Eq, Ord, Show, Generic)
 
-makeLenses ''Axial
+
+data TileContent = Player | Enemy
+
+data Tile = MkTile
+  { _tile_coordinate :: Axial
+  , _tile_content    :: Maybe TileContent
+  }
+makeLenses 'MkAxial
+makeLenses 'MkTile
 
 -- level
 initialGrid :: Grid
-initialGrid = MkGrid $ SMap.fromList $ do
+initialGrid = SMap.fromList $ do
   q <- size
   r <- size
-  pure $ (MkAxial q r, MkAxial q r)
+  let coordinate = MkAxial q r
+  pure $ (coordinate , MkTile coordinate Nothing)
 
 size :: [Int]
 size = [0 .. 6]
@@ -106,7 +117,7 @@ two :: Double
 two = 2.0 -- no better descriptive name in the universe, magick numbers DIE!
 
 neigbours :: Axial -> [Axial]
-neigbours parent = filter (\x -> SMap.member x $ unGrid initialGrid)
+neigbours parent = filter (\x -> SMap.member x initialGrid)
                  $ neighList <*> [parent]
   where
     neighList :: [Axial -> Axial]

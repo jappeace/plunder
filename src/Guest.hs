@@ -88,7 +88,7 @@ guest = do
 
   calcMouseClickAxialDyn <- holdDyn Nothing $ Just <$> leftCickedAxial
 
-  traverse_ (hexagon . renderHex) $ unGrid initialGrid
+  traverse_ (hexagon . renderHex . view tile_coordinate) initialGrid
 
   void $ holdView (pure ())
        $ hexagon . renderSelected <$> leftCickedAxial

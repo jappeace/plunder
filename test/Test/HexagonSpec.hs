@@ -29,7 +29,7 @@ spec = do
 niegBourInGrid :: Axial -> Property
 niegBourInGrid x =
   counterexample (printf "output neigbours: %s" $ show neighs ) $
-    all (`elem` (fmap snd $ Map.toList $ unGrid initialGrid)) neighs
+    all (`elem` (fmap fst $ Map.toList $ initialGrid)) neighs
   where
       neighs = neigbours x
 
