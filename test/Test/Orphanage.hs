@@ -8,8 +8,8 @@ import           Grid
 import           Reflex.SDL2
 import           Test.QuickCheck
 
-instance Arbitrary Tile where
-  arbitrary = Tile <$> arbitrary <*> arbitrary
+instance Arbitrary Axial where
+  arbitrary = MkAxial <$> arbitrary <*> arbitrary
   shrink = genericShrink
 
 instance Arbitrary (V2 CInt) where

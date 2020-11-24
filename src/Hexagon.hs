@@ -13,9 +13,7 @@ module Hexagon
   , hexagon_postion
   , hexagon_color
   , hexagon_is_filled
-  , renderTile
-  , pixelToTile
-  , tileToPixel
+  , renderHex
   )
 where
 
@@ -133,7 +131,7 @@ hexagon settings = do
     polgyonF = if settings ^. hexagon_is_filled then fillPolygon else polygon
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-renderTile :: Tile -> HexagonSettings
-renderTile tile = hexagon_postion .~ (tileToPixel tile)
-                $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (tile ^. _q) $ (tile ^. _r))
+renderHex :: Axial -> HexagonSettings
+renderHex coord = hexagon_postion .~ (axialToPixel coord)
+                $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (coord ^. _q) $ (coord ^. _r))
                 $ defHex

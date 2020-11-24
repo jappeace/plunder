@@ -41,25 +41,25 @@ mouseButtons = field @"mouseButtonEventButton"
 mousePositions :: Lens' MouseButtonEventData (Point V2 Int32)
 mousePositions = field @"mouseButtonEventPos"
 
-initialCharPos :: Tile
-initialCharPos = Tile 2 3
+initialCharPos :: Axial
+initialCharPos = MkAxial 2 3
 
 data GameState = GameState
-  { _game_selected :: Maybe Tile
-  , _game_char_pos :: Tile
+  { _game_selected :: Maybe Axial
+  , _game_char_pos :: Axial
   } deriving Show
 makeLenses ''GameState
 
 initialState :: GameState
 initialState = GameState Nothing initialCharPos
 
-shouldCharacterMove :: GameState -> Tile -> Bool
+shouldCharacterMove :: GameState -> Axial -> Bool
 shouldCharacterMove state towards = fromMaybe False $ do
   selected <- state ^. game_selected
   pure $ (selected == state ^. game_char_pos) &&
          towards `elem`  neigbours selected
 
-updateState :: GameState -> Tile -> GameState
+updateState :: GameState -> Axial -> GameState
 updateState state towards =
   if shouldCharacterMove state towards then
     game_char_pos .~ towards $ state
@@ -81,37 +81,37 @@ guest = do
       leftMouseClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
       rightMouseClickEvts :: Event t MouseButtonEventData
       rightMouseClickEvts = ffilter (has (mouseButtons . rightClick)) mouseButtonEvt
-      leftCickedTile :: Event t Tile
-      leftCickedTile = calcMouseClickTile <$> leftMouseClickEvts
-      rightClickedTileEvt :: Event t Tile
-      rightClickedTileEvt = calcMouseClickTile <$> rightMouseClickEvts
+      leftCickedAxial :: Event t Axial
+      leftCickedAxial = calcMouseClickAxial <$> leftMouseClickEvts
+      rightClickedAxialEvt :: Event t Axial
+      rightClickedAxialEvt = calcMouseClickAxial <$> rightMouseClickEvts
 
-  calcMouseClickTileDyn <- holdDyn Nothing $ Just <$> leftCickedTile
+  calcMouseClickAxialDyn <- holdDyn Nothing $ Just <$> leftCickedAxial
 
-  traverse_ (hexagon . renderTile) $ unGrid initialGrid
+  traverse_ (hexagon . renderHex) $ unGrid initialGrid
 
   void $ holdView (pure ())
-       $ hexagon . renderSelected <$> leftCickedTile
+       $ hexagon . renderSelected <$> leftCickedAxial
 
   viking <- loadViking
 
-  performEvent_ $ ffor rightClickedTileEvt (\x -> liftIO $ print ("rightmouseclick", x))
-  gameState <- mkGameState calcMouseClickTileDyn rightClickedTileEvt
+  performEvent_ $ ffor rightClickedAxialEvt (\x -> liftIO $ putStrLn $ printf "rightmouseclick %s" (show x))
+  gameState <- mkGameState calcMouseClickAxialDyn rightClickedAxialEvt
 
   performEvent_ $ ffor (updated gameState) (liftIO . putStrLn . printf "gamestate %s" . show)
   image $ renderImage viking . view game_char_pos <$> gameState
 
-mkGameState :: forall t m . ReflexSDL2 t m => Dynamic t (Maybe Tile) -> Event t Tile -> m (Dynamic t GameState)
-mkGameState calcMouseClickTileDyn rightClickedTileEvt = do
-  rec dynamicPlayerPos <- holdDyn initialState $ (current $ updateState <$> gameState) <@> rightClickedTileEvt
+mkGameState :: forall t m . ReflexSDL2 t m => Dynamic t (Maybe Axial) -> Event t Axial -> m (Dynamic t GameState)
+mkGameState calcMouseClickAxialDyn rightClickedAxialEvt = do
+  rec dynamicPlayerPos <- holdDyn initialState $ (current $ updateState <$> gameState) <@> rightClickedAxialEvt
       let gameState :: Dynamic t GameState
-          gameState = GameState <$> calcMouseClickTileDyn <*> (view game_char_pos <$> dynamicPlayerPos)
+          gameState = GameState <$> calcMouseClickAxialDyn <*> (view game_char_pos <$> dynamicPlayerPos)
   pure dynamicPlayerPos
 
-renderSelected :: Tile -> HexagonSettings
+renderSelected :: Axial -> HexagonSettings
 renderSelected = (hexagon_color .~ V4 255 128 128 255)
                . (hexagon_is_filled .~ True)
-               . renderTile
+               . renderHex
 
-calcMouseClickTile :: MouseButtonEventData -> Tile
-calcMouseClickTile = pixelToTile . fmap fromIntegral . view mousePositions
+calcMouseClickAxial :: MouseButtonEventData -> Axial
+calcMouseClickAxial = pixelToAxial . fmap fromIntegral . view mousePositions

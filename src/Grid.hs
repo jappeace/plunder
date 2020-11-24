@@ -2,13 +2,13 @@
 
 module Grid
   ( Grid(..)
-  , Tile(..)
+  , Axial(..)
   , initialGrid
   , _r
   , _q
-  , roundTile
-  , tileToPixel
-  , pixelToTile
+  , roundAxial
+  , axialToPixel
+  , pixelToAxial
   , hexSize
   , neigbours
   )
@@ -24,22 +24,22 @@ import           Foreign.C.Types      (CInt)
 hexSize :: Int
 hexSize = 80
 
-newtype Grid = Grid { unGrid :: Map Tile Tile }
+newtype Grid = MkGrid { unGrid :: Map Axial Axial }
 
 -- 2. grid. (we'll use axial) https://www.redblobgames.com/grids/hexagons/#coordinates
-data Tile = Tile
+data Axial = MkAxial
   { __q :: Int
   , __r :: Int
   } deriving (Eq, Ord, Show, Generic)
 
-makeLenses ''Tile
+makeLenses ''Axial
 
 -- level
 initialGrid :: Grid
-initialGrid = Grid $ SMap.fromList $ do
+initialGrid = MkGrid $ SMap.fromList $ do
   q <- size
   r <- size
-  pure $ (Tile q r, Tile q r)
+  pure $ (MkAxial q r, MkAxial q r)
 
 size :: [Int]
 size = [0 .. 6]
@@ -47,10 +47,11 @@ size = [0 .. 6]
 
 -- https://www.redblobgames.com/grids/hexagons/#rounding
 -- https://www.redblobgames.com/grids/hexagons/#conversions
-roundTile :: Double -> Double -> Tile
-roundTile q r = Tile { __q = if q_override then -ry - rz else rx
-                     , __r = if r_override then -rx - ry else rz
-                     }
+roundAxial :: Double -> Double -> Axial
+roundAxial q r = MkAxial
+  { __q = if q_override then -ry - rz else rx
+  , __r = if r_override then -rx - ry else rz
+  }
  where
   q_override :: Bool
   q_override = x_diff > y_diff && x_diff > z_diff
@@ -72,22 +73,22 @@ roundTile q r = Tile { __q = if q_override then -ry - rz else rx
 
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-tileToPixel :: Tile -> Point V2 CInt
-tileToPixel tile = (P $ V2 x y)
+axialToPixel :: Axial -> Point V2 CInt
+axialToPixel coord = (P $ V2 x y)
  where
   x :: CInt
   x =
     floor
       $ fromIntegral hexSize
-      * ( (sqrt3 * (fromIntegral $ tile ^. _q))
-        + (sqrt3 / 2.0 * (fromIntegral $ tile ^. _r))
+      * ( (sqrt3 * (fromIntegral $ coord ^. _q))
+        + (sqrt3 / 2.0 * (fromIntegral $ coord ^. _r))
         )
   y :: CInt
-  y = floor $ fromIntegral hexSize * (3.0 / two * (fromIntegral $ tile ^. _r))
+  y = floor $ fromIntegral hexSize * (3.0 / two * (fromIntegral $ coord ^. _r))
 
 -- https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
-pixelToTile :: Point V2 CInt -> Tile
-pixelToTile (P vec) = roundTile q r
+pixelToAxial :: Point V2 CInt -> Axial
+pixelToAxial (P vec) = roundAxial q r
  where
     -- TODO Implement hexSize properly, this math is crazy
   q :: Double
@@ -104,11 +105,11 @@ sqrt3 = sqrt 3.0
 two :: Double
 two = 2.0 -- no better descriptive name in the universe, magick numbers DIE!
 
-neigbours :: Tile -> [Tile]
+neigbours :: Axial -> [Axial]
 neigbours parent = filter (\x -> SMap.member x $ unGrid initialGrid)
                  $ neighList <*> [parent]
   where
-    neighList :: [Tile -> Tile]
+    neighList :: [Axial -> Axial]
     neighList = [ _q +~ 1
                 , _r +~ 1
                 , (_q -~ 1) . (_r +~ 1)

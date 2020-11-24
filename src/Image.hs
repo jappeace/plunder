@@ -36,8 +36,8 @@ image settingsDyn = do
       copy renderer (settings ^. image_content) Nothing $
         settings ^? image_postion
 
-renderImage :: Texture -> Tile -> ImageSettings
-renderImage text tile = ImageSettings {
-        _image_postion  = Rectangle (tileToPixel tile) (V2 50 50)
+renderImage :: Texture -> Axial -> ImageSettings
+renderImage text coord = ImageSettings {
+        _image_postion  = Rectangle (axialToPixel coord) (V2 50 50)
       , _image_content  = text
       }
