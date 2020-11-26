@@ -18,9 +18,8 @@ import           Data.Generics.Sum
 import           Data.Int
 import           Control.Monad
 import Image
-import Data.Maybe
-import Text.Printf
 import Data.Monoid
+import Data.Bool
 
 leftClick :: Prism' MouseButton ()
 leftClick = _Ctor @"ButtonLeft"
@@ -71,13 +70,14 @@ shouldCharacterMove state towards = do
   else Nothing
 
 move :: Move -> Grid -> Grid
-move move grid = fold
-  [ at (move ^. move_from) .~ Nothing
-  , at (move ^. move_to)   .~ (grid ^. at (move ^. move_from))
+move action grid = fold
+  [ at (action ^. move_from) .~ Nothing
+  , at (action ^. move_to)   .~ (grid ^. at (action ^. move_from))
   ] grid
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
+                deriving Show
 
 updateState :: GameState -> UpdateEvts -> GameState
 updateState state = \case
@@ -92,42 +92,44 @@ guest
 guest = do
   -- Print some stuff after the network is built.
   evPB           <- getPostBuild
-  mouseButtonEvt <- getMouseButtonEvent
 
   performEvent_ $ ffor evPB $ \() -> liftIO $ putStrLn "starting up..."
 
+  gameState <- mkGameState
+  renderState gameState
+
+renderState :: ReflexSDL2 t m
+  => MonadReader Renderer m
+  => DynamicWriter t [Layer m] m
+  => Dynamic t GameState -> m ()
+renderState state = do
+  vikingF <- renderImage <$> loadViking
+  void $ listWithKey (view game_board <$> state) $ \axial _ -> do
+    hexagon $ renderHex axial
+
+  void $ holdView (pure ())
+       $ hexagon . renderSelected <$> mapMaybe (view game_selected) (updated state)
+
+  void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
+    let playerSettings = bool Nothing (Just $ vikingF axial)
+                       . has (tile_content . _Just . _Player) <$> tileDyn
+    image playerSettings
+
+mkGameState :: forall t m . ReflexSDL2 t m => m (Dynamic t GameState)
+mkGameState = do
+  mouseButtonEvt <- getMouseButtonEvent
   let leftClickEvts :: Event t MouseButtonEventData
       leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
       rightClickEvts :: Event t MouseButtonEventData
       rightClickEvts = ffilter (has (mouseButtons . rightClick)) mouseButtonEvt
       leftClickAxial = calcMouseClickAxial <$> leftClickEvts
       rightClickAxialEvt = calcMouseClickAxial <$> rightClickEvts
+      events = leftmost [ LeftClick <$> leftClickAxial
+                        , RightClick <$> rightClickAxialEvt
+                        ]
 
-  viking <- loadViking
-
-  performEvent_ $ ffor rightClickAxialEvt (\x -> liftIO $ putStrLn $ printf "rightmouseclick %s" (show x))
-  gameState <- mkGameState $ leftmost [ LeftClick <$> leftClickAxial
-                                      , RightClick <$> rightClickAxialEvt
-                                      ]
-  renderState gameState
-  void $ holdView (pure ())
-       $ hexagon . renderSelected <$> leftClickAxial
-
-
-renderTile :: ReflexSDL2 t m
-  => MonadReader Renderer m
-  => DynamicWriter t [Layer m] m
-  => Tile -> m ()
-
-renderTile :: ReflexSDL2 t m
-  => MonadReader Renderer m
-  => DynamicWriter t [Layer m] m
-  => Tile -> m ()
-renderTile _tile = pure ()
-
-
-mkGameState :: forall t m . ReflexSDL2 t m => Event t UpdateEvts -> m (Dynamic t GameState)
-mkGameState events = accum updateState initialState events
+  performEvent_ $ ffor events $ liftIO . print
+  accum updateState initialState events
 
 renderSelected :: Axial -> HexagonSettings
 renderSelected = (hexagon_color .~ V4 255 128 128 255)

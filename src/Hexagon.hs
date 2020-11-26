@@ -117,7 +117,7 @@ hexagon settings = do
       fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
       textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
       freeSurface textSurface
-      image $ pure $ ImageSettings
+      image $ pure $ Just $ ImageSettings
           { _image_postion   =  Rectangle
               (  settings ^. hexagon_postion
               -  (_Point # fontHexSize `quotV2` V2 2 (-5))

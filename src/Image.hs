@@ -1,6 +1,12 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
-module Image(ImageSettings(..), loadViking, image, renderImage ) where
+module Image(ImageSettings(..)
+            , loadViking
+            , image
+            , renderImage
+            , rectangle_pos
+            , rectangle_size
+            ) where
 
 import Grid
 import           Reflex
@@ -29,10 +35,11 @@ makeLenses ''ImageSettings
 image :: ReflexSDL2 t m
     => MonadReader Renderer m
     => DynamicWriter t [Layer m] m
-    => Dynamic t ImageSettings -> m ()
+    => Dynamic t (Maybe ImageSettings) -> m ()
 image settingsDyn = do
   renderer    <- ask
-  commitLayer $ ffor settingsDyn $ \settings -> do
+  commitLayer $ ffor settingsDyn $ \msettings ->
+    flip (maybe (pure ())) msettings $ \settings -> do
       copy renderer (settings ^. image_content) Nothing $
         settings ^? image_postion
 
@@ -41,3 +48,9 @@ renderImage text coord = ImageSettings {
         _image_postion  = Rectangle (axialToPixel coord) (V2 50 50)
       , _image_content  = text
       }
+
+rectangle_pos :: Lens' (Rectangle a) (Point V2 a)
+rectangle_pos = lens (\(Rectangle a _) -> a) (\(Rectangle _ b) a -> Rectangle a b)
+
+rectangle_size :: Lens' (Rectangle a) (V2 a)
+rectangle_size = lens (\(Rectangle _ b) -> b) (\(Rectangle a _) b -> Rectangle a b)

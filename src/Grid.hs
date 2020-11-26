@@ -48,6 +48,7 @@ data Tile = MkTile
   { _tile_coordinate :: Axial
   , _tile_content    :: Maybe TileContent
   } deriving Show
+
 makeLenses 'MkAxial
 makeLenses 'MkTile
 makePrisms ''TileContent
