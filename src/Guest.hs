@@ -51,20 +51,38 @@ level = fold $ Endo <$>
 initialState :: GameState
 initialState = GameState Nothing $ appEndo level initialGrid
 
-shouldCharacterMove :: GameState -> Axial -> Bool
-shouldCharacterMove state towards = fromMaybe False $ do
+data Move = MkMove
+  { _move_from :: Axial
+  , _move_to   :: Axial
+  }
+makeLenses ''Move
+
+shouldCharacterMove :: GameState -> Axial -> Maybe Move
+shouldCharacterMove state towards = do
   selectedAxial <- state ^. game_selected
-  selectedTile <- state ^? game_board . at selectedAxial
-  pure $ fold $ All <$> [ has (_Just . _Player)  selectedTile
+  selectedTile :: Tile  <- state ^. game_board . at selectedAxial
+  let shouldMove = fold $ All <$>
+                        [ has (tile_content . _Just . _Player)  selectedTile
                         , towards `elem`  neigbours selectedAxial
                         , has (game_board . at towards . _Just . tile_content . _Nothing) state
                         ]
+  if getAll shouldMove then
+    pure $ MkMove { _move_from = selectedAxial, _move_to = towards}
+  else Nothing
 
-updateState :: GameState -> Axial -> GameState
-updateState state towards =
-  if shouldCharacterMove state towards then
-    game_char_pos .~ towards $ state
-  else state
+move :: Move -> Grid -> Grid
+move move grid = fold
+  [ at (move ^. move_from) .~ Nothing
+  , at (move ^. move_to)   .~ (grid ^. at (move ^. move_from))
+  ] grid
+
+data UpdateEvts = LeftClick Axial
+                | RightClick Axial
+
+updateState :: GameState -> UpdateEvts -> GameState
+updateState state = \case
+  LeftClick axial -> set game_selected (Just axial) state
+  RightClick towards -> maybe state (\x -> over game_board (move x) state) $ shouldCharacterMove state towards
 
 
 guest
@@ -78,29 +96,28 @@ guest = do
 
   performEvent_ $ ffor evPB $ \() -> liftIO $ putStrLn "starting up..."
 
-  let leftMouseClickEvts :: Event t MouseButtonEventData
-      leftMouseClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
-      rightMouseClickEvts :: Event t MouseButtonEventData
-      rightMouseClickEvts = ffilter (has (mouseButtons . rightClick)) mouseButtonEvt
-      leftCickedAxial :: Event t Axial
-      leftCickedAxial = calcMouseClickAxial <$> leftMouseClickEvts
-      rightClickedAxialEvt :: Event t Axial
-      rightClickedAxialEvt = calcMouseClickAxial <$> rightMouseClickEvts
-
-  calcMouseClickAxialDyn <- holdDyn Nothing $ Just <$> leftCickedAxial
-
-  traverse_ (hexagon . renderHex . view tile_axial) initialGrid
-
-  void $ holdView (pure ())
-       $ hexagon . renderSelected <$> leftCickedAxial
+  let leftClickEvts :: Event t MouseButtonEventData
+      leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
+      rightClickEvts :: Event t MouseButtonEventData
+      rightClickEvts = ffilter (has (mouseButtons . rightClick)) mouseButtonEvt
+      leftClickAxial = calcMouseClickAxial <$> leftClickEvts
+      rightClickAxialEvt = calcMouseClickAxial <$> rightClickEvts
 
   viking <- loadViking
 
-  performEvent_ $ ffor rightClickedAxialEvt (\x -> liftIO $ putStrLn $ printf "rightmouseclick %s" (show x))
-  gameState <- mkGameState calcMouseClickAxialDyn rightClickedAxialEvt
+  performEvent_ $ ffor rightClickAxialEvt (\x -> liftIO $ putStrLn $ printf "rightmouseclick %s" (show x))
+  gameState <- mkGameState $ leftmost [ LeftClick <$> leftClickAxial
+                                      , RightClick <$> rightClickAxialEvt
+                                      ]
+  renderState gameState
+  void $ holdView (pure ())
+       $ hexagon . renderSelected <$> leftClickAxial
 
-  performEvent_ $ ffor (updated gameState) (liftIO . putStrLn . printf "gamestate %s" . show)
-  image $ renderImage viking . view game_char_pos <$> gameState
+
+renderTile :: ReflexSDL2 t m
+  => MonadReader Renderer m
+  => DynamicWriter t [Layer m] m
+  => Tile -> m ()
 
 renderTile :: ReflexSDL2 t m
   => MonadReader Renderer m
@@ -108,12 +125,9 @@ renderTile :: ReflexSDL2 t m
   => Tile -> m ()
 renderTile _tile = pure ()
 
-mkGameState :: forall t m . ReflexSDL2 t m => Dynamic t (Maybe Axial) -> Event t Axial -> m (Dynamic t GameState)
-mkGameState calcMouseClickAxialDyn rightClickedAxialEvt = do
-  rec dynamicPlayerPos <- holdDyn initialState $ (current $ updateState <$> gameState) <@> rightClickedAxialEvt
-      let gameState :: Dynamic t GameState
-          gameState = GameState <$> calcMouseClickAxialDyn <*> (view game_char_pos <$> dynamicPlayerPos)
-  pure dynamicPlayerPos
+
+mkGameState :: forall t m . ReflexSDL2 t m => Event t UpdateEvts -> m (Dynamic t GameState)
+mkGameState events = accum updateState initialState events
 
 renderSelected :: Axial -> HexagonSettings
 renderSelected = (hexagon_color .~ V4 255 128 128 255)
