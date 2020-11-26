@@ -4,7 +4,8 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
-module Game13 where
+-- | Contains all reflex-sdl boilerplate
+module Game13(libF) where
 
 import           Control.Monad        (void)
 import           Control.Monad.Reader (MonadReader (..), runReaderT)

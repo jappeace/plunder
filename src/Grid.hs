@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Grid
-  ( Grid(..)
+  ( Grid
   , Axial(..)
   , initialGrid
   , _r
@@ -11,8 +12,12 @@ module Grid
   , pixelToAxial
   , hexSize
   , neigbours
-  , tile_coordinate
+  , tile_axial
   , tile_content
+  , TileContent(..)
+  , Tile
+  , _Player
+  , _Enemy
   )
 where
 
@@ -36,13 +41,22 @@ data Axial = MkAxial
 
 
 data TileContent = Player | Enemy
+  deriving Show
+
 
 data Tile = MkTile
   { _tile_coordinate :: Axial
   , _tile_content    :: Maybe TileContent
-  }
+  } deriving Show
 makeLenses 'MkAxial
 makeLenses 'MkTile
+makePrisms ''TileContent
+
+-- | A read only coordinate lens for 'Tile',
+--   within the module we can set but outside we can only read so it's
+--   always the right coordinate in the tile.
+tile_axial :: Getter Tile Axial
+tile_axial = tile_coordinate
 
 -- level
 initialGrid :: Grid
@@ -54,7 +68,6 @@ initialGrid = SMap.fromList $ do
 
 size :: [Int]
 size = [0 .. 6]
-
 
 -- https://www.redblobgames.com/grids/hexagons/#rounding
 -- https://www.redblobgames.com/grids/hexagons/#conversions

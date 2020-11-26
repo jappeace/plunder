@@ -2,7 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
-module Guest where
+
+module Guest(guest) where
 
 import           Control.Monad.Reader           ( MonadReader(..) )
 import           Reflex
@@ -19,15 +20,7 @@ import           Control.Monad
 import Image
 import Data.Maybe
 import Text.Printf
-
-motionToColor :: InputMotion -> V4 Int
-motionToColor Released = V4 255 0 0 128
-motionToColor Pressed  = V4 0 0 255 128
-
-renderAABB :: MonadIO m => Renderer -> V4 Int -> V2 Int -> m ()
-renderAABB r color pos = do
-  rendererDrawColor r $= (fromIntegral <$> color)
-  fillRect r $ Just $ Rectangle (P $ fromIntegral <$> pos - 10) 20
+import Data.Monoid
 
 leftClick :: Prism' MouseButton ()
 leftClick = _Ctor @"ButtonLeft"
@@ -41,23 +34,31 @@ mouseButtons = field @"mouseButtonEventButton"
 mousePositions :: Lens' MouseButtonEventData (Point V2 Int32)
 mousePositions = field @"mouseButtonEventPos"
 
-initialCharPos :: Axial
-initialCharPos = MkAxial 2 3
-
 data GameState = GameState
   { _game_selected :: Maybe Axial
-  , _game_char_pos :: Axial
+  , _game_board    :: Grid
   } deriving Show
 makeLenses ''GameState
 
+level :: Endo Grid
+level = fold $ Endo <$>
+  [ at (MkAxial 2 3) . _Just . tile_content ?~ Player
+  , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy
+  , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy
+  , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy
+  ]
+
 initialState :: GameState
-initialState = GameState Nothing initialCharPos
+initialState = GameState Nothing $ appEndo level initialGrid
 
 shouldCharacterMove :: GameState -> Axial -> Bool
 shouldCharacterMove state towards = fromMaybe False $ do
-  selected <- state ^. game_selected
-  pure $ (selected == state ^. game_char_pos) &&
-         towards `elem`  neigbours selected
+  selectedAxial <- state ^. game_selected
+  selectedTile <- state ^? game_board . at selectedAxial
+  pure $ fold $ All <$> [ has (_Just . _Player)  selectedTile
+                        , towards `elem`  neigbours selectedAxial
+                        , has (game_board . at towards . _Just . tile_content . _Nothing) state
+                        ]
 
 updateState :: GameState -> Axial -> GameState
 updateState state towards =
@@ -88,7 +89,7 @@ guest = do
 
   calcMouseClickAxialDyn <- holdDyn Nothing $ Just <$> leftCickedAxial
 
-  traverse_ (hexagon . renderHex . view tile_coordinate) initialGrid
+  traverse_ (hexagon . renderHex . view tile_axial) initialGrid
 
   void $ holdView (pure ())
        $ hexagon . renderSelected <$> leftCickedAxial
@@ -100,6 +101,12 @@ guest = do
 
   performEvent_ $ ffor (updated gameState) (liftIO . putStrLn . printf "gamestate %s" . show)
   image $ renderImage viking . view game_char_pos <$> gameState
+
+renderTile :: ReflexSDL2 t m
+  => MonadReader Renderer m
+  => DynamicWriter t [Layer m] m
+  => Tile -> m ()
+renderTile _tile = pure ()
 
 mkGameState :: forall t m . ReflexSDL2 t m => Dynamic t (Maybe Axial) -> Event t Axial -> m (Dynamic t GameState)
 mkGameState calcMouseClickAxialDyn rightClickedAxialEvt = do

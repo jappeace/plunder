@@ -100,7 +100,6 @@ calcPoints settings =
   allCorners :: [HexCorner]
   allCorners = [minBound .. maxBound]
 
-
 -- TODO:
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 hexagon
