@@ -6,6 +6,7 @@ module Image(ImageSettings(..)
             , renderImage
             , rectangle_pos
             , rectangle_size
+            , image_postion
             ) where
 
 import Grid
