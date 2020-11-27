@@ -33,6 +33,7 @@ library
       Hexagon
       Image
       Layer
+      State
   other-modules:
       Paths_game13
   hs-source-dirs:

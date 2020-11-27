@@ -3,6 +3,7 @@ module Test.HexagonSpec
   )
 where
 
+import           Data.Foldable
 import           Foreign.C.Types (CInt)
 import           Game13          ()
 import           Grid
@@ -13,18 +14,35 @@ import           Test.QuickCheck
 import           Text.Printf
 import           Control.Lens
 import    qualified Data.Map as Map
+import State
 
 spec :: Spec
 spec = do
   describe "Axial to pixel and vice versa" $ do
     it "Axial should be isomorphic to Point V2 Cint" $ property isoAxial
     it "Point V2 Cint should be isomorphic to Axial" $ property isoPoint
+
   describe "neighbor function" $ do
     it "should never generate more then 6" $ property $ \x -> length (neigbours x) <= 6
     it "should be bigger or equal to zero" $ property $ \x -> length (neigbours x) >= 0
     it "diff should be no bigger then one" $ property tileDiffNoBiggerThenOne
     it "neighbors should be in grid " $ property niegBourInGrid
     it "1,1 always has 6 neighbors" $ length (neigbours (MkAxial 1 1)) `shouldBe` 6
+    it "character should move" $
+      shouldCharacterMove testState (MkAxial 3 3) `shouldBe`
+        (Just $ MkMove (MkAxial 2 3) (MkAxial 3 3))
+
+
+testState :: GameState
+testState = set game_selected (Just playerAxial) $ MkGameState Nothing $ level initialGrid
+
+playerAxial :: Axial
+playerAxial = MkAxial 2 3
+
+level :: Grid -> Grid
+level = fold
+  [ at playerAxial . _Just . tile_content ?~ Player
+  ]
 
 niegBourInGrid :: Axial -> Property
 niegBourInGrid x =
