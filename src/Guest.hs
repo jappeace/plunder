@@ -110,9 +110,10 @@ renderState state = do
   void $ holdView (pure ())
        $ hexagon . renderSelected <$> mapMaybe (view game_selected) (updated state)
 
-  void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
-    let playerSettings = bool Nothing (Just $ vikingF axial)
-                       . has (tile_content . _Just . _Player) <$> tileDyn
+  -- simple list doesn't cache on key change
+  void $ simpleList (toListOf (game_board . traversed) <$> state) $ \tileDyn -> do
+    let playerSettings = (\axial -> bool Nothing (Just $ vikingF $ view tile_axial axial)
+                       . has (tile_content . _Just . _Player)) <$> tileDyn <*> tileDyn
     image playerSettings
 
 mkGameState :: forall t m . ReflexSDL2 t m => m (Dynamic t GameState)
