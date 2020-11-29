@@ -37,8 +37,8 @@ describeState x = printf "GameState { _game_selected = %s, _game_board = %s }"
   (show (x ^. game_selected))
   (show (x ^.. game_board . contentFold))
 
-level :: Grid -> Grid
-level = fold
+level :: Endo Grid
+level = fold $ Endo <$>
   [ at (MkAxial 2 3) . _Just . tile_content ?~ Player
   , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy
   , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy
@@ -46,7 +46,7 @@ level = fold
   ]
 
 initialState :: GameState
-initialState = MkGameState Nothing $ level initialGrid
+initialState = MkGameState Nothing $ appEndo level initialGrid
 
 data Move = MkMove
   { _move_from :: Axial
