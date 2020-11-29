@@ -28,10 +28,38 @@ spec = do
     it "diff should be no bigger then one" $ property tileDiffNoBiggerThenOne
     it "neighbors should be in grid " $ property niegBourInGrid
     it "1,1 always has 6 neighbors" $ length (neigbours (MkAxial 1 1)) `shouldBe` 6
+  describe "move" $ do
     it "character should move" $
       shouldCharacterMove testState (MkAxial 3 3) `shouldBe`
         (Just $ MkMove (MkAxial 2 3) (MkAxial 3 3))
+    it "should clear where we're moving from" $
+      forAll (suchThat arbitrary (uncurry moveInGrid)) moveBecomesEmpty
+    it "should set destination to origin val" $
+      forAll (suchThat arbitrary (uncurry moveInGrid)) moveFromMoveIsToContent
 
+
+moveInGrid :: Grid -> Move -> Bool
+moveInGrid grid mv =
+  has (at (mv ^. move_from) . _Just . tile_content . _Just) grid
+  &&
+  has (at (mv ^. move_to)) grid
+
+moveBecomesEmpty :: (Grid, Move) -> Property
+moveBecomesEmpty (grid, mv) =
+  counterexample (printf "input: %s, output %s:" gridInput gridOutput) $
+    has (at (mv ^. move_from) . _Just . tile_content . _Nothing) result
+
+  where
+    result = move mv grid
+    gridInput = show (grid ^.. contentFold)
+    gridOutput= show (result ^.. contentFold)
+
+moveFromMoveIsToContent :: (Grid, Move) -> Bool
+moveFromMoveIsToContent (grid, mv) =
+   (res ^? at (mv ^. move_to) . _Just . tile_content )
+   == (grid ^? at (mv ^. move_from) . _Just . tile_content)
+   where
+     res = move mv grid
 
 testState :: GameState
 testState = set game_selected (Just playerAxial) $ MkGameState Nothing $ level initialGrid

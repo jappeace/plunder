@@ -18,6 +18,7 @@ module Grid
   , Tile
   , _Player
   , _Enemy
+  , contentFold
   )
 where
 
@@ -27,6 +28,7 @@ import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
+import           Test.QuickCheck
 
 hexSize :: Int
 hexSize = 80
@@ -41,13 +43,13 @@ data Axial = MkAxial
 
 
 data TileContent = Player | Enemy
-  deriving Show
+  deriving (Show, Generic, Eq)
 
 
 data Tile = MkTile
   { _tile_coordinate :: Axial
   , _tile_content    :: Maybe TileContent
-  } deriving Show
+  } deriving (Show, Generic)
 
 makeLenses 'MkAxial
 makeLenses 'MkTile
@@ -142,3 +144,23 @@ neigbours parent = filter (\x -> SMap.member x initialGrid)
                 , _r -~ 1
                 , (_q +~ 1) . (_r -~ 1)
                 ]
+
+-- this can be a traversal according to type system, but
+-- if we invalidate the target of the predicate (tile_content) it's invalid.
+-- so we make it a fold untill we need it be a traversal.
+contentFold :: Fold Grid Tile
+contentFold = traversed . filtered (has (tile_content . _Just))
+
+-- test cruft, don't want to expose these constructors
+instance Arbitrary Axial where
+  arbitrary = MkAxial <$> arbitrary <*> arbitrary
+  shrink = genericShrink
+
+instance Arbitrary Tile where
+  arbitrary = MkTile <$> arbitrary <*>
+    frequency [(10, Just <$> arbitrary ), (5, pure Nothing)]
+  shrink = genericShrink
+
+instance Arbitrary TileContent where
+  arbitrary = arbitrary
+  shrink = genericShrink

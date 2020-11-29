@@ -85,8 +85,8 @@ mkGameState = do
                         , RightClick <$> rightClickAxialEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
-  state <- accum updateState initialState events
-  performEvent_ $ ffor (view game_selected <$> updated state) $ liftIO . print
+  state <- accumDyn updateState initialState events
+  performEvent_ $ ffor (describeState <$> updated state) $ liftIO . print
   pure state
 
 renderSelected :: Axial -> HexagonSettings

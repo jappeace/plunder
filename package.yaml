@@ -62,6 +62,7 @@ dependencies:
 - generic-lens
 - sdl2-gfx
 - sdl2-image
+- QuickCheck
 
 library:
   source-dirs: src
@@ -86,4 +87,3 @@ tests:
     - hspec
     - hspec-core
     - game13
-    - QuickCheck
