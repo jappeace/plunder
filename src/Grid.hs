@@ -19,6 +19,7 @@ module Grid
   , _Player
   , _Enemy
   , contentFold
+  , mkGrid
   )
 where
 
@@ -46,10 +47,14 @@ data TileContent = Player | Enemy
   deriving (Show, Generic, Eq)
 
 
-data Tile = MkTile
+data TileF a = MkTile
   { _tile_coordinate :: Axial
-  , _tile_content    :: Maybe TileContent
-  } deriving (Show, Generic)
+  , _tile_content    :: a
+  } deriving (Generic, Functor, Foldable, Traversable)
+
+type Tile = TileF (Maybe TileContent)
+
+deriving instance Show Tile
 
 makeLenses 'MkAxial
 makeLenses 'MkTile
@@ -63,14 +68,19 @@ tile_axial = tile_coordinate
 
 -- level
 initialGrid :: Grid
-initialGrid = SMap.fromList $ do
+initialGrid = mkGrid 0 6
+
+mkGrid :: Int -> Int -> Grid
+mkGrid begin end =
+  SMap.fromList $ do
   q <- size
   r <- size
   let coordinate = MkAxial q r
   pure $ (coordinate , MkTile coordinate Nothing)
+  where
+    size :: [Int]
+    size = [begin .. end]
 
-size :: [Int]
-size = [0 .. 6]
 
 -- https://www.redblobgames.com/grids/hexagons/#rounding
 -- https://www.redblobgames.com/grids/hexagons/#conversions
@@ -153,7 +163,7 @@ contentFold = traversed . filtered (has (tile_content . _Just))
 
 -- test cruft, don't want to expose these constructors
 instance Arbitrary Axial where
-  arbitrary = MkAxial <$> arbitrary <*> arbitrary
+  arbitrary = MkAxial <$> choose (0,6) <*> choose (0,6)
   shrink = genericShrink
 
 instance Arbitrary Tile where

@@ -34,15 +34,22 @@ spec = do
         (Just $ MkMove (MkAxial 2 3) (MkAxial 3 3))
     it "should clear where we're moving from" $
       forAll (suchThat arbitrary (uncurry moveInGrid)) moveBecomesEmpty
-    it "should set destination to origin val" $
-      forAll (suchThat arbitrary (uncurry moveInGrid)) moveFromMoveIsToContent
+    -- TODO too slow
+    -- it "should set destination to origin val" $
+    --   forAll (suchThat arbitrary (uncurry moveInGrid)) moveFromMoveIsToContent
+-- moveFromMoveIsToContent :: (Grid, Move) -> Bool
+-- moveFromMoveIsToContent (grid, mv) =
+--    (res ^? at (mv ^. move_to) . _Just . tile_content )
+--    == (grid ^? at (mv ^. move_from) . _Just . tile_content)
+--    where
+--      res = move mv grid
 
 
 moveInGrid :: Grid -> Move -> Bool
 moveInGrid grid mv =
   has (at (mv ^. move_from) . _Just . tile_content . _Just) grid
   &&
-  has (at (mv ^. move_to)) grid
+  has (at (mv ^. move_to) . _Just) grid
 
 moveBecomesEmpty :: (Grid, Move) -> Property
 moveBecomesEmpty (grid, mv) =
@@ -54,12 +61,6 @@ moveBecomesEmpty (grid, mv) =
     gridInput = show (grid ^.. contentFold)
     gridOutput= show (result ^.. contentFold)
 
-moveFromMoveIsToContent :: (Grid, Move) -> Bool
-moveFromMoveIsToContent (grid, mv) =
-   (res ^? at (mv ^. move_to) . _Just . tile_content )
-   == (grid ^? at (mv ^. move_from) . _Just . tile_content)
-   where
-     res = move mv grid
 
 testState :: GameState
 testState = set game_selected (Just playerAxial) $ MkGameState Nothing $ level initialGrid

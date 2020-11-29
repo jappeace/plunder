@@ -69,9 +69,16 @@ shouldCharacterMove state towards = do
 
 move :: Move -> Grid -> Grid
 move action grid = fold
-  [ at (action ^. move_from) . _Just . tile_content .~ Nothing
-  , at (action ^. move_to)   .~ (grid ^. at (action ^. move_from))
+  [ toTile .~ (grid ^? fromTile . _Just)
+  , fromTile .~ Nothing
   ] grid
+
+  where
+    fromTile :: Traversal' Grid (Maybe TileContent)
+    fromTile = at (action ^. move_from) . _Just . tile_content
+
+    toTile :: Traversal' Grid (Maybe TileContent)
+    toTile = at (action ^. move_to)  . _Just . tile_content
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
