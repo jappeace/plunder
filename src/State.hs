@@ -68,10 +68,9 @@ shouldCharacterMove state towards = do
   else Nothing
 
 move :: Move -> Grid -> Grid
-move action grid = fold
-  [ toTile .~ (grid ^? fromTile . _Just)
-  , fromTile .~ Nothing
-  ] grid
+move action grid =
+  (toTile .~ (grid ^? fromTile . _Just)) $
+  (fromTile .~ Nothing) $ grid
 
   where
     fromTile :: Traversal' Grid (Maybe TileContent)
