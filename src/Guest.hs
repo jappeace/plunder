@@ -68,7 +68,7 @@ renderState state = do
                        . has (tile_content . _Just . _Player) <$> tileDyn
     performEvent_ $ ffor (updated playerSettings) (maybe (pure ()) $ liftIO . print)
 
-    image $ getCompose $ vikingF <$> Compose playerSettings
+    image $ fmap vikingF <$> playerSettings
 
 mkGameState :: forall t m . ReflexSDL2 t m => m (Dynamic t GameState)
 mkGameState = do
