@@ -24,6 +24,7 @@ renderState :: ReflexSDL2 t m
 renderState state = do
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
+  loadBloodF <- renderImage <$> loadBlood
   void $ listWithKey (view game_board <$> state) $ \axial _ -> do
     hexagon $ renderHex axial
 
@@ -36,8 +37,11 @@ renderState state = do
                        . has (tile_content . _Just . _Player) <$> tileDyn
     let enemySettings = bool Nothing (Just axial)
                        . has (tile_content . _Just . _Enemy) <$> tileDyn
+    let bloodSettings = bool Nothing (Just axial)
+                       . has (tile_background . _Just . _Blood) <$> tileDyn
     performEvent_ $ ffor (updated playerSettings) (maybe (pure ()) $ liftIO . print)
 
+    image $ fmap loadBloodF <$> bloodSettings
     image $ fmap vikingF <$> playerSettings
     image $ fmap enemyF <$> enemySettings
 

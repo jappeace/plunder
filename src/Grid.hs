@@ -14,10 +14,13 @@ module Grid
   , neigbours
   , tile_axial
   , tile_content
+  , tile_background
   , TileContent(..)
+  , Background(..)
   , Tile
   , _Player
   , _Enemy
+  , _Blood
   , contentFold
   , mkGrid
   )
@@ -46,19 +49,20 @@ data Axial = MkAxial
 data TileContent = Player | Enemy
   deriving (Show, Generic, Eq)
 
+data Background = Blood
+  deriving (Show, Generic)
 
-data TileF a = MkTile
+data Tile = MkTile
   { _tile_coordinate :: Axial
-  , _tile_content    :: a
-  } deriving (Generic, Functor, Foldable, Traversable)
+  , _tile_content    :: Maybe TileContent
+  , _tile_background :: Maybe Background
+  } deriving (Show, Generic)
 
-type Tile = TileF (Maybe TileContent)
-
-deriving instance Show Tile
 
 makeLenses 'MkAxial
 makeLenses 'MkTile
 makePrisms ''TileContent
+makePrisms ''Background
 
 -- | A read only coordinate lens for 'Tile',
 --   within the module we can set but outside we can only read so it's
@@ -76,7 +80,7 @@ mkGrid begin end =
   q <- size
   r <- size
   let coordinate = MkAxial q r
-  pure $ (coordinate , MkTile coordinate Nothing)
+  pure $ (coordinate , MkTile coordinate Nothing Nothing)
   where
     size :: [Int]
     size = [begin .. end]
@@ -169,8 +173,14 @@ instance Arbitrary Axial where
 instance Arbitrary Tile where
   arbitrary = MkTile <$> arbitrary <*>
     frequency [(10, Just <$> arbitrary ), (5, pure Nothing)]
+    <*> arbitrary
   shrink = genericShrink
 
 instance Arbitrary TileContent where
   arbitrary = arbitrary
+  shrink = genericShrink
+
+
+instance Arbitrary Background where
+  arbitrary = pure Blood
   shrink = genericShrink

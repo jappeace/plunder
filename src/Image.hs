@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Image(ImageSettings(..)
             , loadViking
@@ -8,25 +8,33 @@ module Image(ImageSettings(..)
             , rectangle_pos
             , rectangle_size
             , image_postion
+            , loadBlood
             ) where
 
-import Grid
-import           Reflex
-import Data.ByteString hiding (copy)
-import Control.Monad.IO.Class
-import Data.FileEmbed
-import           Layer
-import           Foreign.C.Types      (CInt)
-import           Control.Monad.Reader (MonadReader (..))
-import           Reflex.SDL2
-import SDL.Image
 import           Control.Lens
+import           Control.Monad.IO.Class
+import           Control.Monad.Reader   (MonadReader (..))
+import           Data.ByteString        hiding (copy)
+import           Data.FileEmbed
+import           Foreign.C.Types        (CInt)
+import           Grid
+import           Layer
+import           Reflex
+import           Reflex.SDL2
+import           SDL.Image
 
 loadViking :: MonadIO m => MonadReader Renderer m => m Texture
 loadViking = flip decodeTexture vikingFile =<< ask
   where
   vikingFile :: ByteString
   vikingFile = $(embedFile "assets/img/viking.png")
+
+loadBlood :: MonadIO m => MonadReader Renderer m => m Texture
+loadBlood = flip decodeTexture vikingFile =<< ask
+  where
+  vikingFile :: ByteString
+  vikingFile = $(embedFile "assets/img/blood.png")
+
 
 loadEnemy :: MonadIO m => MonadReader Renderer m => m Texture
 loadEnemy = flip decodeTexture vikingFile =<< ask
@@ -35,8 +43,8 @@ loadEnemy = flip decodeTexture vikingFile =<< ask
   vikingFile = $(embedFile "assets/img/male_adventurer_idle.png")
 
 data ImageSettings = ImageSettings
-  { _image_postion   :: Rectangle CInt
-  , _image_content   :: Texture
+  { _image_postion :: Rectangle CInt
+  , _image_content :: Texture
   }
 makeLenses ''ImageSettings
 

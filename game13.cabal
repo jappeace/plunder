@@ -34,6 +34,7 @@ library
       Image
       Layer
       State
+      Render
   other-modules:
       Paths_game13
   hs-source-dirs:
