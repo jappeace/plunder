@@ -33,6 +33,8 @@ library
       Hexagon
       Image
       Layer
+      State
+      Render
   other-modules:
       Paths_game13
   hs-source-dirs:
@@ -40,7 +42,8 @@ library
   default-extensions: EmptyCase FlexibleContexts FlexibleInstances InstanceSigs MultiParamTypeClasses LambdaCase MultiWayIf NamedFieldPuns TupleSections DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies GeneralizedNewtypeDeriving StandaloneDeriving OverloadedStrings TypeApplications
   ghc-options: -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints -Wincomplete-record-updates -Widentities
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
     , bytestring
     , containers
     , file-embed
@@ -66,7 +69,8 @@ executable exe
   default-extensions: EmptyCase FlexibleContexts FlexibleInstances InstanceSigs MultiParamTypeClasses LambdaCase MultiWayIf NamedFieldPuns TupleSections DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies GeneralizedNewtypeDeriving StandaloneDeriving OverloadedStrings TypeApplications
   ghc-options: -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints -Wincomplete-record-updates -Widentities -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
     , bytestring
     , containers
     , file-embed

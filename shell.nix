@@ -7,6 +7,7 @@ let
       libraryToolDepends = drv.libraryToolDepends ++ [
         pkgs.ghcid 
         pkgs.cabal-install
+        pkgs.haskellPackages.hasktags
         ];
     });
 in 

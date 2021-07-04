@@ -4,13 +4,10 @@ module Test.Orphanage () where
 
 import           Foreign.C.Types (CInt)
 import           Game13          ()
-import           Grid
 import           Reflex.SDL2
 import           Test.QuickCheck
-
-instance Arbitrary Axial where
-  arbitrary = MkAxial <$> arbitrary <*> arbitrary
-  shrink = genericShrink
+import State
+import Control.Lens
 
 instance Arbitrary (V2 CInt) where
   arbitrary = V2 <$> arbitrary <*> arbitrary
@@ -19,3 +16,11 @@ instance Arbitrary (V2 CInt) where
 instance Arbitrary (Point V2 CInt) where
   arbitrary = P <$> arbitrary
   shrink = genericShrink
+
+noMoveSelf :: Move -> Bool
+noMoveSelf x =
+  (x ^. move_from) /= (x ^. move_to)
+
+instance Arbitrary Move where
+  arbitrary = suchThat (MkMove <$> arbitrary <*> arbitrary) noMoveSelf
+  shrink = filter noMoveSelf . genericShrink

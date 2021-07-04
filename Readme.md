@@ -62,3 +62,12 @@ https://www.youtube.com/watch?v=dHMNeNapL1E
 
 It tells me to not worry to much about design.
 So let's write down something simple for now and stop this.
+
+
+# Assets
+I don't know how to draw.
+So I'm using these resources:
+
++ https://kenney.nl/assets
+
+Thanks for creating these!
