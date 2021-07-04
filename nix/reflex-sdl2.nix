@@ -1,14 +1,14 @@
 { mkDerivation, async, base, containers, dependent-sum
-, exception-transformers, fetchgit, mtl, ref-tf, reflex, sdl2
-, stdenv, stm
+, exception-transformers, fetchgit, lib, mtl, ref-tf, reflex, sdl2
+, stm
 }:
 mkDerivation {
   pname = "reflex-sdl2";
-  version = "0.3.0.1";
+  version = "0.3.0.2";
   src = fetchgit {
     url = "https://github.com/schell/reflex-sdl2";
-    sha256 = "0nli9p5yrhi7aiapcmh0ykmxdffsrzjfwnvcv7pbbd2ncdcfvh2v";
-    rev = "e2682a9794d3939525eee34c9fe7142b86e4e98f";
+    sha256 = "06lxfgp18l1car6wd07mbjn4yblnp89acf1i67nd815p2hx0ihbz";
+    rev = "6dadf2c4f383b8a58fcd73616996b219c4f93972";
     fetchSubmodules = true;
   };
   isLibrary = true;
@@ -20,5 +20,5 @@ mkDerivation {
   executableHaskellDepends = [ base mtl reflex ];
   homepage = "https://github.com/schell/reflex-sdl2#readme";
   description = "SDL2 and reflex FRP";
-  license = stdenv.lib.licenses.mit;
+  license = lib.licenses.mit;
 }

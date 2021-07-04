@@ -11,8 +11,8 @@ let
   src = ignore.gitignoreSource ./.;
   cabal2nix =
     hpkgs.callCabal2nix "game13" src {
-      reflex-sdl2 = pkgs.haskell.lib.doJailbreak (hpkgs.callPackage ./nix/reflex-sdl2.nix { });
-      sdl2-gfx = pkgs.haskell.lib.doJailbreak (hpkgs.callPackage ./nix/sdl2-gfx.nix { });
+    reflex-sdl2 = pkgs.haskell.lib.doJailbreak (hpkgs.callPackage ./nix/reflex-sdl2.nix { });
+    sdl2-gfx = pkgs.haskell.lib.doJailbreak (hpkgs.callPackage ./nix/sdl2-gfx.nix { });
     };
 in
 # https://github.com/NixOS/nixpkgs/blob/dbacb52ad8/pkgs/development/haskell-modules/generic-builder.nix#L13
