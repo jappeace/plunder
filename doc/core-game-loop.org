@@ -1,0 +1,9 @@
+
+
+1. Indicate which units move where
+   + Attack this unit
+   + Open up treasure
+   + 'Extract' information
+2. Press end turn
+3. the moves get played out
+4. goto 1.
