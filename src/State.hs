@@ -43,6 +43,7 @@ level = fold $ Endo <$>
   , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy
   , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy
   , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy
+  , at (MkAxial 0 6) . _Just . tile_content ?~ Enemy
   ]
 
 initialState :: GameState

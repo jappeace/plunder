@@ -2,6 +2,7 @@
 
 module Image(ImageSettings(..)
             , loadViking
+            , loadEnemy
             , image
             , renderImage
             , rectangle_pos
@@ -26,6 +27,12 @@ loadViking = flip decodeTexture vikingFile =<< ask
   where
   vikingFile :: ByteString
   vikingFile = $(embedFile "assets/img/viking.png")
+
+loadEnemy :: MonadIO m => MonadReader Renderer m => m Texture
+loadEnemy = flip decodeTexture vikingFile =<< ask
+  where
+  vikingFile :: ByteString
+  vikingFile = $(embedFile "assets/img/male_adventurer_idle.png")
 
 data ImageSettings = ImageSettings
   { _image_postion   :: Rectangle CInt

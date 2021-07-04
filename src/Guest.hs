@@ -56,6 +56,7 @@ renderState :: ReflexSDL2 t m
   => Dynamic t GameState -> m ()
 renderState state = do
   vikingF <- renderImage <$> loadViking
+  enemyF <- renderImage <$> loadEnemy
   void $ listWithKey (view game_board <$> state) $ \axial _ -> do
     hexagon $ renderHex axial
 
@@ -66,9 +67,12 @@ renderState state = do
   void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
     let playerSettings = bool Nothing (Just axial)
                        . has (tile_content . _Just . _Player) <$> tileDyn
+    let enemySettings = bool Nothing (Just axial)
+                       . has (tile_content . _Just . _Enemy) <$> tileDyn
     performEvent_ $ ffor (updated playerSettings) (maybe (pure ()) $ liftIO . print)
 
     image $ fmap vikingF <$> playerSettings
+    image $ fmap enemyF <$> enemySettings
 
 mkGameState :: forall t m . ReflexSDL2 t m => m (Dynamic t GameState)
 mkGameState = do
