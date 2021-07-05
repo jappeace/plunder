@@ -11,6 +11,7 @@ module State(GameState(..)
             , game_board
             , game_selected
             , Move(..)
+            , MoveType(..)
             , describeState
             , move_from
             , move_to

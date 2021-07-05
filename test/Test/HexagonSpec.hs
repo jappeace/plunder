@@ -31,7 +31,7 @@ spec = do
   describe "move" $ do
     it "character should move" $
       shouldCharacterMove testState (MkAxial 3 3) `shouldBe`
-        (Just $ MkMove (MkAxial 2 3) (MkAxial 3 3))
+        (Just $ MkWalk $ MkMove (MkAxial 2 3) (MkAxial 3 3))
     it "should clear where we're moving from" $
       forAll (suchThat arbitrary (uncurry moveInGrid)) moveBecomesEmpty
     -- TODO too slow
@@ -57,7 +57,7 @@ moveBecomesEmpty (grid, mv) =
     has (at (mv ^. move_from) . _Just . tile_content . _Nothing) result
 
   where
-    result = move mv grid
+    result = move (MkWalk mv) grid
     gridInput = show (grid ^.. contentFold)
     gridOutput= show (result ^.. contentFold)
 
