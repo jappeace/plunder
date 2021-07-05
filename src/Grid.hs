@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Grid
@@ -26,7 +27,7 @@ module Grid
   )
 where
 
-import           Control.Lens
+import           Control.Lens hiding (elements)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
@@ -45,8 +46,30 @@ data Axial = MkAxial
   , __r :: Int
   } deriving (Eq, Ord, Show, Generic)
 
+-- | Normally a weapon  does between 1 and 3 damage.
+--   for example spear vs spead, roll a dice, that's your damage.
+--   however if a spear goes against a bow, the spear is innefective.
+--   and the bow is super effective.
+--   this means the bow does 2x damage, and the spear only 0.5x
+--
+--   say the spear rolls 3 and the bow rolls 2, the bow does 4 and the spear does 2 (rounded up).
+data Weapon = Spear -- rock
+            | Bow   -- paper
+            | Horse -- siscor
+            deriving (Show, Eq, Generic, Bounded,  Enum)
 
-data TileContent = Player | Enemy
+data Unit = MkUnit
+  { _unit_hp :: Int
+  , _unit_weapon :: Maybe Weapon
+  } deriving (Show, Eq, Generic)
+
+defUnit :: Unit
+defUnit = MkUnit
+  { _unit_hp = 10
+  , _unit_weapon = Nothing
+  }
+
+data TileContent = Player { _tc_unit :: Unit} | Enemy { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
 
 data Background = Blood
@@ -61,8 +84,11 @@ data Tile = MkTile
 
 makeLenses 'MkAxial
 makeLenses 'MkTile
+makeLenses ''Unit
+makeLenses ''TileContent
 makePrisms ''TileContent
 makePrisms ''Background
+makePrisms ''Weapon
 
 -- | A read only coordinate lens for 'Tile',
 --   within the module we can set but outside we can only read so it's
@@ -183,4 +209,14 @@ instance Arbitrary TileContent where
 
 instance Arbitrary Background where
   arbitrary = pure Blood
+  shrink = genericShrink
+
+instance Arbitrary Weapon where
+  arbitrary = elements [minBound .. maxBound]
+
+instance Arbitrary Unit where
+  arbitrary = do
+    _unit_hp <- arbitrary
+    _unit_weapon <- arbitrary
+    pure $ MkUnit {..}
   shrink = genericShrink
