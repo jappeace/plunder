@@ -74,13 +74,13 @@ isMove state towards =
   has (game_board . at towards . _Just . tile_content . _Nothing) state
 
 isShould ::  GameState -> Axial -> Bool -> Maybe Move
-isShould state towards isMove = do
+isShould state towards isMove' = do
   selectedAxial <- state ^. game_selected
   selectedTile :: Tile  <- state ^. game_board . at selectedAxial
   let shouldMove = and
                         [ has (tile_content . _Just . _Player)  selectedTile
                         , towards `elem`  neigbours selectedAxial
-                        , isMove
+                        , isMove'
                         ]
   if shouldMove then
     pure $ MkMove { _move_from = selectedAxial, _move_to = towards}
@@ -99,7 +99,7 @@ shouldCharacterAttack = over (mapped. mapped . mapped) MkAttack $
 move :: MoveType -> Grid -> Grid
 move type' grid =
   (toTileContent .~ (grid ^? fromTile . _Just)) $
-  (if isAttack then (toTileBg ?~  Blood) else id) $
+  (if isAttack' then (toTileBg ?~  Blood) else id) $
   (fromTile .~ Nothing) grid
 
   where
@@ -115,12 +115,12 @@ move type' grid =
     toTile :: Traversal' Grid Tile
     toTile = ix (action ^. move_to)
 
-    isAttack = has _MkAttack type'
+    isAttack' = has _MkAttack type'
 
     action :: Move
     action = case type' of
-      MkWalk move ->  move
-      MkAttack move ->  move
+      MkWalk move' ->  move'
+      MkAttack move' ->  move'
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
