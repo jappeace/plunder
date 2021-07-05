@@ -44,7 +44,8 @@ but never actually released anything to *anyone* else.
 
 # Insipiration
 
-Remember that moment in aoe, when you breach the enemy defenses,
+Remember that moment in [aoe](https://store.steampowered.com/app/221380/Age_of_Empires_II_2013/),
+when you breach the enemy defenses,
 your cavalry strides into the enemy encampment and so many villagers die?
 That feeling is amazing.
 Or in [ck2](https://store.steampowered.com/app/203770/Crusader_Kings_II/),
