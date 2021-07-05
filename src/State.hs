@@ -56,7 +56,7 @@ initialState = MkGameState Nothing $ appEndo level initialGrid
 
 data MoveType = MkWalk Move -- just go there (no additional events)
               | MkAttack Move -- play out combat resolution
-              deriving Show
+              deriving (Show, Eq)
 data Move = MkMove
   { _move_from :: Axial
   , _move_to   :: Axial
