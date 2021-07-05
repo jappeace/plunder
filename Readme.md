@@ -22,7 +22,7 @@ This is a small breakdown of things I'll build next.
 + [x] character can be ordered to move to another tile (indicated by an arrow?)
 - [ ] Implement a combat system.
     No need for AI yet
-  - [ ] Show a different unit on screen
+  - [x] Show a different unit on screen
   - [ ] Move on top of unit causes a combat.
   - [ ] combat is rock paper scissers + dice?
 
@@ -41,6 +41,21 @@ I just need to know what fun is.
 The current name is a code name.
 It's also a joke on that I've already gained a fair bit of experience in this,
 but never actually released anything to *anyone* else.
+
+# Insipiration
+
+Remember that moment in aoe, when you breach the enemy defenses,
+your cavalry strides into the enemy encampment and so many villagers die?
+That feeling is amazing.
+Or in [ck2](https://store.steampowered.com/app/203770/Crusader_Kings_II/),
+when your Vikings sail
+next to some English coast, burn a monestary or two to the ground
+and hop back into the longboat before the enemy king shows up with 10'000 knights? 
+That's what I want to recreate.
+Just the feeling of pillaging and grabbing things that aren't yours,
+yet with a healthy pressure to get out after you got the goods.
+
+
 
 # Research into game design
 ## Basics vid
