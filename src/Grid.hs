@@ -35,6 +35,8 @@ import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
 import           Test.QuickCheck
+import Control.Monad.Random.Class
+import Combat
 
 hexSize :: Int
 hexSize = 80
@@ -59,16 +61,6 @@ data Weapon = Spear -- rock
             | Horse -- siscor
             deriving (Show, Eq, Generic, Bounded,  Enum)
 
-data Unit = MkUnit
-  { _unit_hp :: Int
-  , _unit_weapon :: Maybe Weapon
-  } deriving (Show, Eq, Generic)
-
-defUnit :: Unit
-defUnit = MkUnit
-  { _unit_hp = 10
-  , _unit_weapon = Nothing
-  }
 
 data TileContent = Player { _tc_unit :: Unit} | Enemy { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
@@ -85,11 +77,9 @@ data Tile = MkTile
 
 makeLenses 'MkAxial
 makeLenses 'MkTile
-makeLenses ''Unit
 makeLenses ''TileContent
 makePrisms ''TileContent
 makePrisms ''Background
-makePrisms ''Weapon
 
 -- | A read only coordinate lens for 'Tile',
 --   within the module we can set but outside we can only read so it's
@@ -212,12 +202,4 @@ instance Arbitrary Background where
   arbitrary = pure Blood
   shrink = genericShrink
 
-instance Arbitrary Weapon where
-  arbitrary = elements [minBound .. maxBound]
 
-instance Arbitrary Unit where
-  arbitrary = do
-    _unit_hp <- arbitrary
-    _unit_weapon <- arbitrary
-    pure $ MkUnit {..}
-  shrink = genericShrink

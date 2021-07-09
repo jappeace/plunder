@@ -63,6 +63,7 @@ dependencies:
 - sdl2-gfx
 - sdl2-image
 - QuickCheck
+- MonadRandom
 
 library:
   source-dirs: src
