@@ -10,7 +10,7 @@ module Hexagon
   ( hexagon
   , HexagonSettings
   , defHex
-  , hexagon_postion
+  , hexagon_position
   , hexagon_color
   , hexagon_is_filled
   , renderHex
@@ -35,7 +35,7 @@ import           SDL.Primitive
 import           Text.Printf
 
 data HexagonSettings = HexagonSettings
-  { _hexagon_postion   :: Point V2 CInt
+  { _hexagon_position   :: Point V2 CInt
   , _hexagon_label     :: Maybe Text
   , _hexagon_color     :: Color
   , _hexagon_is_filled :: Bool
@@ -46,7 +46,7 @@ quotV2 :: V2 CInt -> V2 CInt -> V2 CInt
 quotV2 (V2 x y) (V2 x2 y2) = V2 (x `quot` x2) $ y `quot` y2
 
 defHex :: HexagonSettings
-defHex = HexagonSettings { _hexagon_postion = _Point # V2 150 150
+defHex = HexagonSettings { _hexagon_position = _Point # V2 150 150
                          , _hexagon_label   = Nothing
                          , _hexagon_color   = V4 128 128 128 255
                          , _hexagon_is_filled = False
@@ -96,7 +96,7 @@ calcPoints settings =
   )
  where
   points :: [Point V2 CInt]
-  points =  pointyHexCorner (settings ^. hexagon_postion) hexSize <$> allCorners
+  points =  pointyHexCorner (settings ^. hexagon_position) hexSize <$> allCorners
   allCorners :: [HexCorner]
   allCorners = [minBound .. maxBound]
 
@@ -118,8 +118,8 @@ hexagon settings = do
       textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
       freeSurface textSurface
       image $ pure $ Just $ ImageSettings
-          { _image_postion   =  Rectangle
-              (  settings ^. hexagon_postion
+          { _image_position   =  Rectangle
+              (  settings ^. hexagon_position
               -  (_Point # fontHexSize `quotV2` V2 2 (-5))
               ) $ fontHexSize
           , _image_content   = textTexture
@@ -131,6 +131,6 @@ hexagon settings = do
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 renderHex :: Axial -> HexagonSettings
-renderHex coord = hexagon_postion .~ (axialToPixel coord)
+renderHex coord = hexagon_position .~ (axialToPixel coord)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (coord ^. _q) $ (coord ^. _r))
                 $ defHex

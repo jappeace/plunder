@@ -27,6 +27,7 @@ import           Debug.Trace
 import           GHC.Generics         (Generic)
 import           Grid
 import           Text.Printf
+import Combat
 
 data GameState = MkGameState
   { _game_selected :: Maybe Axial
@@ -42,10 +43,10 @@ describeState x = printf "GameState { _game_selected = %s, _game_board = %s }"
 
 level :: Endo Grid
 level = fold $ Endo <$>
-  [ at (MkAxial 2 3) . _Just . tile_content ?~ Player defUnit
-  , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy defUnit
-  , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy defUnit
-  , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy defUnit
+  [ at (MkAxial 2 3) . _Just . tile_content ?~ Player (unit_weapon ?~ Axe $ defUnit)
+  , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Axe $ defUnit)
+  , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Bow $ defUnit)
+  , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Sword $ defUnit)
   , at (MkAxial 0 6) . _Just . tile_content ?~ Enemy defUnit
   , at (MkAxial 1 6) . _Just . tile_background ?~ Blood
   ]

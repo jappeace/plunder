@@ -7,6 +7,10 @@ module Combat
   , Unit(..)
   , defUnit
   , resolveCombat
+  , unit_weapon
+  , _Axe
+  , _Bow
+  , _Sword
   )
 where
 
@@ -26,9 +30,9 @@ import Control.Monad.Random.Class
 --   this means the bow does 2x damage, and the spear only 0.5x
 --
 --   say the spear rolls 3 and the bow rolls 2, the bow does 4 and the spear does 2 (rounded up).
-data Weapon = Spear -- rock
+data Weapon = Sword -- rock
             | Bow   -- paper
-            | Horse -- siscor
+            | Axe -- siscor
             deriving (Show, Eq, Generic, Bounded,  Enum)
 
 data Unit = MkUnit
@@ -46,17 +50,17 @@ makePrisms ''Weapon
 
 applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Int
 applyDamage rng applying definding = case (applying, definding) of
-  (Nothing, Nothing) -> 0
+  (Nothing, _) -> 0
   (_, Nothing) -> supereffective
-  (Just Spear, Just Bow) -> innefective
-  (Just Spear, Just Horse) -> supereffective -- it's just an abstraction
-  (Just Spear, Just Spear) -> rng
+  (Just Sword, Just Bow) -> innefective
+  (Just Sword, Just Axe) -> supereffective -- it's just an abstraction
+  (Just Sword, Just Sword) -> rng
   (Just Bow, Just Bow) -> rng
-  (Just Bow, Just Horse) -> innefective
-  (Just Bow, Just Spear) -> supereffective
-  (Just Horse, Just Bow) -> supereffective
-  (Just Horse, Just Horse) -> rng
-  (Just Horse, Just Spear) -> innefective
+  (Just Bow, Just Axe) -> innefective
+  (Just Bow, Just Sword) -> supereffective
+  (Just Axe, Just Bow) -> supereffective
+  (Just Axe, Just Axe) -> rng
+  (Just Axe, Just Sword) -> innefective
   where
     supereffective :: Int
     supereffective = rng * 2

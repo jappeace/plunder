@@ -25,6 +25,7 @@ module Grid
   , contentFold
   , mkGrid
   , defUnit
+  , tc_unit
   )
 where
 
