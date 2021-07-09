@@ -42,11 +42,11 @@ describeState x = printf "GameState { _game_selected = %s, _game_board = %s }"
 
 level :: Endo Grid
 level = fold $ Endo <$>
-  [ at (MkAxial 2 3) . _Just . tile_content ?~ Player
-  , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy
-  , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy
-  , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy
-  , at (MkAxial 0 6) . _Just . tile_content ?~ Enemy
+  [ at (MkAxial 2 3) . _Just . tile_content ?~ Player defUnit
+  , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy defUnit
+  , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy defUnit
+  , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy defUnit
+  , at (MkAxial 0 6) . _Just . tile_content ?~ Enemy defUnit
   , at (MkAxial 1 6) . _Just . tile_background ?~ Blood
   ]
 

@@ -24,6 +24,7 @@ module Grid
   , _Blood
   , contentFold
   , mkGrid
+  , defUnit
   )
 where
 
