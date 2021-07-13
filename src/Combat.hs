@@ -49,37 +49,43 @@ import Control.Monad.Random.Class
 --   this means the bow does 2x damage, and the spear only 0.5x
 --
 --   say the spear rolls 3 and the bow rolls 2, the bow does 4 and the spear does 2 (rounded up).
-data Weapon = Sword -- rock
+$(singletons [d|
+  data Weapon = Sword -- rock
             | Bow   -- paper
             | Axe -- siscor
-            deriving (Show, Eq, Generic, Bounded,  Enum)
-
-$(singletons [d|
   data Damage = NoEffect
             | Small
             | Medium
             | Large
   |])
 
+deriving instance Show Weapon
+deriving instance Eq Weapon
+deriving instance Generic Weapon
+deriving instance Bounded Weapon
+deriving instance Enum Weapon
+
 type family Beats ( a :: Weapon) :: Weapon where
      Beats 'Sword = 'Axe
      Beats 'Bow = 'Sword
      Beats 'Axe = 'Bow
 
--- type level function
-type family GetDmg ( a :: Maybe Weapon ) (b :: Maybe Weapon) :: Damage where
-  GetDmg 'Nothing b = 'NoEffect
-  GetDmg a 'Nothing = 'Large
-  GetDmg (Just a) (Just b) =  (GetWeaponDmg a b)
-
 type family GetWeaponDmg (a :: Weapon) (b :: Weapon) :: Damage where
   GetWeaponDmg a b = Bl.If (Bl.DefaultEq (Beats a) b) -- if a beats b
-                      'Large
-                     ( -- else
-                        If (Bl.DefaultEq (Beats b) a)
-                       'Small -- small damage, eg your attacking something that's effective against you
-                       'Medium
-                     )
+                      Large
+                      ( -- else
+                          If (Bl.DefaultEq (Beats b) a)
+                        'Small -- small damage, eg your attacking something that's effective against you
+                        'Medium
+                      )
+
+-- type level function
+type family GetDmg ( a :: Maybe Weapon ) (b :: Maybe Weapon) :: Damage where
+  GetDmg Nothing b = NoEffect
+  GetDmg a Nothing = Small
+  GetDmg (Just c) (Just d) = Large
+  GetDmg a b = NoEffect
+
 data Unit = MkUnit
   { _unit_hp :: Int
   , _unit_weapon :: Maybe Weapon
@@ -96,8 +102,7 @@ makePrisms ''Weapon
 
 damage :: Int
 damage =
-  appEndo (damageFactor @(GetWeaponDmg 'Axe 'Bow)) 4
-
+  appEndo (damageFactor @(GetDmg ('Just Axe) ('Just Bow))) 4
 
 damageFactor ::  forall (a :: Damage) . SingI a =>  Endo Int
 damageFactor = Endo $ \x -> case fromSing (sing :: Sing a) of
@@ -105,6 +110,18 @@ damageFactor = Endo $ \x -> case fromSing (sing :: Sing a) of
             Small -> quot x 2
             Medium -> x
             Large -> x * 2
+
+
+applyDamage2 :: Int -> Maybe Weapon -> Maybe Weapon -> Int
+applyDamage2 rng applying definding = 0
+  where
+    importantBusiness :: Endo Int
+    importantBusiness =
+      withSomeSing applying $ \ applyS ->
+        withSomeSing definding $ \ defining -> outPut applyS defining
+
+outPut :: forall (applying :: Maybe Weapon) (definding :: Maybe Weapon) b . GetDmg applying definding ~ b => Sing applying -> Sing definding ->  Endo Int
+outPut _ _ = damageFactor @b
 
 applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Int
 applyDamage rng applying definding = case (applying, definding) of
