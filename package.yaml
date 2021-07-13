@@ -64,6 +64,7 @@ dependencies:
 - sdl2-image
 - QuickCheck
 - MonadRandom
+- singletons
 
 library:
   source-dirs: src

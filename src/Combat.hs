@@ -1,5 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Combat
@@ -14,13 +18,14 @@ module Combat
   )
 where
 
+import Data.Singletons.Prelude.Bool
 import           Control.Lens hiding (elements)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
-import           Test.QuickCheck
+import qualified Test.QuickCheck as Q
 import Control.Monad.Random.Class
 
 -- | Normally a weapon  does between 1 and 3 damage.
@@ -34,6 +39,30 @@ data Weapon = Sword -- rock
             | Bow   -- paper
             | Axe -- siscor
             deriving (Show, Eq, Generic, Bounded,  Enum)
+
+data Damage = NoEffect
+            | Small
+            | Medium
+            | Large
+
+type family Beats ( a :: Weapon) where
+     Beats 'Sword = 'Axe
+     Beats 'Bow = 'Sword
+     Beats 'Axe = 'Bow
+
+type family GetDmg ( a :: Maybe Weapon ) (b :: Maybe Weapon) (c :: Damage) where
+  GetDmg 'Nothing b = 'NoEffect
+  GetDmg a 'Nothing = 'Large
+  GetDmg (Just a) (Just b) =  GetWeaponDmg a b
+
+type family GetWeaponDmg (a :: Weapon) (b :: Weapon) (c :: Damage) where
+  GetWeaponDmg a b = If (Beats a :~: b) -- if a beats b
+                      'Large
+                     ( -- else
+                        If (Beats b :~: a)
+                       'Small -- small damage, eg your attacking something that's effective against you
+                       'Medium
+                     )
 
 data Unit = MkUnit
   { _unit_hp :: Int
@@ -78,10 +107,10 @@ resolveCombat leftunit rightunit = do
 
   pure (unit_hp -~ dmgToLeft $ leftunit, unit_hp -~ dmgToRight $ rightunit)
 
-instance Arbitrary Weapon where
+instance Q.Arbitrary Weapon where
   arbitrary = elements [minBound .. maxBound]
 
-instance Arbitrary Unit where
+instance Q.Arbitrary Unit where
   arbitrary = do
     _unit_hp <- arbitrary
     _unit_weapon <- arbitrary
