@@ -4,6 +4,15 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE GADTs #-}
+
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Combat
@@ -18,6 +27,9 @@ module Combat
   )
 where
 
+import Data.Monoid
+import Data.Singletons.TH
+-- import Data.Type.Equality
 import Data.Singletons.Prelude.Bool
 import           Control.Lens hiding (elements)
 import           Data.Map.Strict (Map)
@@ -45,21 +57,23 @@ data Damage = NoEffect
             | Medium
             | Large
 
-type family Beats ( a :: Weapon) where
+genSingletons [''Damage]
+
+type family Beats ( a :: Weapon) :: Weapon where
      Beats 'Sword = 'Axe
      Beats 'Bow = 'Sword
      Beats 'Axe = 'Bow
 
-type family GetDmg ( a :: Maybe Weapon ) (b :: Maybe Weapon) (c :: Damage) where
+type family GetDmg ( a :: Maybe Weapon ) (b :: Maybe Weapon) :: Damage where
   GetDmg 'Nothing b = 'NoEffect
   GetDmg a 'Nothing = 'Large
   GetDmg (Just a) (Just b) =  GetWeaponDmg a b
 
-type family GetWeaponDmg (a :: Weapon) (b :: Weapon) (c :: Damage) where
-  GetWeaponDmg a b = If (Beats a :~: b) -- if a beats b
+type family GetWeaponDmg (a :: Weapon) (b :: Weapon) :: Damage where
+  GetWeaponDmg a b = If (Beats a == b) -- if a beats b
                       'Large
                      ( -- else
-                        If (Beats b :~: a)
+                        If (Beats b == a)
                        'Small -- small damage, eg your attacking something that's effective against you
                        'Medium
                      )
@@ -76,6 +90,14 @@ defUnit = MkUnit
   }
 makeLenses ''Unit
 makePrisms ''Weapon
+
+damageFactor ::  forall (a :: Damage) . SingI a =>  Endo Int
+damageFactor = Endo $ \x -> withSomeSing (fromSing (sing :: Sing a)) $ \case
+            SNoEffect -> 0
+            SSmall -> quot x 2
+            SMedium -> x
+            SLarge -> x * 2
+
 
 applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Int
 applyDamage rng applying definding = case (applying, definding) of
@@ -108,11 +130,11 @@ resolveCombat leftunit rightunit = do
   pure (unit_hp -~ dmgToLeft $ leftunit, unit_hp -~ dmgToRight $ rightunit)
 
 instance Q.Arbitrary Weapon where
-  arbitrary = elements [minBound .. maxBound]
+  arbitrary = Q.elements [minBound .. maxBound]
 
 instance Q.Arbitrary Unit where
   arbitrary = do
-    _unit_hp <- arbitrary
-    _unit_weapon <- arbitrary
+    _unit_hp <- Q.arbitrary
+    _unit_weapon <- Q.arbitrary
     pure $ MkUnit {..}
-  shrink = genericShrink
+  shrink = Q.genericShrink
