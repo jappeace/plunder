@@ -24,13 +24,15 @@ module Combat
   , _Axe
   , _Bow
   , _Sword
+  , damage
   )
 where
 
 import Data.Monoid
 import Data.Singletons.TH
 -- import Data.Type.Equality
-import Data.Singletons.Prelude.Bool
+import qualified Data.Singletons.Prelude.Bool as Bl
+import qualified Data.Singletons.Prelude.Eq as Bl
 import           Control.Lens hiding (elements)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as SMap
@@ -52,32 +54,32 @@ data Weapon = Sword -- rock
             | Axe -- siscor
             deriving (Show, Eq, Generic, Bounded,  Enum)
 
-data Damage = NoEffect
+$(singletons [d|
+  data Damage = NoEffect
             | Small
             | Medium
             | Large
-
-genSingletons [''Damage]
+  |])
 
 type family Beats ( a :: Weapon) :: Weapon where
      Beats 'Sword = 'Axe
      Beats 'Bow = 'Sword
      Beats 'Axe = 'Bow
 
+-- type level function
 type family GetDmg ( a :: Maybe Weapon ) (b :: Maybe Weapon) :: Damage where
   GetDmg 'Nothing b = 'NoEffect
   GetDmg a 'Nothing = 'Large
-  GetDmg (Just a) (Just b) =  GetWeaponDmg a b
+  GetDmg (Just a) (Just b) =  (GetWeaponDmg a b)
 
 type family GetWeaponDmg (a :: Weapon) (b :: Weapon) :: Damage where
-  GetWeaponDmg a b = If (Beats a == b) -- if a beats b
+  GetWeaponDmg a b = Bl.If (Bl.DefaultEq (Beats a) b) -- if a beats b
                       'Large
                      ( -- else
-                        If (Beats b == a)
+                        If (Bl.DefaultEq (Beats b) a)
                        'Small -- small damage, eg your attacking something that's effective against you
                        'Medium
                      )
-
 data Unit = MkUnit
   { _unit_hp :: Int
   , _unit_weapon :: Maybe Weapon
@@ -88,16 +90,21 @@ defUnit = MkUnit
   { _unit_hp = 10
   , _unit_weapon = Nothing
   }
+
 makeLenses ''Unit
 makePrisms ''Weapon
 
-damageFactor ::  forall (a :: Damage) . SingI a =>  Endo Int
-damageFactor = Endo $ \x -> withSomeSing (fromSing (sing :: Sing a)) $ \case
-            SNoEffect -> 0
-            SSmall -> quot x 2
-            SMedium -> x
-            SLarge -> x * 2
+damage :: Int
+damage =
+  appEndo (damageFactor @(GetWeaponDmg 'Axe 'Bow)) 4
 
+
+damageFactor ::  forall (a :: Damage) . SingI a =>  Endo Int
+damageFactor = Endo $ \x -> case fromSing (sing :: Sing a) of
+            NoEffect -> 0
+            Small -> quot x 2
+            Medium -> x
+            Large -> x * 2
 
 applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Int
 applyDamage rng applying definding = case (applying, definding) of
