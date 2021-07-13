@@ -120,6 +120,11 @@ applyDamage2 rng applying definding = 0
       withSomeSing applying $ \ applyS ->
         withSomeSing definding $ \ defining -> outPut applyS defining
 
+-- this will not inhabit because it won't gives us a singI instances
+-- unless all the branches return the same datakind
+--
+-- we probably should rely more on the singletons library to make this work?
+-- maybe there is a function to apply typelevel functions to singletons.
 outPut :: forall (applying :: Maybe Weapon) (definding :: Maybe Weapon) b . GetDmg applying definding ~ b => Sing applying -> Sing definding ->  Endo Int
 outPut _ _ = damageFactor (sing :: Sing b)
 
