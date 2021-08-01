@@ -36,7 +36,6 @@ import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
 import           Test.QuickCheck
-import Control.Monad.Random.Class
 import Combat
 
 hexSize :: Int

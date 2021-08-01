@@ -15,14 +15,9 @@ module Combat
 where
 
 import           Control.Lens hiding (elements)
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
-import           Reflex.SDL2
-import           Foreign.C.Types      (CInt)
 import           Test.QuickCheck
 import Control.Monad.Random.Class
-import Data.Word
 
 -- | Normally a weapon  does between 1 and 3 damage.
 --   for example spear vs spead, roll a dice, that's your damage.
@@ -73,7 +68,7 @@ defUnit = MkUnit
 makeLenses ''Unit
 makePrisms ''Weapon
 
-applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Int
+applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Health
 applyDamage rng applying defending=
   case getDmg applying defending of
     NoEffect -> 0
