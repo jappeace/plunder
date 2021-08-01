@@ -52,8 +52,7 @@ getDmg (Just a) (Just b) = if
             | beats b == a -> Smoll
             | True      -> Medium
 
-
-type Health = Int
+type Health = Int -- TODO change to something better
 
 data Unit = MkUnit
   { _unit_hp :: Health

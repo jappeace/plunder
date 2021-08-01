@@ -1,21 +1,25 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Guest(guest) where
 
-import Render
-import           Control.Monad.Reader           ( MonadReader(..) )
-import           Reflex
-import           Reflex.SDL2
-import           Layer
-import           Grid
 import           Control.Lens
+import           Control.Monad.Reader            (MonadReader (..))
+import           Control.Monad.Trans.Random.Lazy
 import           Data.Generics.Product
 import           Data.Generics.Sum
 import           Data.Int
-import State
+import           Grid
+import           Layer
+import           Reflex
+import           Reflex.SDL2
+import           Render
+import           State
+import           System.Random
+
+
 
 leftClick :: Prism' MouseButton ()
 leftClick = _Ctor @"ButtonLeft"
@@ -46,8 +50,14 @@ guest = do
   gameState <- mkGameState
   renderState gameState
 
+
+makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
+makeRandomNT =
+  newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
+
 mkGameState :: forall t m . ReflexSDL2 t m => m (Dynamic t GameState)
 mkGameState = do
+
   mouseButtonEvt <- getMouseButtonEvent
   let leftClickEvts :: Event t MouseButtonEventData
       leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
@@ -61,7 +71,11 @@ mkGameState = do
                         , RightClick <$> rightClickAxialEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
-  state <- accumDyn updateState initialState events
+
+  ntDyn <- holdView makeRandomNT $ makeRandomNT <$ events
+  state <- accumDyn updateState initialState ((,) <$> current ntDyn <@> events)
+
+
   performEvent_ $ ffor (describeState <$> updated state) $ liftIO . print
   pure state
 
