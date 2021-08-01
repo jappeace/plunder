@@ -14,6 +14,7 @@
 {-# LANGUAGE GADTs #-}
 
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -ddump-splices #-}
 
 module Combat
   (Weapon(..)
@@ -57,6 +58,10 @@ $(singletons [d|
             | Small
             | Medium
             | Large
+  beatya :: Weapon -> Weapon
+  beatya Sword = Axe
+  beatya Bow = Sword
+  beatya Axe = Bow
   |])
 
 deriving instance Show Weapon
@@ -64,7 +69,6 @@ deriving instance Eq Weapon
 deriving instance Generic Weapon
 deriving instance Bounded Weapon
 deriving instance Enum Weapon
-
 
 type family Beats ( a :: Weapon) :: Weapon where
      Beats 'Sword = 'Axe
