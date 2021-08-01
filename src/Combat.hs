@@ -22,6 +22,7 @@ import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
 import           Test.QuickCheck
 import Control.Monad.Random.Class
+import Data.Word
 
 -- | Normally a weapon  does between 1 and 3 damage.
 --   for example spear vs spead, roll a dice, that's your damage.
@@ -32,11 +33,35 @@ import Control.Monad.Random.Class
 --   say the spear rolls 3 and the bow rolls 2, the bow does 4 and the spear does 2 (rounded up).
 data Weapon = Sword -- rock
             | Bow   -- paper
-            | Axe -- siscor
+            | Axe -- scissor
             deriving (Show, Eq, Generic, Bounded,  Enum)
 
+data Damage = NoEffect
+            | Smoll
+            | Medium
+            | Bigly
+
+beats :: Weapon -> Weapon
+beats Sword = Axe
+beats Bow = Sword
+beats Axe = Bow
+
+getDmg ::
+  Maybe Weapon -- ^ attacker
+  -> Maybe Weapon -- ^ defender
+  -> Damage -- ^ defenders' damage
+getDmg Nothing _ = NoEffect
+getDmg _ Nothing = Bigly
+getDmg (Just a) (Just b) = if
+            | beats a == b -> Bigly
+            | beats b == a -> Smoll
+            | True      -> Medium
+
+
+type Health = Int
+
 data Unit = MkUnit
-  { _unit_hp :: Int
+  { _unit_hp :: Health
   , _unit_weapon :: Maybe Weapon
   } deriving (Show, Eq, Generic)
 
@@ -49,23 +74,12 @@ makeLenses ''Unit
 makePrisms ''Weapon
 
 applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Int
-applyDamage rng applying definding = case (applying, definding) of
-  (Nothing, _) -> 0
-  (_, Nothing) -> supereffective
-  (Just Sword, Just Bow) -> innefective
-  (Just Sword, Just Axe) -> supereffective -- it's just an abstraction
-  (Just Sword, Just Sword) -> rng
-  (Just Bow, Just Bow) -> rng
-  (Just Bow, Just Axe) -> innefective
-  (Just Bow, Just Sword) -> supereffective
-  (Just Axe, Just Bow) -> supereffective
-  (Just Axe, Just Axe) -> rng
-  (Just Axe, Just Sword) -> innefective
-  where
-    supereffective :: Int
-    supereffective = rng * 2
-    innefective :: Int
-    innefective = quot rng 2
+applyDamage rng applying defending=
+  case getDmg applying defending of
+    NoEffect -> 0
+    Smoll -> quot rng 2
+    Medium -> rng
+    Bigly -> rng * 2
 
 resolveCombat :: MonadRandom m => Unit -> Unit -> m (Unit, Unit)
 resolveCombat leftunit rightunit = do
