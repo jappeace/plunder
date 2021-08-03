@@ -31,7 +31,6 @@ import           Data.Foldable
 import           Data.Functor.Compose
 import           Data.Maybe
 import           Data.Monoid
-import           Debug.Trace
 import           GHC.Generics                    (Generic)
 import           Grid
 import           System.Random
@@ -75,20 +74,20 @@ makeLenses ''Move
 makePrisms ''MoveType
 
 isAttack :: GameState -> Axial -> Bool
-isAttack state towards =
-  has (game_board . at towards . _Just . tile_content . _Just . _Enemy) state
+isAttack state' towards =
+  has (game_board . at towards . _Just . tile_content . _Just . _Enemy) state'
 
 isMove :: GameState -> Axial -> Bool
-isMove state towards =
-  has (game_board . at towards . _Just . tile_content . _Nothing) state
+isMove state' towards =
+  has (game_board . at towards . _Just . tile_content . _Nothing) state'
 
 -- figures out if the tile we're moving towards is a neigbour of the
 -- selected tile, and verifies that hte selected tile is the player.
 -- concatenates the given boolean to the the conditions.
 toPlayerMove ::  GameState -> Axial -> Bool -> Maybe Move
-toPlayerMove state towards isMove' = do
-  selectedAxial <- state ^. game_selected
-  selectedTile :: Tile  <- state ^. game_board . at selectedAxial
+toPlayerMove state' towards isMove' = do
+  selectedAxial <- state' ^. game_selected
+  selectedTile :: Tile  <- state' ^. game_board . at selectedAxial
   let shouldMove = and
                         [ has (tile_content . _Just . _Player)  selectedTile
                         , towards `elem`  neigbours selectedAxial
@@ -143,49 +142,50 @@ data UpdateEvts = LeftClick Axial
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  MoveType -> m ()
 applyAttack = \case
-  MkAttack move -> do
-    mFrom <- preuse $ game_board . ix (move ^. move_from)
-    mTo <- preuse $ game_board . ix (move ^. move_to)
+  MkAttack move' -> do
+    mFrom <- preuse $ game_board . ix (move' ^. move_from)
+    mTo <- preuse $ game_board . ix (move' ^. move_to)
     let
-        from :: Tile -- TODO figure out how to structure that this maybe isn't neccisary
-        from = fromMaybe (error "could not find from tile were expected") $ mFrom
-        to :: Tile -- TODO figure out how to structure that this maybe isn't neccisary
-        to = fromMaybe (error "could not find to tile were expected") $ mTo
+        from' :: Tile -- TODO figure out how to structure that this maybe isn't neccisary
+        from' = fromMaybe (error "could not find from tile were expected") $ mFrom
+        to' :: Tile -- TODO figure out how to structure that this maybe isn't neccisary
+        to' = fromMaybe (error "could not find to tile were expected") $ mTo
         fromU :: Unit -- TODO figure out how to structure that this maybe isn't neccisary
         fromU = fromMaybe (error "from no unit found where expected") $
-                          (from ^? tile_content . _Just . tc_unit)
+                          (from' ^? tile_content . _Just . tc_unit)
 
         toU :: Unit -- TODO figure out how to structure that this maybe isn't neccisary
         toU = fromMaybe (error "to no unit found where expected") $
-                          (to ^? tile_content . _Just . tc_unit)
+                          (to' ^? tile_content . _Just . tc_unit)
     result <- resolveCombat -- .... it's a maybe!
                 fromU
                 toU
-    game_board . at (move ^. move_from) . _Just . tile_content . _Just . tc_unit .= fst result
-    game_board . at (move ^. move_to) . _Just  . tile_content . _Just . tc_unit .= snd result
+    game_board . at (move' ^. move_from) . _Just . tile_content . _Just . tc_unit .= fst result
+    game_board . at (move' ^. move_to) . _Just  . tile_content . _Just . tc_unit .= snd result
     pure ()
-  MkWalk x -> pure ()
+  MkWalk _ -> pure ()
 
 
 newtype RandTNT a = MkRandTNT {
   unRandNt :: forall n . Functor n => RandT StdGen n a -> n a
   }
 
+updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
+updateLogic = \case
+  LeftClick axial -> assign game_selected (Just axial)
+  RightClick towards -> do
+    currentState <- use id
+    let movePlan = shouldCharacterMove currentState towards
+                    <|>
+                    shouldCharacterAttack currentState towards
+    traverse_ applyAttack movePlan
+    for_ movePlan $ \plan -> modifying game_board (move plan)
+
+
 -- TODO add logging:
 --  https://hackage.haskell.org/package/reflex-0.8.0.0/docs/Reflex-Class.html#v:mapAccumDyn
 --  https://hackage.haskell.org/package/monad-logger-0.3.36/docs/Control-Monad-Logger.html#t:MonadLogger
 --  https://hackage.haskell.org/package/monad-logger-0.3.36/docs/Control-Monad-Logger.html#t:WriterLoggingT
 updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
-updateState state (resolveRng, evts) = case evts of
-  LeftClick axial -> set game_selected (Just axial) state
-  RightClick towards -> let
-    movePlan =
-      shouldCharacterMove state towards
-      <|>
-      shouldCharacterAttack state towards
-
-    newState = fromMaybe state $ movePlan <&> \plan -> execState (unRandNt resolveRng $ applyAttack plan) state
-
-    movedState = maybe newState (\x -> trace ("updating to" <> show x) $
-                           over game_board (move x) newState) movePlan
-    in trace ("result is now" <> describeState movedState) movedState
+updateState gameState (resolveRng, evts) =
+  execState (unRandNt resolveRng $ updateLogic evts) gameState
