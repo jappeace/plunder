@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Combat
@@ -11,13 +11,15 @@ module Combat
   , _Axe
   , _Bow
   , _Sword
+  , Health
+  , unit_hp
   )
 where
 
-import           Control.Lens hiding (elements)
-import           GHC.Generics    (Generic)
+import           Control.Lens               hiding (elements)
+import           Control.Monad.Random.Class
+import           GHC.Generics               (Generic)
 import           Test.QuickCheck
-import Control.Monad.Random.Class
 
 -- | Normally a weapon  does between 1 and 3 damage.
 --   for example spear vs spead, roll a dice, that's your damage.
@@ -32,14 +34,16 @@ data Weapon = Sword -- rock
             deriving (Show, Eq, Generic, Bounded,  Enum)
 
 data Damage = NoEffect
-            | Smoll
+            | Smol'l -- smol'l
             | Medium
             | Bigly
 
 beats :: Weapon -> Weapon
 beats Sword = Axe
-beats Bow = Sword
-beats Axe = Bow
+beats Bow   = Sword
+beats Axe   = Bow
+
+
 
 getDmg ::
   Maybe Weapon -- ^ attacker
@@ -49,13 +53,13 @@ getDmg Nothing _ = NoEffect
 getDmg _ Nothing = Bigly
 getDmg (Just a) (Just b) = if
             | beats a == b -> Bigly
-            | beats b == a -> Smoll
-            | True      -> Medium
+            | beats b == a -> Smol'l
+            | True         -> Medium
 
 type Health = Int -- TODO change to something better
 
 data Unit = MkUnit
-  { _unit_hp :: Health
+  { _unit_hp     :: Health
   , _unit_weapon :: Maybe Weapon
   } deriving (Show, Eq, Generic)
 
@@ -71,17 +75,17 @@ applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Health
 applyDamage rng applying defending=
   case getDmg applying defending of
     NoEffect -> 0
-    Smoll -> quot rng 2
-    Medium -> rng
-    Bigly -> rng * 2
+    Smol'l   -> quot rng 2
+    Medium   -> rng
+    Bigly    -> rng * 2
 
 resolveCombat :: MonadRandom m => Unit -> Unit -> m (Unit, Unit)
 resolveCombat leftunit rightunit = do
   -- damage left one,
-  rng <- getRandom
+  rng <- getRandomR (1,3)
   let dmgToRight = applyDamage rng (leftunit ^. unit_weapon) (rightunit ^. unit_weapon)
 
-  rng2 <- getRandom
+  rng2 <- getRandomR (1,3)
   let dmgToLeft = applyDamage rng2 (rightunit ^. unit_weapon) (leftunit ^. unit_weapon)
 
   pure (unit_hp -~ dmgToLeft $ leftunit, unit_hp -~ dmgToRight $ rightunit)

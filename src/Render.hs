@@ -1,24 +1,23 @@
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
 
 module Render(renderState) where
 
-import Data.Monoid
+import           Combat
 import           Control.Lens
 import           Control.Monad
-import           Control.Monad.Reader  (MonadReader (..))
+import           Control.Monad.Reader (MonadReader (..))
 import           Data.Bool
+import           Data.Foldable
+import           Data.Monoid
 import           Grid
-import           Hexagon
-import           Image
-import           Layer
 import           Reflex
 import           Reflex.SDL2
+import           Render.Health
+import           Render.Hexagon
+import           Render.Image
+import           Render.Layer
 import           State
-import Data.Foldable
-import Combat
 
 renderState :: ReflexSDL2 t m
   => MonadReader Renderer m
@@ -49,15 +48,16 @@ renderState state = do
        $ hexagon . renderSelected <$> mapMaybe (view game_selected) (updated state)
 
   -- simple list doesn't cache on key change
-  void $ listWithKey (view game_board <$> state) $ \axial tileDyn ->
+  void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
     traverse_ (\fun -> fun axial tileDyn) renderOrduning
+    healthBar tileDyn
 
 applyImage ::
   DynamicWriter t [Performable m ()] m
   => MonadReader Renderer m
   => ReflexSDL2 t m
   => (Axial -> ImageSettings)
-  -> (Getting Any Tile a)
+  -> Getting Any Tile a -- ^ condition on the tile for rendering
   -> Axial
   -> Dynamic t Tile
   ->  m ()
@@ -67,7 +67,7 @@ applyImage textureF hashPath axial tileDyn =
     someSettings = bool Nothing (Just axial)
                        . has hashPath <$> tileDyn
 
-  
+
 
 
 renderSelected :: Axial -> HexagonSettings

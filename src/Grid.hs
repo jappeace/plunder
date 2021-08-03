@@ -16,6 +16,7 @@ module Grid
   , tile_axial
   , tile_content
   , tile_background
+  , tile_coordinate
   , TileContent(..)
   , Background(..)
   , Tile

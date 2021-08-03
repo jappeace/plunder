@@ -12,13 +12,12 @@ import           Data.Generics.Product
 import           Data.Generics.Sum
 import           Data.Int
 import           Grid
-import           Layer
+import           Render.Layer
 import           Reflex
 import           Reflex.SDL2
 import           Render
 import           State
 import           System.Random
-
 
 
 leftClick :: Prism' MouseButton ()

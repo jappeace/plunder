@@ -25,16 +25,16 @@ source-repository head
 
 library
   exposed-modules:
-      Button
       Combat
-      Font
       Game13
       Grid
       Guest
-      Hexagon
-      Image
-      Layer
       Render
+      Render.Font
+      Render.Health
+      Render.Hexagon
+      Render.Image
+      Render.Layer
       State
   other-modules:
       Paths_game13

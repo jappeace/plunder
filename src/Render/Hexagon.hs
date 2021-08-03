@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Hexagon
+module Render.Hexagon
   ( hexagon
   , HexagonSettings
   , defHex
@@ -17,7 +17,6 @@ module Hexagon
   )
 where
 
-import Image
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
 import           Data.Foldable
@@ -25,17 +24,18 @@ import           Data.Int
 import           Data.Text            (Text)
 import qualified Data.Text            as Text
 import qualified Data.Vector.Storable as S
-import qualified Font
 import           Foreign.C.Types      (CInt)
 import           Grid
-import           Layer
 import           Reflex
 import           Reflex.SDL2
+import qualified Render.Font          as Font
+import           Render.Image
+import           Render.Layer
 import           SDL.Primitive
 import           Text.Printf
 
 data HexagonSettings = HexagonSettings
-  { _hexagon_position   :: Point V2 CInt
+  { _hexagon_position  :: Point V2 CInt
   , _hexagon_label     :: Maybe Text
   , _hexagon_color     :: Color
   , _hexagon_is_filled :: Bool

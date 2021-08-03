@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Image(ImageSettings(..)
+module Render.Image(ImageSettings(..)
             , loadViking
             , loadEnemy
             , image
@@ -22,7 +22,7 @@ import           Data.ByteString        hiding (copy)
 import           Data.FileEmbed
 import           Foreign.C.Types        (CInt)
 import           Grid
-import           Layer
+import           Render.Layer
 import           Reflex
 import           Reflex.SDL2
 import           SDL.Image
@@ -83,11 +83,13 @@ image settingsDyn = do
 
 renderWeapon :: ImageSettings -> ImageSettings
 renderWeapon =
-  (image_position . rectangle_pos . _x +~ 5)
+  (image_position . rectangle_pos . _x -~ 20)
   .
-  (image_position . rectangle_size . _x -~ 35)
+  (image_position . rectangle_pos . _y -~ 10)
   .
-  (image_position . rectangle_size . _y -~ 35)
+  (image_position . rectangle_size . _x -~ 20)
+  .
+  (image_position . rectangle_size . _y -~ 20)
 
 renderImage :: Texture -> Axial -> ImageSettings
 renderImage text coord = ImageSettings {
