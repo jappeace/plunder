@@ -31,6 +31,7 @@ import           Control.Monad.Trans.State.Lazy  hiding (put)
 import           Data.Foldable
 import           Data.Functor.Compose
 import           Data.Monoid
+import           Debug.Trace
 import           GHC.Generics                    (Generic)
 import           Grid
 import           System.Random
@@ -204,7 +205,7 @@ updateLogic = \case
 
 
 resetState :: MonadState GameState m => m ()
-resetState = put initialState
+resetState = trace "player died, resetting" $ put initialState
 
 checkPlayerLives :: MonadState GameState m => m ()
 checkPlayerLives = do
