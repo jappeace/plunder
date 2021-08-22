@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 -- | Contains all reflex-sdl boilerplate
-module Game13(libF) where
+module Game13(main) where
 
 import           Control.Monad        (void)
 import           Control.Monad.Reader (MonadReader (..), runReaderT)
@@ -27,8 +27,8 @@ app = do
     sequence_ layers
     present r
 
-libF :: IO ()
-libF = do
+main :: IO ()
+main = do
   initializeAll
   Font.initialize
   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }

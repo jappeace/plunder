@@ -13,6 +13,7 @@ module Combat
   , _Sword
   , Health
   , unit_hp
+  , isDead
   )
 where
 
@@ -57,6 +58,9 @@ getDmg (Just a) (Just b) = if
             | True         -> Medium
 
 type Health = Int -- TODO change to something better
+
+isDead :: Health -> Bool
+isDead x = x <= 0
 
 data Unit = MkUnit
   { _unit_hp     :: Health

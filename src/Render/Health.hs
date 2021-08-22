@@ -1,8 +1,9 @@
 
 module Render.Health(healthBar) where
 
-import           Combat
+import qualified Combat
 import           Control.Lens
+import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (MonadReader (..))
 import           Data.Maybe
@@ -21,9 +22,14 @@ healthBar tileDyn = do
 
 healthBar' :: MonadIO m
         => Renderer -> Tile -> m ()
-healthBar' renderer tile = do
+healthBar' renderer tile = unless isDead $ do
     drawRect renderer $ Just rectangle
     where
+      isDead :: Bool
+      isDead = fromMaybe True $ do
+        hp' <- tile ^? tile_content . _Just . tc_unit . Combat.unit_hp
+        pure $ Combat.isDead hp'
+
       rectangle = Rectangle (axialToPixel coord) (V2 healthSize 2)
 
       maxHealth = 10
@@ -34,5 +40,5 @@ healthBar' renderer tile = do
       -- pixels
       healthSize = fromIntegral $ (((maxHealth * 10) * fromMaybe 0 health) `quot` 10) * 2
 
-      health :: Maybe Health
-      health = preview (tile_content . _Just . tc_unit . unit_hp) tile
+      health :: Maybe Combat.Health
+      health = preview (tile_content . _Just . tc_unit . Combat.unit_hp) tile
