@@ -1,0 +1,8 @@
+What to finish to make an minimal game:
+
+1. rewards. (for example treasure)
+2. fixup ux (currently we don't even know we're dead)
+3. make small website to publish it. (yesod)
+
+At this point it's a real game (even though bad).
+So we can try making it more fun.

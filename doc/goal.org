@@ -14,5 +14,14 @@ https://hackage.haskell.org/package/sdl2-2.5.2.0/docs/SDL-Raw-Video.html#v:loadB
 * DONE Make our character RESPECT the grid system
 * DONE Let our character move somehow
   any method
-* TODO Move character around with mouse (somehow)
+* DONE Move character around with mouse (somehow)
 
+-- 
+* DONE Add (basic) combat system
+  (the big challange playing the game)
+* TODO add reward for overcomming challange
+  Loot
+--
+
+* TODO add reward for overcomming challange
+  Reward sink (progress)
