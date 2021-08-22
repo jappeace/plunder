@@ -20,11 +20,20 @@ This is a small breakdown of things I'll build next.
    +    [x] Display
    +    [x] on the grid.
 + [x] character can be ordered to move to another tile (indicated by an arrow?)
-- [ ] Implement a combat system.
+- [x] Implement a combat system.
     No need for AI yet
   - [x] Show a different unit on screen
-  - [ ] Move on top of unit causes a combat.
-  - [ ] combat is rock paper scissers + dice?
+  - [x] Move on top of unit causes a combat.
+  - [x] combat is rock paper scissers + dice?
+- [ ] Add treasure to plunder
+- [ ] Set up shipping pipe line
+- [ ] ....
+- [ ] Make it more fun
+- [ ] ....
+- [ ] At this point it's synomous with fun
+- [ ] ....
+- [ ] ....
+- [ ] The game gains self awareness and AI wireheading scenario becomes a reality.
 
 # Motivation for project
 
