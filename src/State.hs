@@ -29,7 +29,6 @@ import           Control.Monad.Trans.Random.Lazy
 import           Control.Monad.Trans.State.Lazy
 import           Data.Foldable
 import           Data.Functor.Compose
-import           Data.Maybe
 import           Data.Monoid
 import           GHC.Generics                    (Generic)
 import           Grid
@@ -61,25 +60,38 @@ level = fold $ Endo <$>
 initialState :: GameState
 initialState = MkGameState Nothing $ appEndo level initialGrid
 
+data Attack = MkAttackMove
+  { _attack_move :: Move
+  , _attack_to :: Unit
+  } deriving (Show, Eq)
 
 data MoveType = MkWalk Move -- just go there (no additional events)
-              | MkAttack Move -- play out combat resolution
+              | MkAttack Attack -- play out combat resolution
               deriving (Show, Eq)
+
 data Move = MkMove
   { _move_from :: Axial
   , _move_to   :: Axial
+  , _move_from_unit :: Unit
   }
   deriving (Show, Eq, Generic)
 makeLenses ''Move
+makeLenses ''Attack
 makePrisms ''MoveType
 
-isAttack :: GameState -> Axial -> Bool
+mTraverseBoard :: Axial -> Traversal' GameState (Maybe TileContent)
+mTraverseBoard towards = game_board . at towards . _Just . tile_content
+
+traverseBoard ::Axial -> Traversal' GameState TileContent
+traverseBoard towards = mTraverseBoard towards . _Just
+
+isAttack :: GameState -> Axial -> Maybe Unit
 isAttack state' towards =
-  has (game_board . at towards . _Just . tile_content . _Just . _Enemy) state'
+  preview (traverseBoard towards . _Enemy) state'
 
 isMove :: GameState -> Axial -> Bool
 isMove state' towards =
-  has (game_board . at towards . _Just . tile_content . _Nothing) state'
+  has (mTraverseBoard towards . _Nothing) state'
 
 -- figures out if the tile we're moving towards is a neigbour of the
 -- selected tile, and verifies that hte selected tile is the player.
@@ -88,13 +100,16 @@ toPlayerMove ::  GameState -> Axial -> Bool -> Maybe Move
 toPlayerMove state' towards isMove' = do
   selectedAxial <- state' ^. game_selected
   selectedTile :: Tile  <- state' ^. game_board . at selectedAxial
-  let shouldMove = and
-                        [ has (tile_content . _Just . _Player)  selectedTile
-                        , towards `elem`  neigbours selectedAxial
-                        , isMove'
-                        ]
+  player :: Unit <- selectedTile ^? tile_content . _Just . _Player
+  let
+      shouldMove = and [ towards `elem`  neigbours selectedAxial
+                       , isMove'
+                       ]
   if shouldMove then
-    pure $ MkMove { _move_from = selectedAxial, _move_to = towards}
+    pure $ MkMove { _move_from = selectedAxial
+                  , _move_to = towards
+                  , _move_from_unit = player
+                  }
   else Nothing
 
 
@@ -105,11 +120,16 @@ shouldCharacterMove = over (mapped. mapped . mapped) MkWalk $
 
 -- if the target tile contains an enemy, it'll be this movetype
 shouldCharacterAttack :: GameState -> Axial -> Maybe MoveType
-shouldCharacterAttack = over (mapped. mapped . mapped) MkAttack $
-  getCompose $ Compose toPlayerMove <*> Compose isAttack
+shouldCharacterAttack state' axial = do
+  attacking <- isAttack state' axial
+  withMove <- toPlayerMove state' axial True
+  pure $ MkAttack $ MkAttackMove
+    { _attack_move = withMove
+    , _attack_to = attacking
+    }
 
-move :: MoveType -> Grid -> Grid
-move type' grid =
+move :: MoveType -> Grid -> Move -> Grid
+move type' grid action =
   (toTileContent .~ (grid ^? fromTile . _Just)) $
   (if isAttack' then (toTileBg ?~  Blood) else id) $
   (fromTile .~ Nothing) grid
@@ -129,10 +149,24 @@ move type' grid =
 
     isAttack' = has _MkAttack type'
 
-    action :: Move
+figureOutMove :: MoveType -> Grid -> Grid
+figureOutMove type' grid =
+  maybe grid (move type' grid) action
+  where
+    action :: Maybe Move
     action = case type' of
-      MkWalk move'   ->  move'
-      MkAttack move' ->  move'
+      MkWalk move'   ->  Just move'
+      MkAttack attack ->
+        let
+          toIsDead :: Maybe Bool
+          toIsDead = isDead <$>
+              grid ^? at (attack ^. attack_move . move_to) . _Just . tile_content . _Just . tc_unit . Combat.unit_hp
+        in
+        if toIsDead == Just True then
+          Just (attack ^. attack_move)
+          else
+          Nothing
+
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
@@ -142,26 +176,12 @@ data UpdateEvts = LeftClick Axial
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  MoveType -> m ()
 applyAttack = \case
-  MkAttack move' -> do
-    mFrom <- preuse $ game_board . ix (move' ^. move_from)
-    mTo <- preuse $ game_board . ix (move' ^. move_to)
-    let
-        from' :: Tile -- TODO figure out how to structure that this maybe isn't neccisary
-        from' = fromMaybe (error "could not find from tile were expected") $ mFrom
-        to' :: Tile -- TODO figure out how to structure that this maybe isn't neccisary
-        to' = fromMaybe (error "could not find to tile were expected") $ mTo
-        fromU :: Unit -- TODO figure out how to structure that this maybe isn't neccisary
-        fromU = fromMaybe (error "from no unit found where expected") $
-                          (from' ^? tile_content . _Just . tc_unit)
-
-        toU :: Unit -- TODO figure out how to structure that this maybe isn't neccisary
-        toU = fromMaybe (error "to no unit found where expected") $
-                          (to' ^? tile_content . _Just . tc_unit)
+  MkAttack attack -> do
     result <- resolveCombat -- .... it's a maybe!
-                fromU
-                toU
-    game_board . at (move' ^. move_from) . _Just . tile_content . _Just . tc_unit .= fst result
-    game_board . at (move' ^. move_to) . _Just  . tile_content . _Just . tc_unit .= snd result
+                (attack ^. attack_move . move_from_unit)
+                (attack ^. attack_to)
+    traverseBoard (attack ^. attack_move . move_from) . tc_unit .= fst result
+    traverseBoard (attack ^. attack_move . move_to) . tc_unit .= snd result
     pure ()
   MkWalk _ -> pure ()
 
@@ -179,7 +199,7 @@ updateLogic = \case
                     <|>
                     shouldCharacterAttack currentState towards
     traverse_ applyAttack movePlan
-    for_ movePlan $ \plan -> modifying game_board (move plan)
+    for_ movePlan $ \plan -> modifying game_board (figureOutMove plan)
 
 
 -- TODO add logging:

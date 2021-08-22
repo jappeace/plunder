@@ -67,13 +67,13 @@ data TileContent = Player { _tc_unit :: Unit} | Enemy { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
 
 data Background = Blood
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 data Tile = MkTile
   { _tile_coordinate :: Axial
   , _tile_content    :: Maybe TileContent
   , _tile_background :: Maybe Background
-  } deriving (Show, Generic)
+  } deriving (Show, Generic, Eq)
 
 
 makeLenses 'MkAxial
