@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 -- | Deal with fonts
-module Font(defaultFont, module X) where
+module Render.Font(defaultFont, module X) where
 
 import Data.FileEmbed
 import SDL.Font as X

@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
-module Layer where
+module Render.Layer where
 
 import           Reflex
 import           Reflex.SDL2

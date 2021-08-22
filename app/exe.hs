@@ -1,6 +1,6 @@
 module Main where
 
-import           Game13
+import qualified Game13
 
 main :: IO ()
-main = libF
+main = Game13.main

@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Grid
@@ -15,6 +16,7 @@ module Grid
   , tile_axial
   , tile_content
   , tile_background
+  , tile_coordinate
   , TileContent(..)
   , Background(..)
   , Tile
@@ -23,16 +25,19 @@ module Grid
   , _Blood
   , contentFold
   , mkGrid
+  , defUnit
+  , tc_unit
   )
 where
 
-import           Control.Lens
+import           Control.Lens hiding (elements)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
 import           Test.QuickCheck
+import Combat
 
 hexSize :: Int
 hexSize = 80
@@ -45,22 +50,22 @@ data Axial = MkAxial
   , __r :: Int
   } deriving (Eq, Ord, Show, Generic)
 
-
-data TileContent = Player | Enemy
+data TileContent = Player { _tc_unit :: Unit} | Enemy { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
 
 data Background = Blood
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 data Tile = MkTile
   { _tile_coordinate :: Axial
   , _tile_content    :: Maybe TileContent
   , _tile_background :: Maybe Background
-  } deriving (Show, Generic)
+  } deriving (Show, Generic, Eq)
 
 
 makeLenses 'MkAxial
 makeLenses 'MkTile
+makeLenses ''TileContent
 makePrisms ''TileContent
 makePrisms ''Background
 
@@ -184,3 +189,5 @@ instance Arbitrary TileContent where
 instance Arbitrary Background where
   arbitrary = pure Blood
   shrink = genericShrink
+
+

@@ -6,8 +6,8 @@
      - move on top of it, role a dice?
        rock paper sicors
        axeman = rock, archer = paper, calvery = sicors,
+
    + Open up treasure (collect resources)
-   + 'Extract' information
    + spend resources to get more units (maybe at a home base?)
 2. Press end turn
 3. the moves get played out

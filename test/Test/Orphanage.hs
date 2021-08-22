@@ -21,6 +21,7 @@ noMoveSelf :: Move -> Bool
 noMoveSelf x =
   (x ^. move_from) /= (x ^. move_to)
 
+
 instance Arbitrary Move where
-  arbitrary = suchThat (MkMove <$> arbitrary <*> arbitrary) noMoveSelf
+  arbitrary = suchThat (MkMove <$> arbitrary <*> arbitrary  <*> arbitrary) noMoveSelf
   shrink = filter noMoveSelf . genericShrink

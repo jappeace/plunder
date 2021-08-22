@@ -1,20 +1,22 @@
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
 
 module Render(renderState) where
 
+import           Combat
 import           Control.Lens
 import           Control.Monad
-import           Control.Monad.Reader  (MonadReader (..))
+import           Control.Monad.Reader (MonadReader (..))
 import           Data.Bool
+import           Data.Foldable
+import           Data.Monoid
 import           Grid
-import           Hexagon
-import           Image
-import           Layer
 import           Reflex
 import           Reflex.SDL2
+import           Render.Health
+import           Render.Hexagon
+import           Render.Image
+import           Render.Layer
 import           State
 
 renderState :: ReflexSDL2 t m
@@ -25,6 +27,20 @@ renderState state = do
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
+
+  axeF <- fmap renderWeapon . renderImage <$> loadAxe
+  swordF <- fmap renderWeapon . renderImage <$> loadSword
+  loadF <- fmap renderWeapon . renderImage <$> loadBow
+
+  let renderOrduning =
+            [ applyImage loadBloodF $ tile_background . _Just . _Blood
+            , applyImage enemyF $ tile_content . _Just . _Enemy
+            , applyImage vikingF $ tile_content . _Just . _Player
+            , applyImage swordF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
+            , applyImage loadF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
+            , applyImage axeF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe
+            ]
+
   void $ listWithKey (view game_board <$> state) $ \axial _ -> do
     hexagon $ renderHex axial
 
@@ -33,17 +49,25 @@ renderState state = do
 
   -- simple list doesn't cache on key change
   void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
-    let playerSettings = bool Nothing (Just axial)
-                       . has (tile_content . _Just . _Player) <$> tileDyn
-    let enemySettings = bool Nothing (Just axial)
-                       . has (tile_content . _Just . _Enemy) <$> tileDyn
-    let bloodSettings = bool Nothing (Just axial)
-                       . has (tile_background . _Just . _Blood) <$> tileDyn
-    performEvent_ $ ffor (updated playerSettings) (maybe (pure ()) $ liftIO . print)
+    traverse_ (\fun -> fun axial tileDyn) renderOrduning
+    healthBar tileDyn
 
-    image $ fmap loadBloodF <$> bloodSettings
-    image $ fmap vikingF <$> playerSettings
-    image $ fmap enemyF <$> enemySettings
+applyImage ::
+  DynamicWriter t [Performable m ()] m
+  => MonadReader Renderer m
+  => ReflexSDL2 t m
+  => (Axial -> ImageSettings)
+  -> Getting Any Tile a -- ^ condition on the tile for rendering
+  -> Axial
+  -> Dynamic t Tile
+  ->  m ()
+applyImage textureF hashPath axial tileDyn =
+  image $ fmap textureF <$> someSettings
+  where
+    someSettings = bool Nothing (Just axial)
+                       . has hashPath <$> tileDyn
+
+
 
 
 renderSelected :: Axial -> HexagonSettings
