@@ -23,10 +23,11 @@ module State(GameState(..)
 import           Combat
 import           Control.Applicative
 import           Control.Lens
+import           Control.Monad
 import           Control.Monad.Random.Class
 import           Control.Monad.State.Class
 import           Control.Monad.Trans.Random.Lazy
-import           Control.Monad.Trans.State.Lazy
+import           Control.Monad.Trans.State.Lazy  hiding (put)
 import           Data.Foldable
 import           Data.Functor.Compose
 import           Data.Monoid
@@ -62,7 +63,7 @@ initialState = MkGameState Nothing $ appEndo level initialGrid
 
 data Attack = MkAttackMove
   { _attack_move :: Move
-  , _attack_to :: Unit
+  , _attack_to   :: Unit
   } deriving (Show, Eq)
 
 data MoveType = MkWalk Move -- just go there (no additional events)
@@ -70,8 +71,8 @@ data MoveType = MkWalk Move -- just go there (no additional events)
               deriving (Show, Eq)
 
 data Move = MkMove
-  { _move_from :: Axial
-  , _move_to   :: Axial
+  { _move_from      :: Axial
+  , _move_to        :: Axial
   , _move_from_unit :: Unit
   }
   deriving (Show, Eq, Generic)
@@ -202,10 +203,19 @@ updateLogic = \case
     for_ movePlan $ \plan -> modifying game_board (figureOutMove plan)
 
 
--- TODO add logging:
---  https://hackage.haskell.org/package/reflex-0.8.0.0/docs/Reflex-Class.html#v:mapAccumDyn
---  https://hackage.haskell.org/package/monad-logger-0.3.36/docs/Control-Monad-Logger.html#t:MonadLogger
---  https://hackage.haskell.org/package/monad-logger-0.3.36/docs/Control-Monad-Logger.html#t:WriterLoggingT
+resetState :: MonadState GameState m => m ()
+resetState = put initialState
+
+checkPlayerLives :: MonadState GameState m => m ()
+checkPlayerLives = do
+  health <- preuse (game_board . folded . tile_content . _Just . _Player . unit_hp)
+  when (maybe True isDead health) resetState
+
+
+
 updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
 updateState gameState (resolveRng, evts) =
-  execState (unRandNt resolveRng $ updateLogic evts) gameState
+  execState (unRandNt resolveRng $ do
+                updateLogic evts
+                checkPlayerLives
+            ) gameState
