@@ -33,7 +33,7 @@ This is a small breakdown of things I'll build next.
 - [ ] At this point it's synomous with fun
 - [ ] ....
 - [ ] ....
-- [ ] The game gains self awareness and AI wireheading scenario becomes a reality.
+- [ ] The game gains self awareness 🤖 and AI wireheading scenario becomes a reality.
 
 # Motivation for project
 
