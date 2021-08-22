@@ -50,19 +50,6 @@ data Axial = MkAxial
   , __r :: Int
   } deriving (Eq, Ord, Show, Generic)
 
--- | Normally a weapon  does between 1 and 3 damage.
---   for example spear vs spead, roll a dice, that's your damage.
---   however if a spear goes against a bow, the spear is innefective.
---   and the bow is super effective.
---   this means the bow does 2x damage, and the spear only 0.5x
---
---   say the spear rolls 3 and the bow rolls 2, the bow does 4 and the spear does 2 (rounded up).
-data Weapon = Spear -- rock
-            | Bow   -- paper
-            | Horse -- siscor
-            deriving (Show, Eq, Generic, Bounded,  Enum)
-
-
 data TileContent = Player { _tc_unit :: Unit} | Enemy { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
 
