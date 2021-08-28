@@ -23,7 +23,8 @@ This is a small breakdown of things I'll build next.
   - [x] Show a different unit on screen
   - [x] Move on top of unit causes a combat.
   - [x] combat is rock paper scissers + dice?
-- [ ] Add treasure to plunder
+- [x] Add treasure to plunder (you burn down houses for plunder)
+- [ ] Add win condition
 - [ ] Set up shipping pipe line
 - [ ] ....
 - [ ] Make it more fun
@@ -35,7 +36,7 @@ This is a small breakdown of things I'll build next.
 
 # Motivation for project
 
-I've made several halve complete games in the passed,
+I've made several half complete games in the passed,
 while all either technically impressive
 or architectually interesting.
 None of them were fun.
