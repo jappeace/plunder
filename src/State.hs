@@ -101,7 +101,7 @@ traverseBoard towards = mTraverseBoard towards . _Just
 
 isAttack :: GameState -> Axial -> Maybe Unit
 isAttack state' towards =
-  preview (traverseBoard towards . _Enemy) state'
+  preview (traverseBoard towards . failing _Enemy _House) state'
 
 isMove :: GameState -> Axial -> Bool
 isMove state' towards =
