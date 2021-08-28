@@ -11,6 +11,7 @@ module State(GameState(..)
             , UpdateEvts(..)
             , game_board
             , game_selected
+            , game_plunder
             , Move(..)
             , MoveType(..)
             , describeState
@@ -166,46 +167,44 @@ move type' grid action =
         Enemy _ -> Blood
         House _ -> BurnedHouse
 
-figureOutMove :: MoveType -> Grid -> Grid
-figureOutMove type' grid =
+figureOutMove :: Maybe Result -> MoveType -> Grid -> Grid
+figureOutMove res type' grid =
   maybe grid (move type' grid) action
   where
     action :: Maybe Move
     action = case type' of
       MkWalk move'   ->  Just move'
       MkAttack attack ->
-        let
-          toIsDead :: Maybe Bool
-          toIsDead = isDead <$>
-              grid ^? at (attack ^. attack_move . move_to) . _Just . tile_content . _Just . tc_unit . Combat.unit_hp
-        in
-        if toIsDead == Just True then
+        if (isTargetDead <$> res) == Just True then
           Just (attack ^. attack_move)
           else
           Nothing
-
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
                 deriving Show
 
-
-
-applyAttack :: MonadRandom m => MonadState GameState m =>  MoveType -> m ()
+applyAttack :: MonadRandom m => MonadState GameState m =>  MoveType -> m (Maybe Result)
 applyAttack = \case
   MkAttack attack -> do
-    result <- resolveCombat -- .... it's a maybe!
+    result <- resolveCombat
                 (attack ^. attack_move . move_from_unit)
                 (attack ^. attack_to . tc_unit)
-    traverseBoard (attack ^. attack_move . move_from) . tc_unit .= fst result
-    traverseBoard (attack ^. attack_move . move_to) . tc_unit .= snd result
-    pure ()
-  MkWalk _ -> pure ()
+    traverseBoard (attack ^. attack_move . move_from) . tc_unit .= (result ^. res_left_unit)
+    traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result ^. res_right_unit)
+    pure (Just result)
+  MkWalk _ -> pure Nothing
 
 
 newtype RandTNT a = MkRandTNT {
   unRandNt :: forall n . Functor n => RandT StdGen n a -> n a
   }
+
+countLoot :: MonadState GameState m => MoveType -> Result -> m ()
+countLoot plan res =
+  when (isTargetDead res) $
+   when (has (_MkAttack . attack_to . _House) plan) $
+         game_plunder += 10
 
 updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
 updateLogic = \case
@@ -215,8 +214,10 @@ updateLogic = \case
     let movePlan = shouldCharacterMove currentState towards
                     <|>
                     shouldCharacterAttack currentState towards
-    traverse_ applyAttack movePlan
-    for_ movePlan $ \plan -> modifying game_board (figureOutMove plan)
+    for_ movePlan $ \plan -> do
+      mCombatRes <- applyAttack plan
+      traverse_ (countLoot plan) mCombatRes
+      modifying game_board (figureOutMove mCombatRes plan)
 
 
 resetState :: MonadState GameState m => m ()

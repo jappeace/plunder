@@ -1,11 +1,9 @@
 What to finish to make an minimal game:
 
-1. rewards. (for example treasure)
-   + Add loot
-   + display loot
+1.5 Make a win condition
+ Maybe destroying all houses?
 
 2. fixup ux (currently we don't even know we're dead)
-   + fixup health bars overlining (confusing)
    + on player death the game resets but there is no feedback
 
 3. make small website to publish it. (yesod)

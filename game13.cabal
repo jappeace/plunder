@@ -35,6 +35,7 @@ library
       Render.Hexagon
       Render.Image
       Render.Layer
+      Render.Text
       State
   other-modules:
       Paths_game13

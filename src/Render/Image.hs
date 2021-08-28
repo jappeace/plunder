@@ -75,7 +75,12 @@ burndedHouse = do
     surfaceBlit fire Nothing house (Just $ P $ V2 rx ry)
 
   r1 <- ask
-  createTextureFromSurface r1 house
+  text <- createTextureFromSurface r1 house
+
+  freeSurface house
+  freeSurface fire
+
+  pure text
 
 imgFireFile :: ByteString
 imgFireFile = $(embedFile "assets/img/fire.png")
