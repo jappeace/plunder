@@ -23,6 +23,8 @@ module Grid
   , _Player
   , _Enemy
   , _Blood
+  , _House
+  , _BurnedHouse
   , contentFold
   , mkGrid
   , defUnit
@@ -50,15 +52,21 @@ data Axial = MkAxial
   , __r :: Int
   } deriving (Eq, Ord, Show, Generic)
 
-data TileContent = Player { _tc_unit :: Unit} | Enemy { _tc_unit :: Unit }
+data TileContent
+  = Player { _tc_unit :: Unit}
+  | Enemy { _tc_unit :: Unit }
+  | House { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
 
 data Background = Blood
+                | BurnedHouse
   deriving (Show, Generic, Eq)
 
 data Tile = MkTile
   { _tile_coordinate :: Axial
+   -- | interactive layer (which can be destroyed)
   , _tile_content    :: Maybe TileContent
+   -- | decorative layer (for destroyed things, blood bodies and ruins)
   , _tile_background :: Maybe Background
   } deriving (Show, Generic, Eq)
 

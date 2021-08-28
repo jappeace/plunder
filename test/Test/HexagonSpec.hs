@@ -64,7 +64,10 @@ moveBecomesEmpty (grid, mv) =
 
 
 testState :: GameState
-testState = set game_selected (Just playerAxial) $ MkGameState Nothing $ level initialGrid
+testState
+  = set game_selected (Just playerAxial)
+  $ set game_board (level initialGrid)
+    initialState
 
 playerAxial :: Axial
 playerAxial = MkAxial 2 3

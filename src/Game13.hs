@@ -11,11 +11,10 @@ import           Control.Monad        (void)
 import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
-import Guest
-import qualified SDL.Font as Font
+import           Guest
+import           qualified SDL.Font as Font
 
-app :: (ReflexSDL2 t m, MonadReader Renderer m) =>
-  m ()
+app :: (ReflexSDL2 t m, MonadReader Renderer m) => m ()
 app = do
   (_, dynLayers) <- runDynamicWriterT $ do
     guest

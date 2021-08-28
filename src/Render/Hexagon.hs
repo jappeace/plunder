@@ -17,6 +17,8 @@ module Render.Hexagon
   )
 where
 
+import           SDL.Font(Font)
+import           Render.Text(renderText)
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
 import           Data.Foldable
@@ -39,17 +41,16 @@ data HexagonSettings = HexagonSettings
   , _hexagon_label     :: Maybe Text
   , _hexagon_color     :: Color
   , _hexagon_is_filled :: Bool
+  , _hexagon_font      :: Font
   }
 makeLenses ''HexagonSettings
 
-quotV2 :: V2 CInt -> V2 CInt -> V2 CInt
-quotV2 (V2 x y) (V2 x2 y2) = V2 (x `quot` x2) $ y `quot` y2
-
 defHex :: HexagonSettings
-defHex = HexagonSettings { _hexagon_position = _Point # V2 150 150
-                         , _hexagon_label   = Nothing
-                         , _hexagon_color   = V4 128 128 128 255
+defHex = HexagonSettings { _hexagon_position  = _Point # V2 150 150
+                         , _hexagon_label     = Nothing
+                         , _hexagon_color     = V4 128 128 128 255
                          , _hexagon_is_filled = False
+                         , _hexagon_font      = error "no hexagon font set" -- fixme, this is bad
                          }
 
 -- | The corners of a hexagon labeled.
@@ -108,29 +109,20 @@ hexagon
   => DynamicWriter t [Layer m] m => HexagonSettings -> m ()
 hexagon settings = do
   r    <- ask
-  font <- Font.defaultFont
   evPB <- holdDyn () =<< getPostBuild
   commitLayer $ ffor evPB $ const $ do
     polgyonF r xPoints yPoints $ settings ^. hexagon_color
   for_ (settings ^. hexagon_label) $ \text -> do
-      textSurface <- Font.solid font (settings ^. hexagon_color) text
-      fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
-      textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
-      freeSurface textSurface
-      image $ pure $ Just $ ImageSettings
-          { _image_position   =  Rectangle
-              (  settings ^. hexagon_position
-              -  (_Point # fontHexSize `quotV2` V2 2 (-5))
-              ) $ fontHexSize
-          , _image_content   = textTexture
-          }
+      imageSettings <- renderText (settings ^. hexagon_font) (settings ^. hexagon_color) (settings ^. hexagon_position) text
+      image $ pure $ Just imageSettings
   pure ()
   where
     (xPoints, yPoints) = calcPoints settings
     polgyonF = if settings ^. hexagon_is_filled then fillPolygon else polygon
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-renderHex :: Axial -> HexagonSettings
-renderHex coord = hexagon_position .~ (axialToPixel coord)
+renderHex :: Font -> Axial -> HexagonSettings
+renderHex font coord = hexagon_position .~ (axialToPixel coord)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (coord ^. _q) $ (coord ^. _r))
+                $ hexagon_font .~ font
                 $ defHex

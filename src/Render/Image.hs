@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Render.Image(ImageSettings(..)
+module Render.Image(
+            ImageSettings(..)
             , loadViking
             , loadEnemy
             , image
@@ -12,9 +13,13 @@ module Render.Image(ImageSettings(..)
             , loadAxe
             , loadSword
             , loadBow
+            , loadHouse
             , renderWeapon
+            , burndedHouse
             ) where
 
+import System.Random
+import Control.Monad
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (MonadReader (..))
@@ -28,41 +33,70 @@ import           Reflex.SDL2
 import           SDL.Image
 
 loadAxe :: MonadIO m => MonadReader Renderer m => m Texture
-loadAxe = flip decodeTexture vikingFile =<< ask
+loadAxe = flip decodeTexture imgFile =<< ask
   where
-  vikingFile :: ByteString
-  vikingFile = $(embedFile "assets/img/axe.png")
+  imgFile :: ByteString
+  imgFile = $(embedFile "assets/img/axe.png")
 
 loadSword :: MonadIO m => MonadReader Renderer m => m Texture
-loadSword = flip decodeTexture vikingFile =<< ask
+loadSword = flip decodeTexture imgFile =<< ask
   where
-  vikingFile :: ByteString
-  vikingFile = $(embedFile "assets/img/sword.png")
+  imgFile :: ByteString
+  imgFile = $(embedFile "assets/img/sword.png")
 
 loadBow :: MonadIO m => MonadReader Renderer m => m Texture
-loadBow = flip decodeTexture vikingFile =<< ask
+loadBow = flip decodeTexture imgFile =<< ask
   where
-  vikingFile :: ByteString
-  vikingFile = $(embedFile "assets/img/bow.png")
+  imgFile :: ByteString
+  imgFile = $(embedFile "assets/img/bow.png")
 
 loadViking :: MonadIO m => MonadReader Renderer m => m Texture
-loadViking = flip decodeTexture vikingFile =<< ask
+loadViking = flip decodeTexture imgFile =<< ask
   where
-  vikingFile :: ByteString
-  vikingFile = $(embedFile "assets/img/viking.png")
+  imgFile :: ByteString
+  imgFile = $(embedFile "assets/img/viking.png")
 
 loadBlood :: MonadIO m => MonadReader Renderer m => m Texture
-loadBlood = flip decodeTexture vikingFile =<< ask
+loadBlood = flip decodeTexture imgFile =<< ask
   where
-  vikingFile :: ByteString
-  vikingFile = $(embedFile "assets/img/blood.png")
+  imgFile :: ByteString
+  imgFile = $(embedFile "assets/img/blood.png")
+
+burndedHouse :: MonadIO m => MonadReader Renderer m => m Texture
+burndedHouse = do
+  fire <- decode imgFireFile
+  dimsFire <- surfaceDimensions fire
+  house <- decode imgHouseFile
+  dims <- surfaceDimensions house
+  count' <- liftIO $ randomRIO (8,20)
+  void $ replicateM count' $ do
+    rx <- liftIO $ randomRIO (-(dimsFire ^. _x), (dims ^. _x) - (dimsFire ^. _x))
+    ry <- liftIO $ randomRIO (-(dimsFire ^. _y), (dims ^. _y) - (dimsFire ^. _y))
+    surfaceBlit fire Nothing house (Just $ P $ V2 rx ry)
+
+  r1 <- ask
+  text <- createTextureFromSurface r1 house
+
+  freeSurface house
+  freeSurface fire
+
+  pure text
+
+imgFireFile :: ByteString
+imgFireFile = $(embedFile "assets/img/fire.png")
+
+loadHouse :: MonadIO m => MonadReader Renderer m => m Texture
+loadHouse = flip decodeTexture imgHouseFile =<< ask
+
+imgHouseFile :: ByteString
+imgHouseFile = $(embedFile "assets/img/house.png")
 
 
 loadEnemy :: MonadIO m => MonadReader Renderer m => m Texture
-loadEnemy = flip decodeTexture vikingFile =<< ask
+loadEnemy = flip decodeTexture imgFile =<< ask
   where
-  vikingFile :: ByteString
-  vikingFile = $(embedFile "assets/img/male_adventurer_idle.png")
+  imgFile :: ByteString
+  imgFile = $(embedFile "assets/img/male_adventurer_idle.png")
 
 data ImageSettings = ImageSettings
   { _image_position :: Rectangle CInt

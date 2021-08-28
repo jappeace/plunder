@@ -14,13 +14,17 @@ module Combat
   , Health
   , unit_hp
   , isDead
+  , isTargetDead
+  , Result(..)
+  , res_left_unit
+  , res_right_unit
   )
 where
 
 import           Control.Lens               hiding (elements)
 import           Control.Monad.Random.Class
 import           GHC.Generics               (Generic)
-import           Test.QuickCheck
+import           Test.QuickCheck hiding (Result)
 
 -- | Normally a weapon  does between 1 and 3 damage.
 --   for example spear vs spead, roll a dice, that's your damage.
@@ -83,7 +87,16 @@ applyDamage rng applying defending=
     Medium   -> rng
     Bigly    -> rng * 2
 
-resolveCombat :: MonadRandom m => Unit -> Unit -> m (Unit, Unit)
+data Result = MkResult
+  { _res_left_unit :: Unit -- ^ attacking unit
+  , _res_right_unit :: Unit -- ^ defending unit
+  }
+makeLenses ''Result
+
+isTargetDead :: Result -> Bool
+isTargetDead x = x ^. res_right_unit . unit_hp . to isDead
+
+resolveCombat :: MonadRandom m => Unit -> Unit -> m Result
 resolveCombat leftunit rightunit = do
   -- damage left one,
   rng <- getRandomR (1,3)
@@ -92,7 +105,10 @@ resolveCombat leftunit rightunit = do
   rng2 <- getRandomR (1,3)
   let dmgToLeft = applyDamage rng2 (rightunit ^. unit_weapon) (leftunit ^. unit_weapon)
 
-  pure (unit_hp -~ dmgToLeft $ leftunit, unit_hp -~ dmgToRight $ rightunit)
+  pure $ MkResult
+    { _res_left_unit  = unit_hp -~ dmgToLeft $ leftunit
+    , _res_right_unit = unit_hp -~ dmgToRight $ rightunit
+    }
 
 instance Arbitrary Weapon where
   arbitrary = elements [minBound .. maxBound]

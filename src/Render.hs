@@ -3,6 +3,7 @@
 
 module Render(renderState) where
 
+import Render.Text
 import           Combat
 import           Control.Lens
 import           Control.Monad
@@ -18,6 +19,8 @@ import           Render.Hexagon
 import           Render.Image
 import           Render.Layer
 import           State
+import           Render.Font
+import Data.Text
 
 renderState :: ReflexSDL2 t m
   => MonadReader Renderer m
@@ -27,6 +30,9 @@ renderState state = do
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
+  houseF <- renderImage <$> loadHouse
+  burnedHouseF <- renderImage <$> burndedHouse
+  font <- defaultFont
 
   axeF <- fmap renderWeapon . renderImage <$> loadAxe
   swordF <- fmap renderWeapon . renderImage <$> loadSword
@@ -34,23 +40,33 @@ renderState state = do
 
   let renderOrduning =
             [ applyImage loadBloodF $ tile_background . _Just . _Blood
+            , applyImage burnedHouseF $ tile_background . _Just . _BurnedHouse
             , applyImage enemyF $ tile_content . _Just . _Enemy
             , applyImage vikingF $ tile_content . _Just . _Player
+            , applyImage houseF $ tile_content . _Just . _House
             , applyImage swordF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
             , applyImage loadF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
             , applyImage axeF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe
             ]
 
   void $ listWithKey (view game_board <$> state) $ \axial _ -> do
-    hexagon $ renderHex axial
+    hexagon $ renderHex font axial
 
   void $ holdView (pure ())
-       $ hexagon . renderSelected <$> mapMaybe (view game_selected) (updated state)
+       $ hexagon . renderSelected font <$> mapMaybe (view game_selected) (updated state)
 
   -- simple list doesn't cache on key change
   void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
     traverse_ (\fun -> fun axial tileDyn) renderOrduning
     healthBar tileDyn
+
+  settings <- dynView $ state <&>
+    \state' -> fmap Just $ renderText font (V4 128 128 128 255) (P $ V2 500 10) ("Plunder " <> tshow (state' ^. game_plunder))
+  image =<< holdDyn Nothing settings
+
+tshow :: Show a => a -> Text
+tshow = pack . show
+
 
 applyImage ::
   DynamicWriter t [Performable m ()] m
@@ -67,10 +83,7 @@ applyImage textureF hashPath axial tileDyn =
     someSettings = bool Nothing (Just axial)
                        . has hashPath <$> tileDyn
 
-
-
-
-renderSelected :: Axial -> HexagonSettings
-renderSelected = (hexagon_color .~ V4 255 128 128 255)
+renderSelected :: Font -> Axial -> HexagonSettings
+renderSelected font = (hexagon_color .~ V4 255 128 128 255)
                . (hexagon_is_filled .~ True)
-               . renderHex
+               . renderHex font
