@@ -31,6 +31,7 @@ import           Control.Monad.Trans.State.Lazy  hiding (put)
 import           Data.Foldable
 import           Data.Functor.Compose
 import           Data.Monoid
+import           Data.Word
 import           Debug.Trace
 import           GHC.Generics                    (Generic)
 import           Grid
@@ -40,6 +41,9 @@ import           Text.Printf
 data GameState = MkGameState
   { _game_selected :: Maybe Axial
   , _game_board    :: Grid
+   -- | indicating how much havoc a player caused,
+   --   potentially we could use this later as currency?
+  , _game_plunder  :: Word64
   } deriving (Show)
 makeLenses ''GameState
 
@@ -60,15 +64,21 @@ level = fold $ Endo <$>
   ]
 
 initialState :: GameState
-initialState = MkGameState Nothing $ appEndo level initialGrid
+initialState = MkGameState
+  { _game_selected = Nothing
+  , _game_board    = appEndo level initialGrid
+   -- | indicating how much havoc a player caused,
+   --   potentially we could use this later as currency?
+  , _game_plunder  = 0
+  }
 
 data Attack = MkAttackMove
   { _attack_move :: Move
   , _attack_to   :: Unit
   } deriving (Show, Eq)
 
-data MoveType = MkWalk Move -- just go there (no additional events)
-              | MkAttack Attack -- play out combat resolution
+data MoveType = MkWalk Move -- ^ just go there (no additional events)
+              | MkAttack Attack -- ^ play out combat resolution
               deriving (Show, Eq)
 
 data Move = MkMove
@@ -77,6 +87,7 @@ data Move = MkMove
   , _move_from_unit :: Unit
   }
   deriving (Show, Eq, Generic)
+
 makeLenses ''Move
 makeLenses ''Attack
 makePrisms ''MoveType
@@ -114,13 +125,10 @@ toPlayerMove state' towards isMove' = do
                   }
   else Nothing
 
-
--- this type is only moved if the target tile is free
 shouldCharacterMove :: GameState -> Axial -> Maybe MoveType
 shouldCharacterMove = over (mapped. mapped . mapped) MkWalk $
   getCompose $ Compose toPlayerMove <*> Compose isMove
 
--- if the target tile contains an enemy, it'll be this movetype
 shouldCharacterAttack :: GameState -> Axial -> Maybe MoveType
 shouldCharacterAttack state' axial = do
   attacking <- isAttack state' axial

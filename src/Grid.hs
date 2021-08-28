@@ -54,6 +54,7 @@ data TileContent = Player { _tc_unit :: Unit} | Enemy { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
 
 data Background = Blood
+                | House
   deriving (Show, Generic, Eq)
 
 data Tile = MkTile
