@@ -30,15 +30,15 @@ healthBar' renderer tile = unless isDead $ do
         hp' <- tile ^? tile_content . _Just . tc_unit . Combat.unit_hp
         pure $ Combat.isDead hp'
 
-      rectangle = Rectangle (axialToPixel coord) (V2 healthSize 2)
+      rectangle = Rectangle (axialToPixel coord - P (V2 60 20)) (V2 healthPixelSize 2)
 
-      maxHealth = 10
+      pixelsPerHealth = 12
 
       coord :: Axial
       coord = tile ^. tile_coordinate
 
       -- pixels
-      healthSize = fromIntegral $ (((maxHealth * 10) * fromMaybe 0 health) `quot` 10) * 2
+      healthPixelSize = fromIntegral $ pixelsPerHealth * fromMaybe 0 health
 
       health :: Maybe Combat.Health
       health = preview (tile_content . _Just . tc_unit . Combat.unit_hp) tile

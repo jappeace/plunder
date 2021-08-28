@@ -27,6 +27,7 @@ renderState state = do
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
+  houseF <- renderImage <$> loadHouse
 
   axeF <- fmap renderWeapon . renderImage <$> loadAxe
   swordF <- fmap renderWeapon . renderImage <$> loadSword
@@ -36,6 +37,7 @@ renderState state = do
             [ applyImage loadBloodF $ tile_background . _Just . _Blood
             , applyImage enemyF $ tile_content . _Just . _Enemy
             , applyImage vikingF $ tile_content . _Just . _Player
+            , applyImage houseF $ tile_content . _Just . _House
             , applyImage swordF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
             , applyImage loadF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
             , applyImage axeF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe
