@@ -28,6 +28,7 @@ renderState state = do
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
   houseF <- renderImage <$> loadHouse
+  burnedHouseF <- renderImage <$> burndedHouse
 
   axeF <- fmap renderWeapon . renderImage <$> loadAxe
   swordF <- fmap renderWeapon . renderImage <$> loadSword
@@ -35,6 +36,7 @@ renderState state = do
 
   let renderOrduning =
             [ applyImage loadBloodF $ tile_background . _Just . _Blood
+            , applyImage burnedHouseF $ tile_background . _Just . _BurnedHouse
             , applyImage enemyF $ tile_content . _Just . _Enemy
             , applyImage vikingF $ tile_content . _Just . _Player
             , applyImage houseF $ tile_content . _Just . _House

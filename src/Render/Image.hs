@@ -15,8 +15,11 @@ module Render.Image(
             , loadBow
             , loadHouse
             , renderWeapon
+            , burndedHouse
             ) where
 
+import System.Random
+import Control.Monad
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (MonadReader (..))
@@ -59,11 +62,31 @@ loadBlood = flip decodeTexture imgFile =<< ask
   imgFile :: ByteString
   imgFile = $(embedFile "assets/img/blood.png")
 
+-- https://hackage.haskell.org/package/sdl2-2.5.3.0/docs/SDL-Video-Renderer.html#v:surfaceBlit
+-- https://hackage.haskell.org/package/sdl2-2.5.3.0/docs/SDL-Video-Renderer.html#v:createTextureFromSurface
+burndedHouse :: MonadIO m => MonadReader Renderer m => m Texture
+burndedHouse = do
+  fire <- decode imgFireFile
+  dimsFire <- surfaceDimensions fire
+  house <- decode imgHouseFile
+  dims <- surfaceDimensions house
+  count <- liftIO $ randomRIO (8,20)
+  replicateM count $ do
+    rx <- liftIO $ randomRIO (-(dimsFire ^. _x), (dims ^. _x) - (dimsFire ^. _x))
+    ry <- liftIO $ randomRIO (-(dimsFire ^. _y), (dims ^. _y) - (dimsFire ^. _y))
+    void $ surfaceBlit fire Nothing house (Just $ P $ V2 rx ry)
+
+  r1 <- ask
+  createTextureFromSurface r1 house
+
+imgFireFile :: ByteString
+imgFireFile = $(embedFile "assets/img/fire.png")
+
 loadHouse :: MonadIO m => MonadReader Renderer m => m Texture
-loadHouse = flip decodeTexture imgFile =<< ask
-  where
-  imgFile :: ByteString
-  imgFile = $(embedFile "assets/img/house.png")
+loadHouse = flip decodeTexture imgHouseFile =<< ask
+
+imgHouseFile :: ByteString
+imgHouseFile = $(embedFile "assets/img/house.png")
 
 
 loadEnemy :: MonadIO m => MonadReader Renderer m => m Texture

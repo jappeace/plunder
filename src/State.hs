@@ -75,7 +75,7 @@ initialState = MkGameState
 
 data Attack = MkAttackMove
   { _attack_move :: Move
-  , _attack_to   :: Unit
+  , _attack_to   :: TileContent
   } deriving (Show, Eq)
 
 data MoveType = MkWalk Move -- ^ just go there (no additional events)
@@ -99,9 +99,9 @@ mTraverseBoard towards = game_board . at towards . _Just . tile_content
 traverseBoard ::Axial -> Traversal' GameState TileContent
 traverseBoard towards = mTraverseBoard towards . _Just
 
-isAttack :: GameState -> Axial -> Maybe Unit
+isAttack :: GameState -> Axial -> Maybe TileContent
 isAttack state' towards =
-  preview (traverseBoard towards . failing _Enemy _House) state'
+  preview (traverseBoard towards) state'
 
 isMove :: GameState -> Axial -> Bool
 isMove state' towards =
@@ -142,7 +142,7 @@ shouldCharacterAttack state' axial = do
 move :: MoveType -> Grid -> Move -> Grid
 move type' grid action =
   (toTileContent .~ (grid ^? fromTile . _Just)) $
-  (if isAttack' then (toTileBg ?~  Blood) else id) $
+  toTileBg .~ background $
   (fromTile .~ Nothing) grid
 
   where
@@ -158,7 +158,13 @@ move type' grid action =
     toTile :: Traversal' Grid Tile
     toTile = ix (action ^. move_to)
 
-    isAttack' = has _MkAttack type'
+    background :: Maybe Background
+    background = do
+      content' <- preview (_MkAttack . attack_to) type'
+      pure $ case content' of
+        Player _ -> Blood
+        Enemy _ -> Blood
+        House _ -> BurnedHouse
 
 figureOutMove :: MoveType -> Grid -> Grid
 figureOutMove type' grid =
@@ -190,7 +196,7 @@ applyAttack = \case
   MkAttack attack -> do
     result <- resolveCombat -- .... it's a maybe!
                 (attack ^. attack_move . move_from_unit)
-                (attack ^. attack_to)
+                (attack ^. attack_to . tc_unit)
     traverseBoard (attack ^. attack_move . move_from) . tc_unit .= fst result
     traverseBoard (attack ^. attack_move . move_to) . tc_unit .= snd result
     pure ()

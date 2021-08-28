@@ -24,6 +24,7 @@ module Grid
   , _Enemy
   , _Blood
   , _House
+  , _BurnedHouse
   , contentFold
   , mkGrid
   , defUnit
