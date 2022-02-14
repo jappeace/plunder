@@ -32,6 +32,7 @@ renderState state = do
   loadBloodF <- renderImage <$> loadBlood
   houseF <- renderImage <$> loadHouse
   burnedHouseF <- renderImage <$> burndedHouse
+  loadShopF <- renderImage <$> loadShop
   font <- defaultFont
 
   axeF <- fmap renderWeapon . renderImage <$> loadAxe
@@ -44,6 +45,7 @@ renderState state = do
             , applyImage enemyF $ tile_content . _Just . _Enemy
             , applyImage vikingF $ tile_content . _Just . _Player
             , applyImage houseF $ tile_content . _Just . _House
+            , applyImage loadShopF $ tile_content . _Just . _Shop
             , applyImage swordF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
             , applyImage loadF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
             , applyImage axeF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe

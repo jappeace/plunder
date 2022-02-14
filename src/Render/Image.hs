@@ -14,6 +14,7 @@ module Render.Image(
             , loadSword
             , loadBow
             , loadHouse
+            , loadShop
             , renderWeapon
             , burndedHouse
             ) where
@@ -91,6 +92,11 @@ loadHouse = flip decodeTexture imgHouseFile =<< ask
 imgHouseFile :: ByteString
 imgHouseFile = $(embedFile "assets/img/house.png")
 
+loadShop :: MonadIO m => MonadReader Renderer m => m Texture
+loadShop = flip decodeTexture imgShopFile =<< ask
+
+imgShopFile :: ByteString
+imgShopFile = $(embedFile "assets/img/shop.png")
 
 loadEnemy :: MonadIO m => MonadReader Renderer m => m Texture
 loadEnemy = flip decodeTexture imgFile =<< ask

@@ -59,6 +59,7 @@ level :: Endo Grid
 level = fold $ Endo <$>
   [ at (MkAxial 2 3) . _Just . tile_content ?~ Player (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 3 3) . _Just . tile_content ?~ House defUnit
+  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop defUnit
   , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Bow $ defUnit)
   , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Sword $ defUnit)
@@ -120,8 +121,7 @@ toPlayerMove state' towards isMove' = do
   selectedAxial <- state' ^. game_selected
   selectedTile :: Tile  <- state' ^. game_board . at selectedAxial
   player :: Unit <- selectedTile ^? tile_content . _Just . _Player
-  let
-      shouldMove = and [ towards `elem`  neigbours selectedAxial
+  let shouldMove = and [ towards `elem`  neigbours selectedAxial
                        , isMove'
                        ]
   if shouldMove then
@@ -170,6 +170,7 @@ move type' grid action =
         Player _ -> Blood
         Enemy _ -> Blood
         House _ -> BurnedHouse
+        Shop  _ -> BurnedHouse
 
 figureOutMove :: Maybe Result -> Action -> Grid -> Grid
 figureOutMove res type' grid =

@@ -24,6 +24,7 @@ module Grid
   , _Enemy
   , _Blood
   , _House
+  , _Shop
   , _BurnedHouse
   , contentFold
   , mkGrid
@@ -53,9 +54,10 @@ data Axial = MkAxial
   } deriving (Eq, Ord, Show, Generic)
 
 data TileContent
-  = Player { _tc_unit :: Unit}
-  | Enemy { _tc_unit :: Unit }
-  | House { _tc_unit :: Unit }
+  = Player { _tc_unit :: Unit }
+  | Enemy  { _tc_unit :: Unit }
+  | House  { _tc_unit :: Unit }
+  | Shop   { _tc_unit :: Unit }
   deriving (Show, Generic, Eq)
 
 data Background = Blood
