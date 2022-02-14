@@ -13,7 +13,7 @@ module State(GameState(..)
             , game_selected
             , game_plunder
             , Move(..)
-            , MoveType(..)
+            , Action(..)
             , describeState
             , move_from
             , move_to
@@ -79,7 +79,7 @@ data Attack = MkAttackMove
   , _attack_to   :: TileContent
   } deriving (Show, Eq)
 
-data MoveType = MkWalk Move -- ^ just go there (no additional events)
+data Action = MkWalk Move -- ^ just go there (no additional events)
               | MkAttack Attack -- ^ play out combat resolution
               deriving (Show, Eq)
 
@@ -92,7 +92,7 @@ data Move = MkMove
 
 makeLenses ''Move
 makeLenses ''Attack
-makePrisms ''MoveType
+makePrisms ''Action
 
 mTraverseBoard :: Axial -> Traversal' GameState (Maybe TileContent)
 mTraverseBoard towards = game_board . at towards . _Just . tile_content
@@ -127,11 +127,11 @@ toPlayerMove state' towards isMove' = do
                   }
   else Nothing
 
-shouldCharacterMove :: GameState -> Axial -> Maybe MoveType
+shouldCharacterMove :: GameState -> Axial -> Maybe Action
 shouldCharacterMove = over (mapped. mapped . mapped) MkWalk $
   getCompose $ Compose toPlayerMove <*> Compose isMove
 
-shouldCharacterAttack :: GameState -> Axial -> Maybe MoveType
+shouldCharacterAttack :: GameState -> Axial -> Maybe Action
 shouldCharacterAttack state' axial = do
   attacking <- isAttack state' axial
   withMove <- toPlayerMove state' axial True
@@ -140,7 +140,7 @@ shouldCharacterAttack state' axial = do
     , _attack_to = attacking
     }
 
-move :: MoveType -> Grid -> Move -> Grid
+move :: Action -> Grid -> Move -> Grid
 move type' grid action =
   (toTileContent .~ (grid ^? fromTile . _Just)) $
   toTileBg .~ background $
@@ -167,7 +167,7 @@ move type' grid action =
         Enemy _ -> Blood
         House _ -> BurnedHouse
 
-figureOutMove :: Maybe Result -> MoveType -> Grid -> Grid
+figureOutMove :: Maybe Result -> Action -> Grid -> Grid
 figureOutMove res type' grid =
   maybe grid (move type' grid) action
   where
@@ -184,7 +184,7 @@ data UpdateEvts = LeftClick Axial
                 | RightClick Axial
                 deriving Show
 
-applyAttack :: MonadRandom m => MonadState GameState m =>  MoveType -> m (Maybe Result)
+applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
 applyAttack = \case
   MkAttack attack -> do
     result <- resolveCombat
@@ -195,12 +195,11 @@ applyAttack = \case
     pure (Just result)
   MkWalk _ -> pure Nothing
 
-
 newtype RandTNT a = MkRandTNT {
   unRandNt :: forall n . Functor n => RandT StdGen n a -> n a
   }
 
-countLoot :: MonadState GameState m => MoveType -> Result -> m ()
+countLoot :: MonadState GameState m => Action -> Result -> m ()
 countLoot plan res =
   when (isTargetDead res) $
    when (has (_MkAttack . attack_to . _House) plan) $
@@ -219,7 +218,6 @@ updateLogic = \case
       traverse_ (countLoot plan) mCombatRes
       modifying game_board (figureOutMove mCombatRes plan)
 
-
 resetState :: MonadState GameState m => m ()
 resetState = trace "player died, resetting" $ put initialState
 
@@ -227,8 +225,6 @@ checkPlayerLives :: MonadState GameState m => m ()
 checkPlayerLives = do
   health <- preuse (game_board . folded . tile_content . _Just . _Player . unit_hp)
   when (maybe True isDead health) resetState
-
-
 
 updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
 updateState gameState (resolveRng, evts) =
