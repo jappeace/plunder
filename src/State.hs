@@ -21,6 +21,7 @@ module State(GameState(..)
             , RandTNT(..)
             ) where
 
+import qualified Control.Monad.State.Class as SC
 import           Combat
 import           Control.Applicative
 import           Control.Lens
@@ -64,6 +65,9 @@ level = fold $ Endo <$>
   , at (MkAxial 0 6) . _Just . tile_content ?~ Enemy defUnit
   , at (MkAxial 1 6) . _Just . tile_background ?~ Blood
   ]
+
+allEnemies :: Traversal' GameState Unit
+allEnemies = game_board . traversed . tile_content . _Just . _Enemy
 
 initialState :: GameState
 initialState = MkGameState
@@ -226,9 +230,15 @@ checkPlayerLives = do
   health <- preuse (game_board . folded . tile_content . _Just . _Player . unit_hp)
   when (maybe True isDead health) resetState
 
+checkWon :: MonadState GameState m => m ()
+checkWon = do
+  isKill <- hasn't allEnemies <$> SC.get
+  when isKill resetState
+
 updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
 updateState gameState (resolveRng, evts) =
   execState (unRandNt resolveRng $ do
                 updateLogic evts
                 checkPlayerLives
+                checkWon
             ) gameState
