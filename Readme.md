@@ -24,7 +24,11 @@ This is a small breakdown of things I'll build next.
   - [x] Move on top of unit causes a combat.
   - [x] combat is rock paper scissers + dice?
 - [x] Add treasure to plunder (you burn down houses for plunder)
-- [ ] Add win condition
+- [x] Add win condition
+    - [x] Kill all oponents (temporary goal, can add other later, kill king, get loot etc)
+- [ ] Add shop for healing / buy weapons / hire mercs
+- [ ] Add turn resolution (que up moves, show moves queed, play them on turn pres)
+- [ ] AI ????
 - [ ] Set up shipping pipe line
 - [ ] ....
 - [ ] Make it more fun
