@@ -30,7 +30,6 @@ import           Foreign.C.Types      (CInt)
 import           Grid
 import           Reflex
 import           Reflex.SDL2
-import qualified Render.Font          as Font
 import           Render.Image
 import           Render.Layer
 import           SDL.Primitive
