@@ -13,6 +13,7 @@ module State(GameState(..)
             , game_board
             , game_selected
             , game_player_inventory
+            , game_shop
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
@@ -64,9 +65,10 @@ makeLenses ''PlayerInventory
 
 -- filters out irrelevant stuff
 describeState :: GameState -> String
-describeState x = printf "GameState { _game_selected = %s, _game_board = %s }"
+describeState x = printf "describeState { _game_selected = %s, _game_shop = %s }"
   (show (x ^. game_selected))
-  (show (x ^.. game_board . contentFold))
+  (show (x ^. game_shop))
+  -- (show (x ^.. game_board . contentFold))
 
 level :: Endo Grid
 level = fold $ Endo <$>
@@ -166,9 +168,9 @@ isShopping currentState towards = do
   MkShop . ShopOpen <$> preview (traverseBoard towards . _Shop) currentState
 
 shouldCharacterAttack :: GameState -> Axial -> Maybe Action
-shouldCharacterAttack state' axial = do
-  attacking <- isAttack state' axial
-  withMove <- toPlayerMove state' axial True
+shouldCharacterAttack state' towards = do
+  attacking <- isAttack state' towards
+  withMove <- toPlayerMove state' towards True
   pure $ MkAttack $ MkAttackMove
     { _attack_move = withMove
     , _attack_to = attacking
@@ -250,10 +252,9 @@ updateLogic = \case
   RightClick towards -> do
     currentState <- use id
     let movePlan = shouldCharacterMove currentState towards
-                    <|>
-                    shouldCharacterAttack currentState towards
                     <|> isShopping currentState towards
-    for_ movePlan $ \plan -> do
+                    <|> shouldCharacterAttack currentState towards
+    for_ movePlan $ \plan -> trace (show plan) $ do
       mCombatRes <- applyAttack plan
       traverse_ (countLoot plan) mCombatRes
       modifying game_board (figureOutMove mCombatRes plan)

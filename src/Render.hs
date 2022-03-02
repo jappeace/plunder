@@ -3,6 +3,7 @@
 
 module Render(renderState) where
 
+import Shop
 import Render.Text
 import           Combat
 import           Control.Lens
@@ -62,11 +63,22 @@ renderState state = do
     traverse_ (\fun -> fun axial tileDyn) renderOrduning
     healthBar tileDyn
 
-  settings <- dynView $ state <&>
-    \state' -> fmap Just $
+  imageEvt =<< dynView (state <&>
+    \state' ->
       renderText font (V4 128 128 128 255) (P $ V2 500 10)
-      ("Money " <> tshow (state' ^. game_player_inventory . inventory_money))
-  image =<< holdDyn Nothing settings
+          ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
+
+  void $ dynView (state <&>
+    \state' ->
+      traverse renderShop $ state' ^. game_shop
+      )
+
+renderShop :: ReflexSDL2 t m
+    => MonadReader Renderer m
+    => ShopContent -> m ()
+renderShop _ = do
+  renderer <- ask
+  fillRect renderer (Just (Rectangle (P $ V2 20 20) (V2 200 200)))
 
 tshow :: Show a => a -> Text
 tshow = pack . show

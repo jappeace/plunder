@@ -5,6 +5,7 @@ module Render.Image(
             , loadViking
             , loadEnemy
             , image
+            , imageEvt
             , renderImage
             , rectangle_pos
             , rectangle_size
@@ -109,6 +110,14 @@ data ImageSettings = ImageSettings
   , _image_content :: Texture
   }
 makeLenses ''ImageSettings
+
+imageEvt :: ReflexSDL2 t m
+    => MonadReader Renderer m
+    => DynamicWriter t [Layer m] m
+    =>
+  Event t ImageSettings -> m ()
+imageEvt settingsEvt =
+  image =<< holdDyn Nothing (Just <$> settingsEvt)
 
 image :: ReflexSDL2 t m
     => MonadReader Renderer m
