@@ -63,7 +63,9 @@ renderState state = do
     healthBar tileDyn
 
   settings <- dynView $ state <&>
-    \state' -> fmap Just $ renderText font (V4 128 128 128 255) (P $ V2 500 10) ("Plunder " <> tshow (state' ^. game_plunder))
+    \state' -> fmap Just $
+      renderText font (V4 128 128 128 255) (P $ V2 500 10)
+      ("Money " <> tshow (state' ^. game_player_inventory . inventory_money))
   image =<< holdDyn Nothing settings
 
 tshow :: Show a => a -> Text

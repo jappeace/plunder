@@ -12,7 +12,10 @@ module State(GameState(..)
             , UpdateEvts(..)
             , game_board
             , game_selected
-            , game_plunder
+            , game_player_inventory
+            , inventory_money
+            , inventroy_item
+            , PlayerInventory(..)
             , Move(..)
             , Action(..)
             , describeState
@@ -42,15 +45,22 @@ import           System.Random
 import           Text.Printf
 import Shop
 
+-- | inidicates the stuff in "pockets", so this doesn't mean equiped
+--   equiped is handled by tile content.
+data PlayerInventory = MkInventory {
+   -- | indicating how much money a player has
+    _inventory_money :: Word64
+  , _inventroy_item  :: Maybe ShopItem
+  } deriving (Show)
+
 data GameState = MkGameState
   { _game_selected :: Maybe Axial
   , _game_board    :: Grid
-   -- | indicating how much havoc a player caused,
-   --   potentially we could use this later as currency?
-  , _game_plunder  :: Word64
+  , _game_player_inventory :: PlayerInventory
   , _game_shop     :: Maybe ShopContent -- If just we're at the shopping screen
   } deriving (Show)
 makeLenses ''GameState
+makeLenses ''PlayerInventory
 
 -- filters out irrelevant stuff
 describeState :: GameState -> String
@@ -73,13 +83,20 @@ level = fold $ Endo <$>
 allEnemies :: Traversal' GameState Unit
 allEnemies = game_board . traversed . tile_content . _Just . _Enemy
 
+initialInventory :: PlayerInventory
+initialInventory = MkInventory
+  { _inventory_money = 0
+  , _inventroy_item  = Nothing
+  }
+
 initialState :: GameState
 initialState = MkGameState
   { _game_selected = Nothing
   , _game_board    = appEndo level initialGrid
    -- | indicating how much havoc a player caused,
    --   potentially we could use this later as currency?
-  , _game_plunder  = 0
+  , _game_player_inventory = initialInventory
+  , _game_shop = Nothing
   }
 
 data Attack = MkAttackMove
@@ -87,9 +104,14 @@ data Attack = MkAttackMove
   , _attack_to   :: TileContent
   } deriving (Show, Eq)
 
+data ShopAction = ShopOpen ShopContent
+                | ShopClose
+                | ShopBuy ShopItem
+              deriving (Show, Eq)
+
 data Action = MkWalk Move -- ^ just go there (no additional events)
               | MkAttack Attack -- ^ play out combat resolution
-              | MkShop -- ^ Open shop screen
+              | MkShop ShopAction -- ^ Open shop screen
               deriving (Show, Eq)
 
 data Move = MkMove
@@ -140,10 +162,8 @@ shouldCharacterMove = over (mapped. mapped . mapped) MkWalk $
   getCompose $ Compose toPlayerMove <*> Compose isMove
 
 isShopping :: GameState -> Axial -> Maybe Action
-isShopping currentState towards =
-  if has (traverseBoard towards . _Shop) currentState
-  then Just MkShop
-  else Nothing
+isShopping currentState towards = do
+  MkShop . ShopOpen <$> preview (traverseBoard towards . _Shop) currentState
 
 shouldCharacterAttack :: GameState -> Axial -> Maybe Action
 shouldCharacterAttack state' axial = do
@@ -194,6 +214,7 @@ figureOutMove res type' grid =
           Just (attack ^. attack_move)
           else
           Nothing
+      MkShop _ -> Nothing
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
@@ -211,7 +232,7 @@ applyAttack = \case
       traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result ^. res_right_unit)
       pure (Just result)
   MkWalk _ -> pure Nothing
-  MkShop -> pure Nothing
+  MkShop _ -> pure Nothing
 
 newtype RandTNT a = MkRandTNT {
   unRandNt :: forall n . Functor n => RandT StdGen n a -> n a
@@ -221,7 +242,7 @@ countLoot :: MonadState GameState m => Action -> Result -> m ()
 countLoot plan res =
   when (isTargetDead res) $
    when (has (_MkAttack . attack_to . _House) plan) $
-         game_plunder += 10
+         game_player_inventory . inventory_money += 10
 
 updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
 updateLogic = \case
@@ -236,6 +257,15 @@ updateLogic = \case
       mCombatRes <- applyAttack plan
       traverse_ (countLoot plan) mCombatRes
       modifying game_board (figureOutMove mCombatRes plan)
+      traverse_ applyShop (plan ^? _MkShop)
+
+applyShop :: MonadState GameState m => ShopAction -> m ()
+applyShop = \case
+  ShopOpen content -> assign game_shop (Just content)
+  ShopClose        -> assign game_shop Nothing
+  ShopBuy item     -> assign
+                        (game_player_inventory . inventroy_item)
+                        (Just item)
 
 resetState :: MonadState GameState m => m ()
 resetState = trace "player died, resetting" $ put initialState
