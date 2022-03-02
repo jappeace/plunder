@@ -68,17 +68,21 @@ renderState state = do
       renderText font (V4 128 128 128 255) (P $ V2 500 10)
           ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
 
-  void $ dynView (state <&>
-    \state' ->
-      traverse renderShop $ state' ^. game_shop
-      )
+  renderShop $ view game_shop <$> state
 
 renderShop :: ReflexSDL2 t m
+    => DynamicWriter t [Layer m] m
     => MonadReader Renderer m
-    => ShopContent -> m ()
-renderShop _ = do
+    => Dynamic t (Maybe ShopContent) -> m ()
+renderShop shopDyn = do
   renderer <- ask
-  fillRect renderer (Just (Rectangle (P $ V2 20 20) (V2 200 200)))
+  commitLayer $ renderShop' renderer <$> shopDyn
+
+renderShop' :: MonadIO m
+    => Renderer -> Maybe ShopContent -> m ()
+renderShop' renderer mshop = do
+  void $ forM_ mshop $ const $
+    fillRect renderer (Just (Rectangle (P $ V2 20 20) (V2 200 200)))
 
 tshow :: Show a => a -> Text
 tshow = pack . show
