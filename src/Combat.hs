@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Combat
-  (Weapon(..)
+  ( Weapon(..)
   , Unit(..)
   , defUnit
   , resolveCombat
@@ -47,8 +47,6 @@ beats :: Weapon -> Weapon
 beats Sword = Axe
 beats Bow   = Sword
 beats Axe   = Bow
-
-
 
 getDmg ::
   Maybe Weapon -- ^ attacker

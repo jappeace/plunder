@@ -36,6 +36,7 @@ library
       Render.Image
       Render.Layer
       Render.Text
+      Shop
       State
   other-modules:
       Paths_game13

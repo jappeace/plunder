@@ -41,6 +41,7 @@ import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
 import           Test.QuickCheck
 import Combat
+import Shop
 
 hexSize :: Int
 hexSize = 80
@@ -57,11 +58,12 @@ data TileContent
   = Player { _tc_unit :: Unit }
   | Enemy  { _tc_unit :: Unit }
   | House  { _tc_unit :: Unit }
-  | Shop   { _tc_unit :: Unit }
+  | Shop   ShopContent
   deriving (Show, Generic, Eq)
 
 data Background = Blood
                 | BurnedHouse
+                | BurnedShop -- TODO make image
   deriving (Show, Generic, Eq)
 
 data Tile = MkTile

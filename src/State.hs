@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 
+-- | Elm architecture around gamestate
 module State(GameState(..)
             , shouldCharacterMove
             , updateState
@@ -39,6 +40,7 @@ import           GHC.Generics                    (Generic)
 import           Grid
 import           System.Random
 import           Text.Printf
+import Shop
 
 data GameState = MkGameState
   { _game_selected :: Maybe Axial
@@ -46,6 +48,7 @@ data GameState = MkGameState
    -- | indicating how much havoc a player caused,
    --   potentially we could use this later as currency?
   , _game_plunder  :: Word64
+  , _game_shop     :: Maybe ShopContent -- If just we're at the shopping screen
   } deriving (Show)
 makeLenses ''GameState
 
@@ -59,7 +62,7 @@ level :: Endo Grid
 level = fold $ Endo <$>
   [ at (MkAxial 2 3) . _Just . tile_content ?~ Player (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 3 3) . _Just . tile_content ?~ House defUnit
-  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop defUnit
+  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) Nothing Nothing)
   , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Bow $ defUnit)
   , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Sword $ defUnit)
@@ -86,6 +89,7 @@ data Attack = MkAttackMove
 
 data Action = MkWalk Move -- ^ just go there (no additional events)
               | MkAttack Attack -- ^ play out combat resolution
+              | MkShop -- ^ Open shop screen
               deriving (Show, Eq)
 
 data Move = MkMove
@@ -135,6 +139,12 @@ shouldCharacterMove :: GameState -> Axial -> Maybe Action
 shouldCharacterMove = over (mapped. mapped . mapped) MkWalk $
   getCompose $ Compose toPlayerMove <*> Compose isMove
 
+isShopping :: GameState -> Axial -> Maybe Action
+isShopping currentState towards =
+  if has (traverseBoard towards . _Shop) currentState
+  then Just MkShop
+  else Nothing
+
 shouldCharacterAttack :: GameState -> Axial -> Maybe Action
 shouldCharacterAttack state' axial = do
   attacking <- isAttack state' axial
@@ -170,7 +180,7 @@ move type' grid action =
         Player _ -> Blood
         Enemy _ -> Blood
         House _ -> BurnedHouse
-        Shop  _ -> BurnedHouse
+        Shop  _ -> BurnedShop
 
 figureOutMove :: Maybe Result -> Action -> Grid -> Grid
 figureOutMove res type' grid =
@@ -191,14 +201,17 @@ data UpdateEvts = LeftClick Axial
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
 applyAttack = \case
-  MkAttack attack -> do
-    result <- resolveCombat
-                (attack ^. attack_move . move_from_unit)
-                (attack ^. attack_to . tc_unit)
-    traverseBoard (attack ^. attack_move . move_from) . tc_unit .= (result ^. res_left_unit)
-    traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result ^. res_right_unit)
-    pure (Just result)
+  MkAttack attack -> case attack ^? attack_to . tc_unit of
+    Nothing -> pure Nothing  -- if tc has no unit, it's not attackable
+    Just attacking -> do
+      result <- resolveCombat
+                  (attack ^. attack_move . move_from_unit)
+                  attacking
+      traverseBoard (attack ^. attack_move . move_from) . tc_unit .= (result ^. res_left_unit)
+      traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result ^. res_right_unit)
+      pure (Just result)
   MkWalk _ -> pure Nothing
+  MkShop -> pure Nothing
 
 newtype RandTNT a = MkRandTNT {
   unRandNt :: forall n . Functor n => RandT StdGen n a -> n a
@@ -218,6 +231,7 @@ updateLogic = \case
     let movePlan = shouldCharacterMove currentState towards
                     <|>
                     shouldCharacterAttack currentState towards
+                    <|> isShopping currentState towards
     for_ movePlan $ \plan -> do
       mCombatRes <- applyAttack plan
       traverse_ (countLoot plan) mCombatRes
