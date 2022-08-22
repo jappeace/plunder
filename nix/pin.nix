@@ -1,6 +1,7 @@
 import (builtins.fetchGit {
     # Descriptive name to make the store path easier to identify
-    name = "nixos-pin-19.08.2020";
+    name = "nixos-pin-2022.08.22";
     url = "https://github.com/nixos/nixpkgs/";
-    rev = "d618e6a675bd9fd83db814c77f216bdf311f301c";
+    rev = "23534df34c1c499a6c82ce690df06d8c6e4e759d";
+    ref = "nixos-22.05";
     })
