@@ -7,6 +7,9 @@
 -- | Contains all reflex-sdl boilerplate
 module Game13(main) where
 
+
+import Foreign.C.String
+import SDL.Raw.Error
 import           Control.Monad        (void)
 import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
@@ -29,14 +32,19 @@ app = do
 main :: IO ()
 main = do
   initializeAll
+  putStrLn "initializing"
   Font.initialize
-  let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
+  let ogl = defaultOpenGL{ glProfile = Compatibility Normal 4 6 }
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
                          , windowResizable       = True
                          , windowHighDPI         = False
                          , windowInitialSize     = V2 640 480
                          }
+  putStrLn "creating window"
   window <- createWindow "game-13" cfg
+  mycError <- getError
+  putStrLn =<< peekCString mycError
+  print (("context" :: String), window)
   void $ glCreateContext window
 
   putStrLn "creating renderer!"
