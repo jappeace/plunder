@@ -11,6 +11,8 @@ import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
 import           Plunder.Render.Layer
+import SDL.Primitive(Color)
+import Plunder.Render.Color
 
 healthBar :: DynamicWriter t [Layer m] m
         => ReflexSDL2 t m
@@ -20,9 +22,13 @@ healthBar tileDyn = do
   renderer    <- ask
   commitLayer $ healthBar' renderer <$> tileDyn
 
+healthColor :: Color
+healthColor = V4 255 128 128 255
+
 healthBar' :: MonadIO m
         => Renderer -> Tile -> m ()
 healthBar' renderer tile = unless isDead $ do
+    setDrawColor renderer healthColor
     drawRect renderer $ Just rectangle
     where
       isDead :: Bool

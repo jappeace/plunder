@@ -1,4 +1,4 @@
-module Plunder.Main where
+module Main where
 
 import qualified Plunder as Game
 

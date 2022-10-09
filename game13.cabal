@@ -31,6 +31,7 @@ library
       Plunder.Guest
       Plunder.Lens
       Plunder.Render
+      Plunder.Render.Color
       Plunder.Render.Font
       Plunder.Render.Health
       Plunder.Render.Hexagon
