@@ -4,7 +4,7 @@
 module Plunder.Render.Font(defaultFont, module X) where
 
 import Data.FileEmbed
-import SDL.Font as X
+import SDL.Font as X hiding (Style)
 import Data.ByteString
 import Control.Monad.IO.Class
 
