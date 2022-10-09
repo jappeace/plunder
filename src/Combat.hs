@@ -18,9 +18,11 @@ module Combat
   , Result(..)
   , res_left_unit
   , res_right_unit
+  , weaponDescription
   )
 where
 
+import Data.Text(Text, pack)
 import           Control.Lens               hiding (elements)
 import           Control.Monad.Random.Class
 import           GHC.Generics               (Generic)
@@ -37,6 +39,10 @@ data Weapon = Sword -- rock
             | Bow   -- paper
             | Axe -- scissor
             deriving (Show, Eq, Generic, Bounded,  Enum)
+
+-- | user facing description
+weaponDescription :: Weapon -> Text
+weaponDescription = pack . show
 
 data Damage = NoEffect
             | Smol'l -- smol'l

@@ -3,6 +3,8 @@
 
 module Render(renderState) where
 
+import Witherable(catMaybes)
+import Data.Word(Word8)
 import Shop
 import Render.Text
 import           Combat
@@ -21,7 +23,6 @@ import           Render.Image
 import           Render.Layer
 import           State
 import           Render.Font
-import Data.Text
 
 renderState :: ReflexSDL2 t m
   => MonadReader Renderer m
@@ -65,27 +66,41 @@ renderState state = do
 
   imageEvt =<< dynView (state <&>
     \state' ->
-      renderText font (V4 128 128 128 255) (P $ V2 500 10)
+      renderText font defaultStyle (P $ V2 500 10)
           ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
 
-  renderShop $ view game_shop <$> state
+  renderShop font $ view game_shop <$> state
 
 renderShop :: ReflexSDL2 t m
     => DynamicWriter t [Layer m] m
     => MonadReader Renderer m
-    => Dynamic t (Maybe ShopContent) -> m ()
-renderShop shopDyn = do
+    => Font -> Dynamic t (Maybe ShopContent) -> m ()
+renderShop font shopDyn = do
   renderer <- ask
-  commitLayer $ renderShop' renderer <$> shopDyn
+  commitLayer $ renderShopBackground renderer <$> shopDyn
+  imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 0 . slot1) <$> shopDyn)
+  imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 1 . slot2) <$> shopDyn)
+  imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 2 . slot3) <$> shopDyn)
+  pure ()
 
-renderShop' :: MonadIO m
+renderShopBackground :: MonadIO m
     => Renderer -> Maybe ShopContent -> m ()
-renderShop' renderer mshop = do
-  void $ forM_ mshop $ const $
+renderShopBackground renderer mshop =
+  void $ forM_ mshop $ \_content -> do
     fillRect renderer (Just (Rectangle (P $ V2 20 20) (V2 200 200)))
 
-tshow :: Show a => a -> Text
-tshow = pack . show
+renderShopItem ::
+  (ReflexSDL2 t m
+  , MonadReader Renderer m) =>
+  Font -> Word8 -> Maybe ShopItem -> m ImageSettings
+renderShopItem font offset = \case
+  Nothing ->
+      renderText font defaultStyle position "-"
+  Just item ->
+      renderText font defaultStyle position $ itemDescription item
+
+  where
+    position = (P $ V2 30 (40 + fromIntegral offset * 20))
 
 
 applyImage ::

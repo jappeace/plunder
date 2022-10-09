@@ -71,6 +71,8 @@ dependencies:
 - MonadRandom
 - transformers
 - random
+- witherable
+- template-haskell
 
 library:
   source-dirs: src

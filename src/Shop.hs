@@ -8,11 +8,26 @@ import           Control.Lens               hiding (elements)
 import           Combat
 import           Test.QuickCheck
 import           GHC.Generics               (Generic)
+import Data.Text(Text, pack)
 
 data ShopItemType = ShopWeapon Weapon
                   | ShopUnit -- ^ friend for hire
                   | ShopHealthPotion -- ^ heal up
                   deriving (Show, Eq, Generic)
+
+-- | user facing description
+itemTypeDescription :: ShopItemType -> Text
+itemTypeDescription = \case
+  ShopWeapon weapon -> weaponDescription weapon
+  ShopUnit -> "friend"
+  ShopHealthPotion -> "health potion"
+
+itemDescription :: ShopItem  -> Text
+itemDescription MkShopItem {..} =
+          "哈 " <> tshow si_price <> " - " <> itemTypeDescription si_type
+
+tshow :: Show a => a -> Text
+tshow = pack . show
 
 data ShopItem = MkShopItem { si_price :: Int, si_type :: ShopItemType }
                   deriving (Show, Eq, Generic)

@@ -18,7 +18,7 @@ module Render.Hexagon
 where
 
 import           SDL.Font(Font)
-import           Render.Text(renderText)
+import           Render.Text
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
 import           Data.Foldable
@@ -32,7 +32,7 @@ import           Reflex
 import           Reflex.SDL2
 import           Render.Image
 import           Render.Layer
-import           SDL.Primitive
+import           SDL.Primitive (polygon, fillPolygon, Color)
 import           Text.Printf
 
 data HexagonSettings = HexagonSettings
@@ -112,7 +112,10 @@ hexagon settings = do
   commitLayer $ ffor evPB $ const $ do
     polgyonF r xPoints yPoints $ settings ^. hexagon_color
   for_ (settings ^. hexagon_label) $ \text -> do
-      imageSettings <- renderText (settings ^. hexagon_font) (settings ^. hexagon_color) (settings ^. hexagon_position) text
+      imageSettings <- renderText (settings ^. hexagon_font) (MkStyle
+                                                                { styleHorizontalAlign = Center
+                                                                , styleColor = settings ^. hexagon_color
+                                                                }) (settings ^. hexagon_position) text
       image $ pure $ Just imageSettings
   pure ()
   where
