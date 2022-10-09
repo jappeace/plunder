@@ -27,7 +27,7 @@ This is a small breakdown of things I'll build next.
 - [x] Add win condition
     - [x] Kill all oponents (temporary goal, can add other later, kill king, get loot etc)
 - [ ] Add shop for healing / buy weapons / hire mercs
-  - [ ] Add title to shop
+  - [x] Add title to shop
   - [ ] Select an item in shop
   - [ ] Add purchase button
   - [ ] What to do with inventory?

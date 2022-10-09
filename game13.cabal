@@ -37,6 +37,7 @@ library
       Plunder.Render.Hexagon
       Plunder.Render.Image
       Plunder.Render.Layer
+      Plunder.Render.Shop
       Plunder.Render.Text
       Plunder.Shop
       Plunder.State
