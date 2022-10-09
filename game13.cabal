@@ -25,20 +25,20 @@ source-repository head
 
 library
   exposed-modules:
-      Combat
-      Game13
-      Grid
-      Guest
+      Plunder
+      Plunder.Combat
+      Plunder.Grid
+      Plunder.Guest
       Plunder.Lens
-      Render
-      Render.Font
-      Render.Health
-      Render.Hexagon
-      Render.Image
-      Render.Layer
-      Render.Text
-      Shop
-      State
+      Plunder.Render
+      Plunder.Render.Font
+      Plunder.Render.Health
+      Plunder.Render.Hexagon
+      Plunder.Render.Image
+      Plunder.Render.Layer
+      Plunder.Render.Text
+      Plunder.Shop
+      Plunder.State
   other-modules:
       Paths_game13
   hs-source-dirs:

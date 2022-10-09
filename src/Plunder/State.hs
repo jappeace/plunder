@@ -220,6 +220,7 @@ figureOutMove res type' grid =
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
+                | Redraw -- ^ eg window size changed, needs an update
                 deriving Show
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
@@ -248,6 +249,7 @@ countLoot plan res =
 
 updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
 updateLogic = \case
+  Redraw -> pure ()
   LeftClick axial -> assign game_selected (Just axial)
   RightClick towards -> do
     currentState <- use id

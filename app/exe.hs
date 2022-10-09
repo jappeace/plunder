@@ -1,6 +1,6 @@
 module Plunder.Main where
 
-import qualified Game13
+import qualified Plunder as Game
 
 main :: IO ()
-main = Game13.main
+main = Game.main

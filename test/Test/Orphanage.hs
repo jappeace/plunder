@@ -3,7 +3,7 @@
 module Test.Orphanage () where
 
 import           Foreign.C.Types (CInt)
-import           Plunder.Game13          ()
+import           Plunder          ()
 import           Reflex.SDL2
 import           Test.QuickCheck
 import Plunder.State

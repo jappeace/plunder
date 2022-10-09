@@ -56,7 +56,7 @@ makeRandomNT =
 
 mkGameState :: forall t m . ReflexSDL2 t m => m (Dynamic t GameState)
 mkGameState = do
-
+  windowSizeChangedEvt <- getWindowSizeChangedEvent
   mouseButtonEvt <- getMouseButtonEvent
   let leftClickEvts :: Event t MouseButtonEventData
       leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
@@ -68,6 +68,7 @@ mkGameState = do
       rightClickAxialEvt = calcMouseClickAxial <$> rightClickEvts
       events = leftmost [ LeftClick <$> leftClickAxial
                         , RightClick <$> rightClickAxialEvt
+                        , Redraw <$ windowSizeChangedEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
 

@@ -3,7 +3,7 @@ module Test.TestSpec
   )
 where
 
-import           Plunder.Game13 ()
+import           Plunder ()
 import           Test.Hspec
 
 one :: Int

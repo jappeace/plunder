@@ -5,7 +5,7 @@ where
 
 import           Data.Foldable
 import           Foreign.C.Types (CInt)
-import           Plunder.Game13          ()
+import           Plunder          ()
 import           Plunder.Grid
 import           Reflex.SDL2
 import           Test.Hspec
