@@ -31,6 +31,7 @@ This is a small breakdown of things I'll build next.
   - [ ] Select an item in shop
   - [ ] Add purchase button
   - [ ] What to do with inventory?
+  - [ ] What to do with buying a unit?
 - [ ] Add turn resolution (que up moves, show moves queed, play them on turn pres)
 - [ ] AI ????
 - [ ] Set up shipping pipe line

@@ -2,10 +2,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Shop where
+module Plunder.Shop where
 
 import           Control.Lens               hiding (elements)
-import           Combat
+import           Plunder.Combat
 import           Test.QuickCheck
 import           GHC.Generics               (Generic)
 import Data.Text(Text, pack)

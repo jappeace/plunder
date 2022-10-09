@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
 
-module Guest(guest) where
+module Plunder.Guest(guest) where
 
 import           Control.Lens
 import           Control.Monad.Reader            (MonadReader (..))
@@ -11,12 +11,12 @@ import           Control.Monad.Trans.Random.Lazy
 import           Data.Generics.Product
 import           Data.Generics.Sum
 import           Data.Int
-import           Grid
-import           Render.Layer
+import           Plunder.Grid
+import           Plunder.Render.Layer
 import           Reflex
 import           Reflex.SDL2
-import           Render
-import           State
+import           Plunder.Render
+import           Plunder.State
 import           System.Random
 
 

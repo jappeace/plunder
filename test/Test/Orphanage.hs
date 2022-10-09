@@ -3,10 +3,10 @@
 module Test.Orphanage () where
 
 import           Foreign.C.Types (CInt)
-import           Game13          ()
+import           Plunder.Game13          ()
 import           Reflex.SDL2
 import           Test.QuickCheck
-import State
+import Plunder.State
 import Control.Lens
 
 instance Arbitrary (V2 CInt) where

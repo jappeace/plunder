@@ -1,28 +1,28 @@
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Render(renderState) where
+module Plunder.Render(renderState) where
 
 import Witherable(catMaybes)
 import Data.Word(Word8)
-import Shop
-import Render.Text
-import           Combat
+import Plunder.Shop
+import Plunder.Render.Text
+import           Plunder.Combat
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
 import           Data.Bool
 import           Data.Foldable
 import           Data.Monoid
-import           Grid
+import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
-import           Render.Health
-import           Render.Hexagon
-import           Render.Image
-import           Render.Layer
-import           State
-import           Render.Font
+import           Plunder.Render.Health
+import           Plunder.Render.Hexagon
+import           Plunder.Render.Image
+import           Plunder.Render.Layer
+import           Plunder.State
+import           Plunder.Render.Font
 
 renderState :: ReflexSDL2 t m
   => MonadReader Renderer m

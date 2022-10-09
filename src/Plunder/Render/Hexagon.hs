@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Render.Hexagon
+module Plunder.Render.Hexagon
   ( hexagon
   , HexagonSettings
   , defHex
@@ -18,7 +18,7 @@ module Render.Hexagon
 where
 
 import           SDL.Font(Font)
-import           Render.Text
+import           Plunder.Render.Text
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
 import           Data.Foldable
@@ -27,11 +27,11 @@ import           Data.Text            (Text)
 import qualified Data.Text            as Text
 import qualified Data.Vector.Storable as S
 import           Foreign.C.Types      (CInt)
-import           Grid
+import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
-import           Render.Image
-import           Render.Layer
+import           Plunder.Render.Image
+import           Plunder.Render.Layer
 import           SDL.Primitive (polygon, fillPolygon, Color)
 import           Text.Printf
 

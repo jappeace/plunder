@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
-module Render.Layer where
+module Plunder.Render.Layer where
 
 import           Reflex
 import           Reflex.SDL2

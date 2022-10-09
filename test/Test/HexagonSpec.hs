@@ -5,8 +5,8 @@ where
 
 import           Data.Foldable
 import           Foreign.C.Types (CInt)
-import           Game13          ()
-import           Grid
+import           Plunder.Game13          ()
+import           Plunder.Grid
 import           Reflex.SDL2
 import           Test.Hspec
 import           Test.Orphanage ()
@@ -14,8 +14,8 @@ import           Test.QuickCheck
 import           Text.Printf
 import           Control.Lens
 import    qualified Data.Map as Map
-import State
-import Combat
+import Plunder.State
+import Plunder.Combat
 
 spec :: Spec
 spec = do

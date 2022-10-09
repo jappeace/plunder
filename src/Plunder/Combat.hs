@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Combat
+module Plunder.Combat
   ( Weapon(..)
   , Unit(..)
   , defUnit

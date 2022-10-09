@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Render.Image(
+module Plunder.Render.Image(
             ImageSettings(..)
             , loadViking
             , loadEnemy
@@ -28,8 +28,8 @@ import           Control.Monad.Reader   (MonadReader (..))
 import           Data.ByteString        hiding (copy)
 import           Data.FileEmbed
 import           Foreign.C.Types        (CInt)
-import           Grid
-import           Render.Layer
+import           Plunder.Grid
+import           Plunder.Render.Layer
 import           Reflex
 import           Reflex.SDL2
 import           SDL.Image

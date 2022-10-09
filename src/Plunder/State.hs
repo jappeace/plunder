@@ -5,7 +5,7 @@
 {-# LANGUAGE TemplateHaskell     #-}
 
 -- | Elm architecture around gamestate
-module State(GameState(..)
+module Plunder.State(GameState(..)
             , shouldCharacterMove
             , updateState
             , initialState
@@ -27,7 +27,7 @@ module State(GameState(..)
             ) where
 
 import qualified Control.Monad.State.Class as SC
-import           Combat
+import           Plunder.Combat
 import           Control.Applicative
 import           Control.Lens
 import           Control.Monad
@@ -41,10 +41,10 @@ import           Data.Monoid
 import           Data.Word
 import           Debug.Trace
 import           GHC.Generics                    (Generic)
-import           Grid
+import           Plunder.Grid
 import           System.Random
 import           Text.Printf
-import Shop
+import Plunder.Shop
 
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.

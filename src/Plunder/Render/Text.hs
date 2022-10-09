@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Render.Text(
+module Plunder.Render.Text(
   renderText
   , Style(..)
   , Align(..)
@@ -15,8 +15,8 @@ import           Control.Monad.Reader   (MonadReader (..))
 import           Data.Text              (Text)
 import           Foreign.C.Types        (CInt)
 import           Reflex.SDL2
-import qualified Render.Font            as Font
-import           Render.Image
+import qualified Plunder.Render.Font            as Font
+import           Plunder.Render.Image
 import           SDL.Font hiding (Style)
 
 data Align = Start | Center

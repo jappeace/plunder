@@ -1,16 +1,16 @@
 
-module Render.Health(healthBar) where
+module Plunder.Render.Health(healthBar) where
 
-import qualified Combat
+import qualified Plunder.Combat as Combat
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (MonadReader (..))
 import           Data.Maybe
-import           Grid
+import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
-import           Render.Layer
+import           Plunder.Render.Layer
 
 healthBar :: DynamicWriter t [Layer m] m
         => ReflexSDL2 t m

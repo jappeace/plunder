@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
-module Grid
+module Plunder.Grid
   ( Grid
   , Axial(..)
   , initialGrid
@@ -40,8 +40,8 @@ import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
 import           Test.QuickCheck
-import Combat
-import Shop
+import Plunder.Combat
+import Plunder.Shop
 
 hexSize :: Int
 hexSize = 80

@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 -- | Contains all reflex-sdl boilerplate
-module Game13(main) where
+module Plunder.Game13(main) where
 
 
 import Foreign.C.String
@@ -14,7 +14,7 @@ import           Control.Monad        (void)
 import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
-import           Guest
+import           Plunder.Guest
 import           qualified SDL.Font as Font
 
 app :: (ReflexSDL2 t m, MonadReader Renderer m) => m ()
