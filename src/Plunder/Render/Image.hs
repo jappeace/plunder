@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Plunder.Render.Image(
             ImageSettings(..)
@@ -20,6 +21,8 @@ module Plunder.Render.Image(
             , burndedHouse
             ) where
 
+import Data.Monoid
+import Witherable(catMaybes)
 import System.Random
 import Control.Monad
 import           Control.Lens
@@ -33,6 +36,7 @@ import           Plunder.Render.Layer
 import           Reflex
 import           Reflex.SDL2
 import           SDL.Image
+import Plunder.Mouse
 
 loadAxe :: MonadIO m => MonadReader Renderer m => m Texture
 loadAxe = flip decodeTexture imgFile =<< ask
@@ -115,20 +119,51 @@ imageEvt :: ReflexSDL2 t m
     => MonadReader Renderer m
     => DynamicWriter t [Layer m] m
     =>
-  Event t ImageSettings -> m ()
+  Event t ImageSettings -> m (Event t ImageActions)
 imageEvt settingsEvt =
   image =<< holdDyn Nothing (Just <$> settingsEvt)
 
-image :: ReflexSDL2 t m
+data ImageActions = LeftClick
+  deriving Show
+
+image :: forall t m . ReflexSDL2 t m
     => MonadReader Renderer m
     => DynamicWriter t [Layer m] m
-    => Dynamic t (Maybe ImageSettings) -> m ()
+    => Dynamic t (Maybe ImageSettings) -> m (Event t ImageActions)
 image settingsDyn = do
   renderer    <- ask
+
   commitLayer $ ffor settingsDyn $ \msettings ->
     flip (maybe (pure ())) msettings $ \settings -> do
       copy renderer (settings ^. image_content) Nothing $
         settings ^? image_position
+
+
+  mouseButtonEvt <- getMouseButtonEvent
+  let leftClickEvts :: Event t MouseButtonEventData
+      leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
+
+  pure $ catMaybes $ calcIsClicked <$> current settingsDyn <@> leftClickEvts
+
+isInside :: Rectangle CInt -> Point V2 CInt -> Bool
+isInside rect point' =
+  getAll $ foldMap All
+  [ adjusted ^. _x > 0
+  , adjusted ^. _x < (rect ^. rectangle_size . _x)
+  , adjusted ^. _y > 0
+  , adjusted ^. _y < (rect ^. rectangle_size . _y)
+  ]
+  where
+    adjusted = point' ^-^ (rect ^. rectangle_pos)
+
+calcIsClicked :: Maybe ImageSettings -> MouseButtonEventData -> Maybe ImageActions
+calcIsClicked Nothing _ = Nothing
+calcIsClicked (Just settings) evtData =
+  if isInside rect pos then Just LeftClick else Nothing
+  where
+    rect = settings ^. image_position
+    pos = fmap fromIntegral $ evtData ^. mousePositions
+
 
 renderWeapon :: ImageSettings -> ImageSettings
 renderWeapon =

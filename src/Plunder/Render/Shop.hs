@@ -25,10 +25,11 @@ renderShop :: ReflexSDL2 t m
 renderShop font shopDyn = do
   renderer <- ask
   commitLayer $ renderShopBackground renderer <$> shopDyn
-  imageEvt =<< dynView ((renderText font shopStyle (shopPosition 0) "Shop") <$ shopDyn)
-  imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 1 . slot1) <$> shopDyn)
-  imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 2 . slot2) <$> shopDyn)
-  imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 3 . slot3) <$> shopDyn)
+  void $ imageEvt =<< dynView ((renderText font shopStyle (shopPosition 0) "Shop") <$ shopDyn)
+  void $ imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 1 . slot1) <$> shopDyn)
+  void $ imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 2 . slot2) <$> shopDyn)
+  click <- imageEvt . catMaybes =<< dynView (traverse (renderShopItem font 3 . slot3) <$> shopDyn)
+  performEvent_ $ ffor click $ liftIO . print . ("xxx " <>) . show
   pure ()
 
 shopStyle :: Style

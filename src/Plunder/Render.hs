@@ -63,7 +63,7 @@ renderState state = do
     traverse_ (\fun -> fun axial tileDyn) renderOrduning
     healthBar tileDyn
 
-  imageEvt =<< dynView (state <&>
+  void $ imageEvt =<< dynView (state <&>
     \state' ->
       renderText font defaultStyle (P $ V2 500 10)
           ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
@@ -80,7 +80,7 @@ applyImage ::
   -> Dynamic t Tile
   ->  m ()
 applyImage textureF hashPath axial tileDyn =
-  image $ fmap textureF <$> someSettings
+  void $ image $ fmap textureF <$> someSettings
   where
     someSettings = bool Nothing (Just axial)
                        . has hashPath <$> tileDyn

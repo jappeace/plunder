@@ -30,6 +30,7 @@ library
       Plunder.Grid
       Plunder.Guest
       Plunder.Lens
+      Plunder.Mouse
       Plunder.Render
       Plunder.Render.Color
       Plunder.Render.Font
