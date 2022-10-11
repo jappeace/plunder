@@ -6,7 +6,7 @@ module Plunder.Render.Shop(renderShop) where
 
 import Foreign.C.Types(CInt)
 import Witherable(catMaybes)
-import Data.Word(Word8)
+import Data.Word(Word8, Word64)
 import Plunder.Shop
 import Plunder.Render.Text
 import Plunder.Render.Color
@@ -30,8 +30,8 @@ initialState = MkShopState mempty
 renderShop :: ReflexSDL2 t m
     => DynamicWriter t [Layer m] m
     => MonadReader Renderer m
-    => Font -> Dynamic t (Maybe ShopContent) -> m ()
-renderShop font shopDyn = mdo
+    => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t Word64 -> m ()
+renderShop font shopDyn moneyDyn = mdo
   renderer <- ask
   commitLayer $ renderShopBackground renderer <$> shopDyn
   void $ imageEvt =<< dynView ((renderText font shopStyle (shopPosition 0) "Shop") <$ shopDyn)
@@ -40,8 +40,19 @@ renderShop font shopDyn = mdo
   stateDyn <- accumDyn updateState initialState $ leftmost evts
 
   performEvent_ $ ffor (updated stateDyn) $ liftIO . print . ("xxx " <>) . show
-  void $ imageEvt =<< dynView ((renderText font shopStyle (shopPosition 6) "Purchase") <$ shopDyn)
+
+  purchaseClick <- imageEvt =<< dynView ((renderText font shopStyle (shopPosition 6) "Purchase") <$ shopDyn)
+
+  -- on purchase one of two things will happen
+  -- 1. player doesn't have not enough cash, so we display a message
+  -- 2. player has enough cash, so cash get's subtracted and items moved to the inventory
+  --    we do this in update gamestate to, we just emit the items from the shop.
+  --    it's more convenient to do the cash check here because it
+  --    localises displaying the message.
+
   pure ()
+
+
 
 renderSlot :: (MonadReader Renderer m, ReflexSDL2 t m, DynamicWriter t [Layer m] m) => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t ShopState -> Int -> (ShopContent -> Maybe ShopItem) -> m (Event t Word8)
 renderSlot font shopContent shopState idx' slot = fmap (idx <$) $

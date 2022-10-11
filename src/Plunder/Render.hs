@@ -68,7 +68,7 @@ renderState state = do
       renderText font defaultStyle (P $ V2 500 10)
           ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
 
-  renderShop font $ view game_shop <$> state
+  renderShop font (view game_shop <$> state) $ view (game_player_inventory . inventory_money) <$> state
 
 applyImage ::
   DynamicWriter t [Performable m ()] m
