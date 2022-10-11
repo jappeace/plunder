@@ -32,8 +32,7 @@ defaultStyle =  MkStyle
   , styleColor = (V4 128 128 128 255)
   }
 
-renderText
-  :: ReflexSDL2 t m
+renderText :: ReflexSDL2 t m
   => MonadReader Renderer m
   => Font -> Style -> Point V2 CInt -> Text -> m ImageSettings
 renderText font style position text = do

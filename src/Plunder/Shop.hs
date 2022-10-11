@@ -24,12 +24,14 @@ itemTypeDescription = \case
 
 itemDescription :: ShopItem  -> Text
 itemDescription MkShopItem {..} =
-          "哈 " <> tshow si_price <> " - " <> itemTypeDescription si_type
+          "$ " <> tshow si_price <> " - " <> itemTypeDescription si_type
 
 tshow :: Show a => a -> Text
 tshow = pack . show
 
-data ShopItem = MkShopItem { si_price :: Int, si_type :: ShopItemType }
+data ShopItem = MkShopItem {
+    si_price :: Int, si_type :: ShopItemType
+  }
                   deriving (Show, Eq, Generic)
 
 -- fixed amount of shop content for EZ rendering~

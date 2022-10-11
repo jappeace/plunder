@@ -9,7 +9,10 @@ import Data.ByteString
 import Control.Monad.IO.Class
 
 defaultFont :: MonadIO m => m Font
-defaultFont = decode robotoFile 20
+defaultFont = decode notoSans 20
 
-robotoFile :: ByteString
-robotoFile = $(embedFile "assets/roboto.ttf")
+_robotoFile :: ByteString
+_robotoFile = $(embedFile "assets/roboto.ttf")
+
+notoSans :: ByteString
+notoSans = $(embedFile "assets/notosans-black.ttf")

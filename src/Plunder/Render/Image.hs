@@ -141,7 +141,7 @@ image settingsDyn = do
 
   mouseButtonEvt <- getMouseButtonEvent
   let leftClickEvts :: Event t MouseButtonEventData
-      leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
+      leftClickEvts = ffilter (\x -> has (mouseButtons . leftClick) x && has (mouseMotion . _Pressed) x)  mouseButtonEvt
 
   pure $ catMaybes $ calcIsClicked <$> current settingsDyn <@> leftClickEvts
 
