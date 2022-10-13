@@ -3,7 +3,6 @@
 
 module Plunder.Render(renderState) where
 
-import Plunder.Render.Shop
 import Plunder.Shop
 import Plunder.Render.Text
 import           Plunder.Combat
@@ -26,15 +25,14 @@ import           Plunder.Render.Font
 renderState :: ReflexSDL2 t m
   => MonadReader Renderer m
   => DynamicWriter t [Layer m] m
-  => Dynamic t GameState -> m ()
-renderState state = do
+  => Font ->  Dynamic t GameState -> m ()
+renderState font state = do
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
   houseF <- renderImage <$> loadHouse
   burnedHouseF <- renderImage <$> burndedHouse
   loadShopF <- renderImage <$> loadShop
-  font <- defaultFont
 
   axeF <- fmap renderWeapon . renderImage <$> loadAxe
   swordF <- fmap renderWeapon . renderImage <$> loadSword
@@ -68,7 +66,6 @@ renderState state = do
       renderText font defaultStyle (P $ V2 500 10)
           ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
 
-  renderShop font (view game_shop <$> state) $ view (game_player_inventory . inventory_money) <$> state
 
 applyImage ::
   DynamicWriter t [Performable m ()] m

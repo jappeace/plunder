@@ -45,13 +45,14 @@ import           Plunder.Grid
 import           System.Random
 import           Text.Printf
 import Plunder.Shop
+import Data.Set(Set)
 
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
 data PlayerInventory = MkInventory {
    -- | indicating how much money a player has
     _inventory_money :: Word64
-  , _inventroy_item  :: Maybe ShopItem
+  , _inventroy_item  :: Set ShopItem
   } deriving (Show)
 
 data GameState = MkGameState
@@ -88,7 +89,7 @@ allEnemies = game_board . traversed . tile_content . _Just . _Enemy
 initialInventory :: PlayerInventory
 initialInventory = MkInventory
   { _inventory_money = 0
-  , _inventroy_item  = Nothing
+  , _inventroy_item  = mempty
   }
 
 initialState :: GameState
@@ -106,14 +107,9 @@ data Attack = MkAttackMove
   , _attack_to   :: TileContent
   } deriving (Show, Eq)
 
-data ShopAction = ShopOpen ShopContent
-                | ShopClose
-                | ShopBuy ShopItem
-              deriving (Show, Eq)
-
 data Action = MkWalk Move -- ^ just go there (no additional events)
               | MkAttack Attack -- ^ play out combat resolution
-              | MkShop ShopAction -- ^ Open shop screen
+              | OpenShop ShopContent-- ^ Open shop screen
               deriving (Show, Eq)
 
 data Move = MkMove
@@ -165,7 +161,7 @@ shouldCharacterMove = over (mapped. mapped . mapped) MkWalk $
 
 isShopping :: GameState -> Axial -> Maybe Action
 isShopping currentState towards = do
-  MkShop . ShopOpen <$> preview (traverseBoard towards . _Shop) currentState
+  OpenShop <$> preview (traverseBoard towards . _Shop) currentState
 
 shouldCharacterAttack :: GameState -> Axial -> Maybe Action
 shouldCharacterAttack state' towards = do
@@ -216,11 +212,12 @@ figureOutMove res type' grid =
           Just (attack ^. attack_move)
           else
           Nothing
-      MkShop _ -> Nothing
+      OpenShop _ -> Nothing
 
 data UpdateEvts = LeftClick Axial
                 | RightClick Axial
                 | Redraw -- ^ eg window size changed, needs an update
+                | ShopUpdates ShopAction
                 deriving Show
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
@@ -235,7 +232,7 @@ applyAttack = \case
       traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result ^. res_right_unit)
       pure (Just result)
   MkWalk _ -> pure Nothing
-  MkShop _ -> pure Nothing
+  OpenShop _ -> pure Nothing
 
 newtype RandTNT a = MkRandTNT {
   unRandNt :: forall n . Functor n => RandT StdGen n a -> n a
@@ -250,6 +247,7 @@ countLoot plan res =
 updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
 updateLogic = \case
   Redraw -> pure ()
+  ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
   RightClick towards -> do
     currentState <- use id
@@ -260,15 +258,18 @@ updateLogic = \case
       mCombatRes <- applyAttack plan
       traverse_ (countLoot plan) mCombatRes
       modifying game_board (figureOutMove mCombatRes plan)
-      traverse_ applyShop (plan ^? _MkShop)
+      traverse_ applyShop (plan ^? _OpenShop)
 
-applyShop :: MonadState GameState m => ShopAction -> m ()
-applyShop = \case
-  ShopOpen content -> assign game_shop (Just content)
-  ShopClose        -> assign game_shop Nothing
-  ShopBuy item     -> assign
-                        (game_player_inventory . inventroy_item)
-                        (Just item)
+applyShop :: MonadState GameState m => ShopContent -> m ()
+applyShop content = assign game_shop (Just content)
+
+applyShopUpdates :: MonadState GameState m => ShopAction -> m ()
+applyShopUpdates = \case
+    MkExited -> assign game_shop Nothing
+    MkBought bought -> do
+      game_player_inventory . inventroy_item <>= haulItems bought
+      assign (game_player_inventory . inventory_money) $ haulNewMoney bought
+      assign game_shop Nothing
 
 resetState :: MonadState GameState m => m ()
 resetState = trace "player died, resetting" $ put initialState

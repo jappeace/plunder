@@ -15,25 +15,34 @@ import           Plunder.Render
 import           Plunder.State
 import           System.Random
 import Plunder.Mouse
+import Plunder.Shop
+import Plunder.Render.Font(defaultFont)
+import Plunder.Render.Shop
 
 guest
   :: forall t m
    . ReflexSDL2 t m
   => DynamicWriter t [Layer m] m => MonadReader Renderer m => m ()
-guest = do
+guest = mdo
   -- Print some stuff after the network is built.
   evPB           <- getPostBuild
   performEvent_ $ ffor evPB $ \() -> liftIO $ putStrLn "starting up..."
-  gameState <- mkGameState
-  renderState gameState
+
+  font <- defaultFont
+
+  gameState <- mkGameState shopEvt
+  renderState font gameState
+  shopEvt <- renderShop font (view game_shop <$> gameState ) $ view (game_player_inventory . inventory_money) <$> gameState
+  pure ()
+
 
 
 makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
 makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
-mkGameState :: forall t m . ReflexSDL2 t m => m (Dynamic t GameState)
-mkGameState = do
+mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> m (Dynamic t GameState)
+mkGameState shopActions = do
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
   windowExposedEvt <- getWindowExposedEvent
@@ -48,7 +57,8 @@ mkGameState = do
                                ) mouseButtonEvt
       leftClickAxial = calcMouseClickAxial <$> leftClickEvts
       rightClickAxialEvt = calcMouseClickAxial <$> rightClickEvts
-      events = leftmost [ LeftClick <$> leftClickAxial
+      events = leftmost [ ShopUpdates <$> shopActions
+                        , LeftClick <$> leftClickAxial
                         , RightClick <$> rightClickAxialEvt
                         , Redraw <$ windowSizeChangedEvt
                         , Redraw <$ windowExposedEvt

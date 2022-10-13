@@ -2,8 +2,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecursiveDo #-}
 
-module Plunder.Render.Shop(renderShop) where
+module Plunder.Render.Shop(
+  renderShop
+  ) where
 
+import Data.Text(Text)
+import Data.Set.Lens
 import Foreign.C.Types(CInt)
 import Witherable(catMaybes)
 import Data.Word(Word8, Word64)
@@ -18,11 +22,11 @@ import           Reflex.SDL2
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
 import           Plunder.Render.Font
+import Data.Map(Map)
+import qualified Data.Map as Map
 import Data.Set(Set)
-import qualified Data.Set as Set
 
-newtype ShopState = MkShopState { itemSelectedIndexes :: Set Word8 }
-  deriving Show
+newtype ShopState = MkShopState { selectedItems :: Map Word8 (ShopContent -> (Maybe ShopItem)) }
 
 initialState :: ShopState
 initialState = MkShopState mempty
@@ -30,32 +34,74 @@ initialState = MkShopState mempty
 renderShop :: ReflexSDL2 t m
     => DynamicWriter t [Layer m] m
     => MonadReader Renderer m
-    => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t Word64 -> m ()
-renderShop font shopDyn moneyDyn = mdo
+    => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t Word64 -> m (Event t ShopAction)
+renderShop font shopContent playerMoney = mdo
   renderer <- ask
-  commitLayer $ renderShopBackground renderer <$> shopDyn
-  void $ imageEvt =<< dynView ((renderText font shopStyle (shopPosition 0) "Shop") <$ shopDyn)
+
+  commitLayer $ renderShopBackground renderer <$> shopContent
+  shopSurface <- allocateText font shopStyle "Shop"
+  void $ image $ shopContent & mapped._Just .~ surfaceToSettings shopSurface (shopPosition 0)
+
   let slots = [slot1, slot2, slot3]
-  evts <- itraverse (renderSlot font shopDyn stateDyn) slots
-  stateDyn <- accumDyn updateState initialState $ leftmost evts
+  evts <- itraverse (renderSlot font shopContent shopState) slots
+  shopState <- accumDyn updateState initialState $ leftmost evts
 
-  performEvent_ $ ffor (updated stateDyn) $ liftIO . print . ("xxx " <>) . show
+  purchaseClick <- imageEvt =<< dynView ((renderText font shopStyle (shopPosition 6) "Purchase") <$ shopContent)
 
-  purchaseClick <- imageEvt =<< dynView ((renderText font shopStyle (shopPosition 6) "Purchase") <$ shopDyn)
+  let (purchaseError, purchaseSuccess) = fanEither
+                  $ current (purchaseAction <$> playerMoney <*> shopState <*> shopContent)
+                  <@ purchaseClick
 
-  -- on purchase one of two things will happen
-  -- 1. player doesn't have not enough cash, so we display a message
-  -- 2. player has enough cash, so cash get's subtracted and items moved to the inventory
-  --    we do this in update gamestate to, we just emit the items from the shop.
-  --    it's more convenient to do the cash check here because it
-  --    localises displaying the message.
-
-  pure ()
+  small <- smallFont
+  void $ image =<< holdView (pure Nothing)
+               (fmap Just . renderText small shopStyle (shopPosition 5) . renderError <$> purchaseError)
 
 
+  exitClick <- imageEvt =<< dynView ((renderText font shopStyle (shopPosition 7) "Exit") <$ shopContent)
 
-renderSlot :: (MonadReader Renderer m, ReflexSDL2 t m, DynamicWriter t [Layer m] m) => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t ShopState -> Int -> (ShopContent -> Maybe ShopItem) -> m (Event t Word8)
-renderSlot font shopContent shopState idx' slot = fmap (idx <$) $
+  let result = leftmost [MkBought <$> purchaseSuccess,  MkExited <$ exitClick]
+
+
+  performEvent_ $ ffor result $ liftIO . print . ("xxx " <>) . show
+
+  pure $ result
+
+data PurchaseError = ShopClosed
+                   | NotEnoughMoney
+                   | NoItemsSelected
+
+renderError :: PurchaseError -> Text
+renderError = \case
+  ShopClosed -> "Shop closed"
+  NotEnoughMoney -> "Insufficient money"
+  NoItemsSelected -> "Nothing selected"
+
+-- | on purchase one of two things will happen
+-- 1. player doesn't have not enough cash, so we display a message
+-- 2. player has enough cash, so cash get's subtracted and items moved to the inventory
+--    we do this in update gamestate to, we just emit the items from the shop.
+--    it's more convenient to do the cash check here because it
+--    localises displaying the message.
+purchaseAction :: Word64 -> ShopState -> Maybe ShopContent -> Either PurchaseError Haul
+purchaseAction playerMoney state = \case
+  Nothing -> Left ShopClosed
+  Just content ->
+    let
+      counter :: Set ShopItem
+      counter = setOf (traversed . to (\ fun -> fun content) . traversed) $ selectedItems state
+
+      price = sumOf (folded . si_priceLens) counter
+    in
+      if | length counter < 1 -> Left NoItemsSelected
+         | playerMoney < price -> Left NotEnoughMoney
+         | True -> Right $ MkHaul
+            { haulItems = counter
+              , haulNewMoney = playerMoney - price
+            }
+
+renderSlot :: (MonadReader Renderer m, ReflexSDL2 t m, DynamicWriter t [Layer m] m) => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t ShopState -> Int -> (ShopContent -> Maybe ShopItem) -> m (Event t (Word8, (ShopContent -> Maybe ShopItem)))
+renderSlot font shopContent shopState idx' slot =
+  fmap ((idx, slot) <$) $
     imageEvt . catMaybes =<< dynView (renderItem font idx . fmap slot <$> shopContent <*> shopState)
   where
      idx = fromIntegral idx'
@@ -65,18 +111,18 @@ renderItem font idx content state =
   traverse (renderShopItem font style (idx + 2)) content
 
   where
-    style = if Set.member idx $ itemSelectedIndexes state then shopSelectedStyle else
+    style = if Map.member idx $ selectedItems state then shopSelectedStyle else
       shopStyle
 
 
-updateState :: ShopState -> Word8 -> ShopState
-updateState set'' input = MkShopState $
-  if Set.member input thisSet then
-    Set.delete input thisSet
+updateState :: ShopState -> (Word8, (ShopContent -> Maybe ShopItem)) -> ShopState
+updateState set'' (input, slot) = MkShopState $
+  if Map.member input thisSet then
+    Map.delete input thisSet
   else
-    Set.insert input thisSet
+    Map.insert input slot thisSet
   where
-    thisSet = itemSelectedIndexes set''
+    thisSet = selectedItems set''
 
 shopStyle :: Style
 shopStyle = defaultStyle & styleColorLens .~ (V4 0 0 0 255)

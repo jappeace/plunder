@@ -38,7 +38,7 @@ import           Test.QuickCheck hiding (Result)
 data Weapon = Sword -- rock
             | Bow   -- paper
             | Axe -- scissor
-            deriving (Show, Eq, Generic, Bounded,  Enum)
+            deriving (Show, Eq, Generic, Bounded,  Enum, Ord)
 
 -- | user facing description
 weaponDescription :: Weapon -> Text
