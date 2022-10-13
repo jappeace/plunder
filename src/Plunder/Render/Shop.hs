@@ -46,7 +46,8 @@ renderShop font shopContent playerMoney = mdo
   evts <- itraverse (renderSlot font shopContent shopState) slots
   shopState <- accumDyn updateState initialState $ leftmost evts
 
-  purchaseClick <- imageEvt =<< dynView ((renderText font shopStyle (shopPosition 6) "Purchase") <$ shopContent)
+  purchaseSurface <- allocateText font shopStyle "Purchase"
+  purchaseClick <- image $ shopContent & mapped._Just .~ surfaceToSettings purchaseSurface (shopPosition 6)
 
   let (purchaseError, purchaseSuccess) = fanEither
                   $ current (purchaseAction <$> playerMoney <*> shopState <*> shopContent)
@@ -57,7 +58,8 @@ renderShop font shopContent playerMoney = mdo
                (fmap Just . renderText small shopStyle (shopPosition 5) . renderError <$> purchaseError)
 
 
-  exitClick <- imageEvt =<< dynView ((renderText font shopStyle (shopPosition 7) "Exit") <$ shopContent)
+  exitSurface <- allocateText font shopStyle "Exit"
+  exitClick <- image $ shopContent & mapped._Just .~ surfaceToSettings exitSurface (shopPosition 7)
 
   let result = leftmost [MkBought <$> purchaseSuccess,  MkExited <$ exitClick]
 
