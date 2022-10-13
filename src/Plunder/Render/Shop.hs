@@ -9,7 +9,6 @@ module Plunder.Render.Shop(
 import Data.Text(Text)
 import Data.Set.Lens
 import Foreign.C.Types(CInt)
-import Witherable(catMaybes)
 import Data.Word(Word8, Word64)
 import Plunder.Shop
 import Plunder.Render.Text
@@ -55,8 +54,7 @@ renderShop font shopContent playerMoney = mdo
 
   small <- smallFont
   void $ image =<< holdView (pure Nothing)
-               (fmap Just . renderText small shopStyle (shopPosition 5) . renderError <$> purchaseError)
-
+               (fmap sequence . renderErrorText small <$> current shopContent <@> purchaseError)
 
   exitSurface <- allocateText font shopStyle "Exit"
   exitClick <- image $ shopContent & mapped._Just .~ surfaceToSettings exitSurface (shopPosition 7)
@@ -71,6 +69,11 @@ renderShop font shopContent playerMoney = mdo
 data PurchaseError = ShopClosed
                    | NotEnoughMoney
                    | NoItemsSelected
+
+renderErrorText :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Maybe ShopContent -> PurchaseError -> Maybe (m ImageSettings)
+renderErrorText _ Nothing _ = Nothing
+renderErrorText small _ err = Just $ renderText small shopStyle (shopPosition 5) $ renderError err
+
 
 renderError :: PurchaseError -> Text
 renderError = \case
@@ -104,7 +107,7 @@ purchaseAction playerMoney state = \case
 renderSlot :: (MonadReader Renderer m, ReflexSDL2 t m, DynamicWriter t [Layer m] m) => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t ShopState -> Int -> (ShopContent -> Maybe ShopItem) -> m (Event t (Word8, (ShopContent -> Maybe ShopItem)))
 renderSlot font shopContent shopState idx' slot =
   fmap ((idx, slot) <$) $
-    imageEvt . catMaybes =<< dynView (renderItem font idx . fmap slot <$> shopContent <*> shopState)
+    image =<< holdDyn Nothing =<< dynView (renderItem font idx . fmap slot <$> shopContent <*> shopState)
   where
      idx = fromIntegral idx'
 
