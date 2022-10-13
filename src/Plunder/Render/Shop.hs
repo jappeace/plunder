@@ -6,6 +6,7 @@ module Plunder.Render.Shop(
   renderShop
   ) where
 
+import Witherable(catMaybes)
 import Data.Text(Text)
 import Data.Set.Lens
 import Foreign.C.Types(CInt)
@@ -54,7 +55,7 @@ renderShop font shopContent playerMoney = mdo
 
   small <- smallFont
   void $ image =<< holdView (pure Nothing)
-               (fmap sequence . renderErrorText small <$> current shopContent <@> purchaseError)
+               (sequence . renderErrorText small <$> leftmost [Just <$> purchaseError,  Nothing <$ catMaybes (preview (_Nothing) <$> (updated shopContent)) ] )
 
   exitSurface <- allocateText font shopStyle "Exit"
   exitClick <- image $ shopContent & mapped._Just .~ surfaceToSettings exitSurface (shopPosition 7)
@@ -70,9 +71,9 @@ data PurchaseError = ShopClosed
                    | NotEnoughMoney
                    | NoItemsSelected
 
-renderErrorText :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Maybe ShopContent -> PurchaseError -> Maybe (m ImageSettings)
-renderErrorText _ Nothing _ = Nothing
-renderErrorText small _ err = Just $ renderText small shopStyle (shopPosition 5) $ renderError err
+renderErrorText :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Maybe PurchaseError -> Maybe (m ImageSettings)
+renderErrorText _ Nothing = Nothing
+renderErrorText small (Just err) = Just $ renderText small shopStyle (shopPosition 5) $ renderError err
 
 
 renderError :: PurchaseError -> Text
