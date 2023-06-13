@@ -104,3 +104,17 @@ So I'm using these resources:
 + https://kenney.nl/assets
 
 Thanks for creating these!
+
+
+# Building
+
+install [nix](https://nixos.org/download.html)
+enter the nix shell
+```
+nix-shell
+```
+
+run the build command:
+```
+make build
+```
