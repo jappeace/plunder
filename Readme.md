@@ -118,3 +118,5 @@ run the build command:
 ```
 make build
 ```
+
+contact [me](mailto:hi at jappie [dot] me) if you have issues
