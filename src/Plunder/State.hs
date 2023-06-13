@@ -96,8 +96,8 @@ initialState :: GameState
 initialState = MkGameState
   { _game_selected = Nothing
   , _game_board    = appEndo level initialGrid
-   -- | indicating how much havoc a player caused,
-   --   potentially we could use this later as currency?
+   -- indicating how much havoc a player caused,
+   -- potentially we could use this later as currency?
   , _game_player_inventory = initialInventory
   , _game_shop = Just (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 4 (ShopWeapon Bow))) (Just (MkShopItem 4 ShopUnit)))
   }
