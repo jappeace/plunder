@@ -29,7 +29,7 @@ mouseMotion :: Lens' MouseButtonEventData InputMotion
 mouseMotion = field @"mouseButtonEventMotion"
 
 _Pressed :: Prism' InputMotion ()
-_Pressed = _Ctor @ "Pressed"
+_Pressed = _Ctor @"Pressed"
 
 calcMouseClickAxial :: MouseButtonEventData -> Axial
 calcMouseClickAxial = pixelToAxial . fmap fromIntegral . view mousePositions
