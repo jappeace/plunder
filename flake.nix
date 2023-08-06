@@ -1,7 +1,7 @@
 # I used chatgpt to generate this template and then just
 # modified to how I normally use these things.
 {
-  description = "My Haskell project";
+  description = "Plunder game";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
