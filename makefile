@@ -42,7 +42,7 @@ sdist: hpack
 	cabal sdist
 
 run:
-	cabal new-run exe --ghc-options $(OPTIMIZATION) -- \
+	cabal new-run game13 --ghc-options $(OPTIMIZATION) -- \
 
 brittany_:
 	$(shell set -x; for i in `fd hs`; do hlint --refactor --refactor-options=-i $$i; brittany --write-mode=inplace $$i; done)
