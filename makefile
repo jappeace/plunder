@@ -10,15 +10,12 @@ haddock-hackage:
 	echo "the hackage ui doesn't accept the default format, use command instead"
 	cabal upload -d --publish ./dist-newstyle/*-docs.tar.gz
 
-hpack:
-	nix-shell ./nix/hpack-shell.nix --run "make update-cabal"
-
-ghcid: clean hpack
+ghcid: clean etags
 	ghcid \
 		--test="main" \
 		--command="ghci" \
 		test/Spec
-ghcid-app: clean hpack
+ghcid-app: clean etags
 	ghcid \
 		--main="main" \
 		--command="ghci" \
@@ -29,9 +26,6 @@ ghci:
 
 etags:
 	hasktags  -e ./src
-
-update-cabal: etags
-	hpack --force ./
 
 clean:
 	rm -fR dist dist-*
