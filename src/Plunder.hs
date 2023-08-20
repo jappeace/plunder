@@ -33,7 +33,7 @@ main = do
   initializeAll
   putStrLn "initializing"
   Font.initialize
-  let ogl = defaultOpenGL{ glProfile = Compatibility Normal 4 6 }
+  let ogl = defaultOpenGL{ glProfile = Compatibility Debug 4 6 }
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
                          , windowResizable       = True
                          , windowHighDPI         = False
