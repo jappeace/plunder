@@ -9,3 +9,5 @@ TAGS
 *.hi
 *.o
 assets/collected/
+/.envrc
+/.direnv/
