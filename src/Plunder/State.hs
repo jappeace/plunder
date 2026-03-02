@@ -14,6 +14,7 @@ module Plunder.State(GameState(..)
             , game_selected
             , game_player_inventory
             , game_shop
+            , game_inventory_open
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
@@ -60,6 +61,7 @@ data GameState = MkGameState
   , _game_board    :: Grid
   , _game_player_inventory :: PlayerInventory
   , _game_shop     :: Maybe ShopContent -- If just we're at the shopping screen
+  , _game_inventory_open :: Bool
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -100,6 +102,7 @@ initialState = MkGameState
    -- potentially we could use this later as currency?
   , _game_player_inventory = initialInventory
   , _game_shop = Just (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 4 (ShopWeapon Bow))) (Just (MkShopItem 4 ShopUnit)))
+  , _game_inventory_open = False
   }
 
 data Attack = MkAttackMove
@@ -218,6 +221,7 @@ data UpdateEvts = LeftClick Axial
                 | RightClick Axial
                 | Redraw -- ^ eg window size changed, needs an update
                 | ShopUpdates ShopAction
+                | ToggleInventory
                 deriving Show
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
@@ -247,6 +251,7 @@ countLoot plan res =
 updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
 updateLogic = \case
   Redraw -> pure ()
+  ToggleInventory -> modifying game_inventory_open not
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
   RightClick towards -> do

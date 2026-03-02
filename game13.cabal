@@ -37,6 +37,7 @@ library
       Plunder.Render.Health
       Plunder.Render.Hexagon
       Plunder.Render.Image
+      Plunder.Render.Inventory
       Plunder.Render.Layer
       Plunder.Render.Shop
       Plunder.Render.Text

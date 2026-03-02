@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
@@ -18,6 +19,8 @@ import Plunder.Mouse
 import Plunder.Shop
 import Plunder.Render.Font(defaultFont)
 import Plunder.Render.Shop
+import Plunder.Render.Inventory
+import SDL.Input.Keyboard.Codes (pattern KeycodeI)
 
 guest
   :: forall t m
@@ -32,7 +35,8 @@ guest = mdo
 
   gameState <- mkGameState shopEvt
   renderState font gameState
-  shopEvt <- renderShop font (view game_shop <$> gameState ) $ view (game_player_inventory . inventory_money) <$> gameState
+  shopEvt <- renderShop font (view game_shop <$> gameState) $ view (game_player_inventory . inventory_money) <$> gameState
+  renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
   pure ()
 
 
@@ -49,6 +53,7 @@ mkGameState shopActions = do
   windowSizeChangedEvt <- getWindowSizeChangedEvent
 
   mouseButtonEvt <- getMouseButtonEvent
+  keyboardEvt <- getKeyboardEvent
   let leftClickEvts :: Event t MouseButtonEventData
       leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
       rightClickEvts :: Event t MouseButtonEventData
@@ -57,11 +62,18 @@ mkGameState shopActions = do
                                ) mouseButtonEvt
       leftClickAxial = calcMouseClickAxial <$> leftClickEvts
       rightClickAxialEvt = calcMouseClickAxial <$> rightClickEvts
+      toggleInvEvt :: Event t ()
+      toggleInvEvt = () <$ ffilter (\kd ->
+          has _Pressed (keyboardEventKeyMotion kd) &&
+          not (keyboardEventRepeat kd) &&
+          keysymKeycode (keyboardEventKeysym kd) == KeycodeI
+        ) keyboardEvt
       events = leftmost [ ShopUpdates <$> shopActions
                         , LeftClick <$> leftClickAxial
                         , RightClick <$> rightClickAxialEvt
                         , Redraw <$ windowSizeChangedEvt
                         , Redraw <$ windowExposedEvt
+                        , ToggleInventory <$ toggleInvEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
 
