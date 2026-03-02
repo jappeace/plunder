@@ -28,8 +28,8 @@ This is a small breakdown of things I'll build next.
     - [x] Kill all oponents (temporary goal, can add other later, kill king, get loot etc)
 - [ ] Add shop for healing / buy weapons / hire mercs
   - [x] Add title to shop
-  - [ ] Select an item in shop
-  - [ ] Add purchase button
+  - [x] Select an item in shop
+  - [x] Add purchase button
   - [ ] What to do with inventory?
   - [ ] What to do with buying a unit?
 - [ ] Add explenation of controls, it's not obious that you first need to left click
