@@ -1,0 +1,33 @@
+{
+  "pins": {
+    "nixpkgs": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "nixos",
+        "repo": "nixpkgs"
+      },
+      "branch": "nixpkgs-unstable",
+      "submodules": false,
+      "revision": "e133d401e664303611d635ea62f15cfee9b4f7ae",
+      "url": "https://github.com/nixos/nixpkgs/archive/e133d401e664303611d635ea62f15cfee9b4f7ae.tar.gz",
+      "hash": "10d4knr080knfi8ibsa7280c8zj76sv347i7nz4b3wiz7xkc06wd",
+      "frozen": true
+    },
+    "reflex-sdl2": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "sh-ft",
+        "repo": "reflex-sdl2"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "22afe2987fba5cadc5f99ecbf966cc20986365bd",
+      "url": "https://github.com/sh-ft/reflex-sdl2/archive/22afe2987fba5cadc5f99ecbf966cc20986365bd.tar.gz",
+      "hash": "1bnkhad4ig4bi00qi61qs9mnq8pknhpavgjgddaag67ipl7gca1s",
+      "frozen": true
+    }
+  },
+  "version": 5
+}
