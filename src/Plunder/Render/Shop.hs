@@ -34,8 +34,8 @@ initialState = MkShopState mempty
 renderShop :: ReflexSDL2 t m
     => DynamicWriter t [Layer m] m
     => MonadReader Renderer m
-    => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t Word64 -> m (Event t ShopAction)
-renderShop font shopContent playerMoney = mdo
+    => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t Word64 -> Dynamic t Bool -> m (Event t ShopAction)
+renderShop font shopContent playerMoney hasRoomForFriend = mdo
   renderer <- ask
 
   commitLayer $ renderShopBackground renderer <$> shopContent
@@ -50,7 +50,7 @@ renderShop font shopContent playerMoney = mdo
   purchaseClick <- image $ shopContent & mapped._Just .~ surfaceToSettings purchaseSurface (shopPosition 6)
 
   let (purchaseError, purchaseSuccess) = fanEither
-                  $ current (purchaseAction <$> playerMoney <*> shopState <*> shopContent)
+                  $ current (purchaseAction <$> playerMoney <*> hasRoomForFriend <*> shopState <*> shopContent)
                   <@ purchaseClick
 
   small <- smallFont
@@ -70,6 +70,7 @@ renderShop font shopContent playerMoney = mdo
 data PurchaseError = ShopClosed
                    | NotEnoughMoney
                    | NoItemsSelected
+                   | NoRoomForFriend
 
 renderErrorText :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Maybe PurchaseError -> Maybe (m ImageSettings)
 renderErrorText _ Nothing = Nothing
@@ -81,6 +82,7 @@ renderError = \case
   ShopClosed -> "Shop closed"
   NotEnoughMoney -> "Insufficient money"
   NoItemsSelected -> "Nothing selected"
+  NoRoomForFriend -> "No room for friend"
 
 -- | on purchase one of two things will happen
 -- 1. player doesn't have not enough cash, so we display a message
@@ -88,8 +90,8 @@ renderError = \case
 --    we do this in update gamestate to, we just emit the items from the shop.
 --    it's more convenient to do the cash check here because it
 --    localises displaying the message.
-purchaseAction :: Word64 -> ShopState -> Maybe ShopContent -> Either PurchaseError Haul
-purchaseAction playerMoney state = \case
+purchaseAction :: Word64 -> Bool -> ShopState -> Maybe ShopContent -> Either PurchaseError Haul
+purchaseAction playerMoney hasRoom state = \case
   Nothing -> Left ShopClosed
   Just content ->
     let
@@ -97,9 +99,11 @@ purchaseAction playerMoney state = \case
       counter = setOf (traversed . to (\ fun -> fun content) . traversed) $ selectedItems state
 
       price = sumOf (folded . si_priceLens) counter
+      wantsFriend = any (\i -> si_type i == ShopUnit) counter
     in
-      if | length counter < 1 -> Left NoItemsSelected
-         | playerMoney < price -> Left NotEnoughMoney
+      if | length counter < 1          -> Left NoItemsSelected
+         | playerMoney < price         -> Left NotEnoughMoney
+         | wantsFriend && not hasRoom  -> Left NoRoomForFriend
          | True -> Right $ MkHaul
             { haulItems = counter
               , haulNewMoney = playerMoney - price

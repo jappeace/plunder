@@ -30,7 +30,7 @@ This is a small breakdown of things I'll build next.
   - [x] Add title to shop
   - [x] Select an item in shop
   - [x] Add purchase button
-  - [ ] What to do with inventory?
+  - [x] What to do with inventory?
   - [ ] What to do with buying a unit?
 - [ ] Add explenation of controls, it's not obious that you first need to left click
       select someone and then right click to move

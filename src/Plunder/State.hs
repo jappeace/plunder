@@ -15,16 +15,19 @@ module Plunder.State(GameState(..)
             , game_player_inventory
             , game_shop
             , game_inventory_open
+            , game_phase
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
             , Move(..)
             , Action(..)
+            , GamePhase(..)
             , describeState
             , move_from
             , move_to
             , move
             , RandTNT(..)
+            , findFreeAdjacent
             ) where
 
 import qualified Control.Monad.State.Class as SC
@@ -47,6 +50,10 @@ import           System.Random
 import           Text.Printf
 import Plunder.Shop
 import Data.Set(Set)
+import qualified Data.Set as Set
+import Data.Maybe(listToMaybe)
+
+data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
@@ -62,6 +69,7 @@ data GameState = MkGameState
   , _game_player_inventory :: PlayerInventory
   , _game_shop     :: Maybe ShopContent -- If just we're at the shopping screen
   , _game_inventory_open :: Bool
+  , _game_phase    :: GamePhase
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -77,7 +85,7 @@ level :: Endo Grid
 level = fold $ Endo <$>
   [ at (MkAxial 2 3) . _Just . tile_content ?~ Player (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 3 3) . _Just . tile_content ?~ House defUnit
-  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) Nothing Nothing)
+  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) Nothing)
   , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Bow $ defUnit)
   , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Sword $ defUnit)
@@ -103,6 +111,7 @@ initialState = MkGameState
   , _game_player_inventory = initialInventory
   , _game_shop = Nothing
   , _game_inventory_open = False
+  , _game_phase = Playing
   }
 
 data Attack = MkAttackMove
@@ -226,6 +235,7 @@ data UpdateEvts = LeftClick Axial
                 | Redraw -- ^ eg window size changed, needs an update
                 | ShopUpdates ShopAction
                 | ToggleInventory
+                | ResetGame -- ^ fired after the death/victory banner expires
                 deriving Show
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
@@ -258,6 +268,7 @@ updateLogic = \case
   ToggleInventory -> modifying game_inventory_open not
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
+  ResetGame -> put initialState
   RightClick towards -> do
     currentState <- use id
     let movePlan = shouldCharacterMove currentState towards
@@ -272,31 +283,69 @@ updateLogic = \case
 applyShop :: MonadState GameState m => ShopContent -> m ()
 applyShop content = assign game_shop (Just content)
 
+-- | Find a free tile adjacent to any Player unit, used to decide where to
+--   spawn a purchased friend and whether buying one is currently allowed.
+findFreeAdjacent :: GameState -> Maybe Axial
+findFreeAdjacent gs = do
+  playerAxial <- gs ^? game_board . traversed
+                     . filtered (has (tile_content . _Just . _Player))
+                     . tile_coordinate
+  listToMaybe $ filter isFree (neigbours playerAxial)
+  where
+    isFree axial = hasn't (game_board . ix axial . tile_content . _Just) gs
+
+spawnFriend :: MonadState GameState m => m ()
+spawnFriend = do
+  gs <- SC.get
+  for_ (findFreeAdjacent gs) $ \axial ->
+    game_board . ix axial . tile_content ?= Player defUnit
+
 applyShopUpdates :: MonadState GameState m => ShopAction -> m ()
 applyShopUpdates = \case
     MkExited -> assign game_shop Nothing
     MkBought bought -> do
-      game_player_inventory . inventroy_item <>= haulItems bought
+      let spawnableItems = Set.filter (\i -> si_type i == ShopUnit) (haulItems bought)
+          carryableItems = Set.filter (\i -> si_type i /= ShopUnit) (haulItems bought)
+      game_player_inventory . inventroy_item <>= carryableItems
       assign (game_player_inventory . inventory_money) $ haulNewMoney bought
       assign game_shop Nothing
+      traverse_ (const spawnFriend) (Set.toList spawnableItems)
 
-resetState :: MonadState GameState m => m ()
-resetState = trace "player died, resetting" $ put initialState
+-- | Remove any Player unit whose HP has reached zero, leaving a blood splash
+--   in their place.  Runs before checkPlayerLives so the lose check is simply
+--   "no Player tiles remain".
+removeDeadFriends :: MonadState GameState m => m ()
+removeDeadFriends = do
+  gs <- SC.get
+  let isDeadPlayer t = case t ^? tile_content . _Just . _Player of
+        Just u  -> isDead (u ^. unit_hp)
+        Nothing -> False
+      deadAxials = gs ^.. game_board . traversed
+                       . filtered isDeadPlayer
+                       . tile_coordinate
+  for_ deadAxials $ \axial -> do
+    game_board . ix axial . tile_content  .= Nothing
+    game_board . ix axial . tile_background ?= Blood
 
 checkPlayerLives :: MonadState GameState m => m ()
 checkPlayerLives = do
-  health <- preuse (game_board . folded . tile_content . _Just . _Player . unit_hp)
-  when (maybe True isDead health) resetState
+  gs <- SC.get
+  when (gs ^. game_phase == Playing) $
+    unless (has (game_board . traversed . tile_content . _Just . _Player) gs) $
+      game_phase .= YouDied
 
 checkWon :: MonadState GameState m => m ()
 checkWon = do
-  isKill <- hasn't allEnemies <$> SC.get
-  when isKill resetState
+  gs <- SC.get
+  when (gs ^. game_phase == Playing) $
+    when (hasn't allEnemies gs) $
+      game_phase .= YouVictorious
 
 updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
 updateState gameState (resolveRng, evts) =
   execState (unRandNt resolveRng $ do
                 updateLogic evts
+                removeDeadFriends
                 checkPlayerLives
                 checkWon
             ) gameState
