@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 -- | Deal with fonts
-module Plunder.Render.Font(smallFont, defaultFont, module X) where
+module Plunder.Render.Font(smallFont, defaultFont, bigFont, module X) where
 
 import Data.FileEmbed
 import SDL.Font as X hiding (Style)
@@ -13,6 +13,9 @@ defaultFont = decode notoSans 20
 
 smallFont :: MonadIO m => m Font
 smallFont = decode notoSans 16
+
+bigFont :: MonadIO m => m Font
+bigFont = decode notoSans 48
 
 _robotoFile :: ByteString
 _robotoFile = $(embedFile "assets/roboto.ttf")

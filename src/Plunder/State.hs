@@ -15,11 +15,13 @@ module Plunder.State(GameState(..)
             , game_player_inventory
             , game_shop
             , game_inventory_open
+            , game_phase
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
             , Move(..)
             , Action(..)
+            , GamePhase(..)
             , describeState
             , move_from
             , move_to
@@ -51,6 +53,8 @@ import Data.Set(Set)
 import qualified Data.Set as Set
 import Data.Maybe(listToMaybe)
 
+data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
+
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
 data PlayerInventory = MkInventory {
@@ -65,6 +69,7 @@ data GameState = MkGameState
   , _game_player_inventory :: PlayerInventory
   , _game_shop     :: Maybe ShopContent -- If just we're at the shopping screen
   , _game_inventory_open :: Bool
+  , _game_phase    :: GamePhase
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -106,6 +111,7 @@ initialState = MkGameState
   , _game_player_inventory = initialInventory
   , _game_shop = Nothing
   , _game_inventory_open = False
+  , _game_phase = Playing
   }
 
 data Attack = MkAttackMove
@@ -229,6 +235,7 @@ data UpdateEvts = LeftClick Axial
                 | Redraw -- ^ eg window size changed, needs an update
                 | ShopUpdates ShopAction
                 | ToggleInventory
+                | ResetGame -- ^ fired after the death/victory banner expires
                 deriving Show
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
@@ -261,6 +268,7 @@ updateLogic = \case
   ToggleInventory -> modifying game_inventory_open not
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
+  ResetGame -> put initialState
   RightClick towards -> do
     currentState <- use id
     let movePlan = shouldCharacterMove currentState towards
@@ -303,9 +311,6 @@ applyShopUpdates = \case
       assign game_shop Nothing
       traverse_ (const spawnFriend) (Set.toList spawnableItems)
 
-resetState :: MonadState GameState m => m ()
-resetState = trace "player died, resetting" $ put initialState
-
 -- | Remove any Player unit whose HP has reached zero, leaving a blood splash
 --   in their place.  Runs before checkPlayerLives so the lose check is simply
 --   "no Player tiles remain".
@@ -325,12 +330,16 @@ removeDeadFriends = do
 checkPlayerLives :: MonadState GameState m => m ()
 checkPlayerLives = do
   gs <- SC.get
-  unless (has (game_board . traversed . tile_content . _Just . _Player) gs) resetState
+  when (gs ^. game_phase == Playing) $
+    unless (has (game_board . traversed . tile_content . _Just . _Player) gs) $
+      game_phase .= YouDied
 
 checkWon :: MonadState GameState m => m ()
 checkWon = do
-  isKill <- hasn't allEnemies <$> SC.get
-  when isKill resetState
+  gs <- SC.get
+  when (gs ^. game_phase == Playing) $
+    when (hasn't allEnemies gs) $
+      game_phase .= YouVictorious
 
 updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
 updateState gameState (resolveRng, evts) =

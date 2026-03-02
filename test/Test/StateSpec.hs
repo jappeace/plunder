@@ -131,10 +131,22 @@ spec = do
     result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player
       `shouldNotBe` Nothing
 
-  it "game resets when all players are dead" $ do
+  it "phase becomes YouDied when all players are dead" $ do
     let allDeadState = initialState
           & game_board . ix (MkAxial 2 3) . tile_content ?~ Player (unit_hp .~ 0 $ defUnit)
         result = runEvt Redraw allDeadState
-    -- After reset initialState is restored — original player back at full HP
+    result ^. game_phase `shouldBe` YouDied
+
+  it "phase becomes YouVictorious when all enemies are gone" $ do
+    let noEnemiesState = initialState
+          & game_board . traversed . tile_content %~ \case
+              Just (Enemy _) -> Nothing
+              x              -> x
+        result = runEvt Redraw noEnemiesState
+    result ^. game_phase `shouldBe` YouVictorious
+
+  it "ResetGame restores Playing phase and initial board" $ do
+    let result = runEvt ResetGame (initialState & game_phase .~ YouDied)
+    result ^. game_phase `shouldBe` Playing
     result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_hp
       `shouldBe` Just 10
