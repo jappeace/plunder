@@ -306,10 +306,26 @@ applyShopUpdates = \case
 resetState :: MonadState GameState m => m ()
 resetState = trace "player died, resetting" $ put initialState
 
+-- | Remove any Player unit whose HP has reached zero, leaving a blood splash
+--   in their place.  Runs before checkPlayerLives so the lose check is simply
+--   "no Player tiles remain".
+removeDeadFriends :: MonadState GameState m => m ()
+removeDeadFriends = do
+  gs <- SC.get
+  let isDeadPlayer t = case t ^? tile_content . _Just . _Player of
+        Just u  -> isDead (u ^. unit_hp)
+        Nothing -> False
+      deadAxials = gs ^.. game_board . traversed
+                       . filtered isDeadPlayer
+                       . tile_coordinate
+  for_ deadAxials $ \axial -> do
+    game_board . ix axial . tile_content  .= Nothing
+    game_board . ix axial . tile_background ?= Blood
+
 checkPlayerLives :: MonadState GameState m => m ()
 checkPlayerLives = do
-  health <- preuse (game_board . folded . tile_content . _Just . _Player . unit_hp)
-  when (maybe True isDead health) resetState
+  gs <- SC.get
+  unless (has (game_board . traversed . tile_content . _Just . _Player) gs) resetState
 
 checkWon :: MonadState GameState m => m ()
 checkWon = do
@@ -320,6 +336,7 @@ updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
 updateState gameState (resolveRng, evts) =
   execState (unRandNt resolveRng $ do
                 updateLogic evts
+                removeDeadFriends
                 checkPlayerLives
                 checkWon
             ) gameState

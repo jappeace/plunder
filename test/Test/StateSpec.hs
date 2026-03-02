@@ -3,7 +3,7 @@ module Test.StateSpec(spec) where
 import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Set                        as Set
-import           Plunder.Combat (Weapon(..))
+import           Plunder.Combat (Weapon(..), unit_hp)
 import           Plunder.Grid
 import           Plunder.Shop
 import           Plunder.State
@@ -109,3 +109,32 @@ spec = do
                $ runEvt (ShopUpdates (MkBought haul1)) initialState
     result ^. game_player_inventory . inventroy_item
       `shouldBe` Set.fromList [item1, item2]
+
+ describe "Death and lose condition" $ do
+  -- Place a second Player with 0 HP adjacent to the original player
+  let friendAxial    = MkAxial 1 3
+      withDeadFriend = initialState
+        & game_board . ix friendAxial . tile_content ?~ Player (unit_hp .~ 0 $ defUnit)
+
+  it "dead friend is removed from the board" $ do
+    let result = runEvt Redraw withDeadFriend
+    result ^.. game_board . traversed . tile_content . _Just . _Player
+      `shouldSatisfy` \ps -> length ps == 1
+
+  it "blood is left at the dead friend's position" $ do
+    let result = runEvt Redraw withDeadFriend
+    result ^? game_board . ix friendAxial . tile_background . _Just
+      `shouldBe` Just Blood
+
+  it "game continues when friend dies but original player survives" $ do
+    let result = runEvt Redraw withDeadFriend
+    result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+
+  it "game resets when all players are dead" $ do
+    let allDeadState = initialState
+          & game_board . ix (MkAxial 2 3) . tile_content ?~ Player (unit_hp .~ 0 $ defUnit)
+        result = runEvt Redraw allDeadState
+    -- After reset initialState is restored — original player back at full HP
+    result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_hp
+      `shouldBe` Just 10
