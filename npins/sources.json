@@ -9,10 +9,9 @@
       },
       "branch": "nixpkgs-unstable",
       "submodules": false,
-      "revision": "e133d401e664303611d635ea62f15cfee9b4f7ae",
-      "url": "https://github.com/nixos/nixpkgs/archive/e133d401e664303611d635ea62f15cfee9b4f7ae.tar.gz",
-      "hash": "10d4knr080knfi8ibsa7280c8zj76sv347i7nz4b3wiz7xkc06wd",
-      "frozen": true
+      "revision": "93178f6a00c22fcdee1c6f5f9ab92f2072072ea9",
+      "url": "https://github.com/nixos/nixpkgs/archive/93178f6a00c22fcdee1c6f5f9ab92f2072072ea9.tar.gz",
+      "hash": "19cw5b354vp21xaanhq91c4dm43irxbi1in9r13vf7y9j1vw4ka1"
     },
     "reflex-sdl2": {
       "type": "Git",
@@ -23,10 +22,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "22afe2987fba5cadc5f99ecbf966cc20986365bd",
-      "url": "https://github.com/sh-ft/reflex-sdl2/archive/22afe2987fba5cadc5f99ecbf966cc20986365bd.tar.gz",
-      "hash": "1bnkhad4ig4bi00qi61qs9mnq8pknhpavgjgddaag67ipl7gca1s",
-      "frozen": true
+      "revision": "2c97c533cc0e36d69c2ec80fec3a3c5981cd09c8",
+      "url": "https://github.com/sh-ft/reflex-sdl2/archive/2c97c533cc0e36d69c2ec80fec3a3c5981cd09c8.tar.gz",
+      "hash": "1qwr3sig9mg3rg8afgj0zfbmrb916jqbmmvyciqvkfv48k7gb657"
     }
   },
   "version": 5
