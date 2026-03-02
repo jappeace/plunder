@@ -3,6 +3,7 @@ module Test.StateSpec(spec) where
 import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Set                        as Set
+import           Plunder.Grid
 import           Plunder.Shop
 import           Plunder.State
 import           System.Random                   (mkStdGen)
@@ -14,8 +15,39 @@ runEvt evt gs = updateState gs (rng, evt)
   where
     rng = MkRandTNT (\inner -> fst <$> runRandT inner (mkStdGen 42))
 
+-- | The shop tile placed by the level function
+shopAxial :: Axial
+shopAxial = MkAxial 2 6
+
+shopTileContent :: ShopContent
+shopTileContent = MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) Nothing Nothing
+
+-- | A state where the player is on an adjacent tile and selected
+playerAdjacentToShop :: GameState
+playerAdjacentToShop = initialState
+  & game_selected .~ Just (MkAxial 2 5)
+  & game_board . at (MkAxial 2 5) . _Just . tile_content ?~ Player defUnit
+
 spec :: Spec
-spec = describe "Inventory" $ do
+spec = do
+ describe "Shop" $ do
+  it "starts closed" $
+    initialState ^. game_shop `shouldBe` Nothing
+
+  it "right-clicking shop while adjacent opens the shop" $
+    runEvt (RightClick shopAxial) playerAdjacentToShop ^. game_shop
+      `shouldBe` Just shopTileContent
+
+  it "right-clicking shop from far away does not open it" $
+    -- player at MkAxial 2 3 is not adjacent to shop at MkAxial 2 6
+    runEvt (RightClick shopAxial) (initialState & game_selected .~ Just (MkAxial 2 3)) ^. game_shop
+      `shouldBe` Nothing
+
+  it "exiting the shop closes it" $
+    runEvt (ShopUpdates MkExited) (set game_shop (Just shopTileContent) initialState) ^. game_shop
+      `shouldBe` Nothing
+
+ describe "Inventory" $ do
   it "starts closed" $
     initialState ^. game_inventory_open `shouldBe` False
 

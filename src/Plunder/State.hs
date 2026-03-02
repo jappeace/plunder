@@ -101,7 +101,7 @@ initialState = MkGameState
    -- indicating how much havoc a player caused,
    -- potentially we could use this later as currency?
   , _game_player_inventory = initialInventory
-  , _game_shop = Just (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 4 (ShopWeapon Bow))) (Just (MkShopItem 4 ShopUnit)))
+  , _game_shop = Nothing
   , _game_inventory_open = False
   }
 
@@ -164,7 +164,11 @@ shouldCharacterMove = over (mapped. mapped . mapped) MkWalk $
 
 isShopping :: GameState -> Axial -> Maybe Action
 isShopping currentState towards = do
-  OpenShop <$> preview (traverseBoard towards . _Shop) currentState
+  content <- preview (traverseBoard towards . _Shop) currentState
+  -- Require the player to be selected and adjacent (same adjacency check as a move,
+  -- but passing True for isMove since the shop tile is not empty)
+  _ <- toPlayerMove currentState towards True
+  pure (OpenShop content)
 
 shouldCharacterAttack :: GameState -> Axial -> Maybe Action
 shouldCharacterAttack state' towards = do

@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell     #-}
@@ -20,7 +19,6 @@ import Plunder.Shop
 import Plunder.Render.Font(defaultFont)
 import Plunder.Render.Shop
 import Plunder.Render.Inventory
-import SDL.Input.Keyboard.Codes (pattern KeycodeI)
 
 guest
   :: forall t m
