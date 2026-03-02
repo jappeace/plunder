@@ -19,6 +19,7 @@ import Plunder.Shop
 import Plunder.Render.Font(defaultFont)
 import Plunder.Render.Shop
 import Plunder.Render.Inventory
+import Data.Maybe (isJust)
 
 guest
   :: forall t m
@@ -33,7 +34,10 @@ guest = mdo
 
   gameState <- mkGameState shopEvt
   renderState font gameState
-  shopEvt <- renderShop font (view game_shop <$> gameState) $ view (game_player_inventory . inventory_money) <$> gameState
+  shopEvt <- renderShop font
+    (view game_shop <$> gameState)
+    (view (game_player_inventory . inventory_money) <$> gameState)
+    (isJust . findFreeAdjacent <$> gameState)
   renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
   pure ()
 

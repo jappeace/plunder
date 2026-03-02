@@ -25,6 +25,7 @@ module Plunder.State(GameState(..)
             , move_to
             , move
             , RandTNT(..)
+            , findFreeAdjacent
             ) where
 
 import qualified Control.Monad.State.Class as SC
@@ -47,6 +48,8 @@ import           System.Random
 import           Text.Printf
 import Plunder.Shop
 import Data.Set(Set)
+import qualified Data.Set as Set
+import Data.Maybe(listToMaybe)
 
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
@@ -77,7 +80,7 @@ level :: Endo Grid
 level = fold $ Endo <$>
   [ at (MkAxial 2 3) . _Just . tile_content ?~ Player (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 3 3) . _Just . tile_content ?~ House defUnit
-  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) Nothing Nothing)
+  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) Nothing)
   , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Bow $ defUnit)
   , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Sword $ defUnit)
@@ -272,13 +275,33 @@ updateLogic = \case
 applyShop :: MonadState GameState m => ShopContent -> m ()
 applyShop content = assign game_shop (Just content)
 
+-- | Find a free tile adjacent to any Player unit, used to decide where to
+--   spawn a purchased friend and whether buying one is currently allowed.
+findFreeAdjacent :: GameState -> Maybe Axial
+findFreeAdjacent gs = do
+  playerAxial <- gs ^? game_board . traversed
+                     . filtered (has (tile_content . _Just . _Player))
+                     . tile_coordinate
+  listToMaybe $ filter isFree (neigbours playerAxial)
+  where
+    isFree axial = hasn't (game_board . ix axial . tile_content . _Just) gs
+
+spawnFriend :: MonadState GameState m => m ()
+spawnFriend = do
+  gs <- SC.get
+  for_ (findFreeAdjacent gs) $ \axial ->
+    game_board . ix axial . tile_content ?= Player defUnit
+
 applyShopUpdates :: MonadState GameState m => ShopAction -> m ()
 applyShopUpdates = \case
     MkExited -> assign game_shop Nothing
     MkBought bought -> do
-      game_player_inventory . inventroy_item <>= haulItems bought
+      let spawnableItems = Set.filter (\i -> si_type i == ShopUnit) (haulItems bought)
+          carryableItems = Set.filter (\i -> si_type i /= ShopUnit) (haulItems bought)
+      game_player_inventory . inventroy_item <>= carryableItems
       assign (game_player_inventory . inventory_money) $ haulNewMoney bought
       assign game_shop Nothing
+      traverse_ (const spawnFriend) (Set.toList spawnableItems)
 
 resetState :: MonadState GameState m => m ()
 resetState = trace "player died, resetting" $ put initialState
