@@ -53,13 +53,14 @@ renderState font state = do
   void $ listWithKey (view game_board <$> state) $ \axial _ -> do
     hexagon $ renderHex font axial
 
-  void $ holdView (pure ())
-       $ hexagon . renderSelected font <$> mapMaybe (view game_selected) (updated state)
-
   -- simple list doesn't cache on key change
   void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
     traverse_ (\fun -> fun axial tileDyn) renderOrduning
     healthBar tileDyn
+
+  -- Selection outline drawn last so it sits on top of unit sprites
+  void $ holdView (pure ())
+       $ hexagon . renderSelected font <$> mapMaybe (view game_selected) (updated state)
 
   void $ imageEvt =<< dynView (state <&>
     \state' ->
@@ -83,6 +84,7 @@ applyImage textureF hashPath axial tileDyn =
                        . has hashPath <$> tileDyn
 
 renderSelected :: Font -> Axial -> HexagonSettings
-renderSelected font = (hexagon_color .~ V4 255 128 128 255)
-               . (hexagon_is_filled .~ True)
+renderSelected font = (hexagon_color .~ V4 255 255 0 255)
+               . (hexagon_is_filled .~ False)
+               . (hexagon_label .~ Nothing)
                . renderHex font

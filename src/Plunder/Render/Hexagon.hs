@@ -13,6 +13,7 @@ module Plunder.Render.Hexagon
   , hexagon_position
   , hexagon_color
   , hexagon_is_filled
+  , hexagon_label
   , renderHex
   )
 where

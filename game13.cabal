@@ -37,6 +37,7 @@ library
       Plunder.Render.Health
       Plunder.Render.Hexagon
       Plunder.Render.Image
+      Plunder.Render.Inventory
       Plunder.Render.Layer
       Plunder.Render.Shop
       Plunder.Render.Text
@@ -149,6 +150,7 @@ test-suite unit
   other-modules:
       Test.HexagonSpec
       Test.Orphanage
+      Test.StateSpec
       Test.TestSpec
       Paths_game13
   hs-source-dirs:
