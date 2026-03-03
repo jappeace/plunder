@@ -184,15 +184,6 @@ isShopping currentState towards = do
   _ <- toPlayerMove currentState towards True
   pure (OpenShop content)
 
-shouldCharacterAttack :: GameState -> Axial -> Maybe Action
-shouldCharacterAttack state' towards = do
-  attacking <- isAttack state' towards
-  withMove <- toPlayerMove state' towards True
-  pure $ MkAttack $ MkAttackMove
-    { _attack_move = withMove
-    , _attack_to = attacking
-    }
-
 move :: Action -> Grid -> Move -> Grid
 move type' grid action =
   (toTileContent .~ (grid ^? fromTile . _Just)) $
@@ -268,23 +259,29 @@ countLoot plan res =
    when (has (_MkAttack . attack_to . _House) plan) $
          game_player_inventory . inventory_money += 10
 
--- | If a Player is selected, allow planning a move to an adjacent empty tile
---   (or to the unit's own tile to cancel the plan).
+-- | If a Player is selected, allow planning a move or attack to an adjacent
+--   tile (or to the unit's own tile to cancel).  Shops are excluded because
+--   they are handled immediately on right-click.
 planPlayerMove :: GameState -> Axial -> Maybe (Axial, Axial)
 planPlayerMove state' towards = do
   selectedAxial <- state' ^. game_selected
   _player :: Unit <- state' ^? game_board . ix selectedAxial . tile_content . _Just . _Player
+  let isShopTile = has (game_board . ix towards . tile_content . _Just . _Shop) state'
   guard $ towards == selectedAxial
-       || (towards `elem` neigbours selectedAxial && isMove state' towards)
+       || (towards `elem` neigbours selectedAxial && not isShopTile)
   pure (selectedAxial, towards)
 
--- | Re-derive a walk action at execution time so that moves that became
---   invalid (destination taken) are silently skipped.
+-- | Re-derive a walk or attack action at execution time so that plans that
+--   became invalid are silently skipped.
 executePlannedMove :: GameState -> Axial -> Axial -> Maybe Action
 executePlannedMove gs src dst = do
   unit' <- gs ^? game_board . ix src . tile_content . _Just . _Player
-  guard (isMove gs dst)
-  pure $ MkWalk $ MkMove { _move_from = src, _move_to = dst, _move_from_unit = unit' }
+  let baseMove = MkMove { _move_from = src, _move_to = dst, _move_from_unit = unit' }
+  case isAttack gs dst of
+    Just (Shop _) -> Nothing   -- shops are never queued
+    Just target   -> Just $ MkAttack $ MkAttackMove
+                       { _attack_move = baseMove, _attack_to = target }
+    Nothing       -> if isMove gs dst then Just (MkWalk baseMove) else Nothing
 
 updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
 updateLogic = \case
@@ -298,14 +295,15 @@ updateLogic = \case
     game_planned_moves .= Map.empty
     for_ (Map.toList plans) $ \(src, dst) -> do
       gs <- use id
-      for_ (executePlannedMove gs src dst) $ \plan ->
-        modifying game_board (figureOutMove Nothing plan)
+      for_ (executePlannedMove gs src dst) $ \plan -> do
+        mCombatRes <- applyAttack plan
+        traverse_ (countLoot plan) mCombatRes
+        modifying game_board (figureOutMove mCombatRes plan)
     game_selected .= Nothing
   RightClick towards -> do
     currentState <- use id
-    -- Shopping and attacks remain immediate; only empty-tile walks are queued.
+    -- Only shopping is immediate; walks and attacks are queued.
     let immediateAction = isShopping currentState towards
-                           <|> shouldCharacterAttack currentState towards
     case immediateAction of
       Just plan -> trace (show plan) $ do
         mCombatRes <- applyAttack plan

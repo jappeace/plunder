@@ -207,3 +207,60 @@ spec = do
         result = runEvt EndTurn stateTwo
         players = result ^.. game_board . traversed . tile_content . _Just . _Player
     length players `shouldBe` 2
+
+ describe "Queued attacks" $ do
+  -- Player at MkAxial 2 3 has an Axe (from level).
+  -- We place a weak enemy (1 HP) at MkAxial 2 4 (adjacent) so it always dies
+  -- on EndTurn (Axe does Bigly = rng*2 ≥ 2 damage).
+  let playerAxial  = MkAxial 2 3
+      enemyAxial   = MkAxial 2 4  -- adjacent empty tile in initial layout
+      houseAxial   = MkAxial 3 3  -- adjacent house in initial layout
+      selectedState = initialState & game_selected .~ Just playerAxial
+      weakEnemy    = Enemy (unit_hp .~ 1 $ defUnit)
+      withEnemy    = selectedState
+                       & game_board . ix enemyAxial . tile_content ?~ weakEnemy
+
+  it "right-clicking an adjacent enemy does not kill it immediately" $ do
+    let result = runEvt (RightClick enemyAxial) withEnemy
+    result ^? game_board . ix enemyAxial . tile_content . _Just . _Enemy
+      `shouldNotBe` Nothing
+
+  it "right-clicking an adjacent enemy records a planned attack" $ do
+    let result = runEvt (RightClick enemyAxial) withEnemy
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial enemyAxial
+
+  it "EndTurn on a queued enemy attack kills a weak enemy" $ do
+    -- Axe vs no-weapon: Bigly damage (rng*2 ≥ 2 > 1 HP) → always dies.
+    let result = runEvt EndTurn
+               $ runEvt (RightClick enemyAxial) withEnemy
+    result ^? game_board . ix enemyAxial . tile_content . _Just . _Enemy
+      `shouldBe` Nothing
+
+  it "EndTurn on a queued enemy attack leaves blood at the target tile" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick enemyAxial) withEnemy
+    result ^? game_board . ix enemyAxial . tile_background . _Just
+      `shouldBe` Just Blood
+
+  it "EndTurn on a queued attack clears planned_moves" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick enemyAxial) withEnemy
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "right-clicking an adjacent house does not destroy it immediately" $ do
+    let result = runEvt (RightClick houseAxial) selectedState
+    result ^? game_board . ix houseAxial . tile_content . _Just . _House
+      `shouldNotBe` Nothing
+
+  it "right-clicking an adjacent house records a planned attack" $ do
+    let result = runEvt (RightClick houseAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial houseAxial
+
+  it "EndTurn on a queued house attack destroys a weak house" $ do
+    -- Replace the house with a weak one (1 HP) so it always dies.
+    let weakHouseState = selectedState
+          & game_board . ix houseAxial . tile_content ?~ House (unit_hp .~ 1 $ defUnit)
+        result = runEvt EndTurn
+               $ runEvt (RightClick houseAxial) weakHouseState
+    result ^? game_board . ix houseAxial . tile_background . _Just
+      `shouldBe` Just BurnedHouse
