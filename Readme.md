@@ -31,10 +31,10 @@ This is a small breakdown of things I'll build next.
   - [x] Select an item in shop
   - [x] Add purchase button
   - [x] What to do with inventory?
-  - [ ] What to do with buying a unit?
+  - [x] What to do with buying a unit?
 - [ ] Add explenation of controls, it's not obious that you first need to left click
       select someone and then right click to move
-- [ ] Add message on deth
+- [x] Add message on deth
 - [ ] Add turn resolution (que up moves, show moves queed, play them on turn pres)
 - [ ] AI ????
 - [ ] Set up shipping pipe line
