@@ -8,6 +8,7 @@ module Plunder.Guest(guest) where
 import           Control.Lens
 import           Control.Monad                   (void)
 import           Control.Monad.Reader            (MonadReader (..))
+import           Foreign.C.Types                 (CInt)
 import           Control.Monad.Trans.Random.Lazy
 import           Plunder.Render.Layer
 import           Reflex
@@ -36,14 +37,14 @@ guest = mdo
   font <- defaultFont
   bannerFont <- bigFont
 
-  gameState <- mkGameState shopEvt
+  (gameState, winSizeDyn) <- mkGameState shopEvt
   renderState font gameState
   shopEvt <- renderShop font
     (view game_shop <$> gameState)
     (view (game_player_inventory . inventory_money) <$> gameState)
     (isJust . findFreeAdjacent <$> gameState)
   renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
-  renderBanner bannerFont (view game_phase <$> gameState)
+  renderBanner bannerFont (view game_phase <$> gameState) winSizeDyn
   pure ()
 
 
@@ -52,7 +53,7 @@ makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
 makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
-mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> m (Dynamic t GameState)
+mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> m (Dynamic t GameState, Dynamic t (V2 CInt))
 mkGameState shopActions = do
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
@@ -100,6 +101,9 @@ mkGameState shopActions = do
       threadDelay 5000000
       fireReset ResetGame
 
+  winSizeDyn <- holdDyn (V2 640 480) $
+    fmap (fromIntegral <$>) (windowSizeChangedEventSize <$> windowSizeChangedEvt)
+
   performEvent_ $ ffor (describeState <$> updated state) $ liftIO . print
 
-  pure state
+  pure (state, winSizeDyn)
