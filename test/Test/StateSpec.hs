@@ -2,6 +2,7 @@ module Test.StateSpec(spec) where
 
 import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
+import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
 import           Plunder.Combat (Weapon(..), unit_hp)
 import           Plunder.Grid
@@ -9,7 +10,7 @@ import           Plunder.Shop
 import           Plunder.State
 import           System.Random                   (mkStdGen)
 import           Test.Hspec
-import           Test.QuickCheck                 (property)
+import           Test.QuickCheck                 ()
 
 -- | Run a single update event against a game state (ignoring randomness)
 runEvt :: UpdateEvts -> GameState -> GameState
@@ -150,3 +151,59 @@ spec = do
     result ^. game_phase `shouldBe` Playing
     result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_hp
       `shouldBe` Just 10
+
+ describe "Turn-based movement" $ do
+  -- Player starts at MkAxial 2 3; MkAxial 2 4 is an adjacent empty tile.
+  let playerAxial = MkAxial 2 3
+      destAxial   = MkAxial 2 4
+      selectedState = initialState & game_selected .~ Just playerAxial
+
+  it "right-clicking an adjacent empty tile no longer moves the unit immediately" $ do
+    let result = runEvt (RightClick destAxial) selectedState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+
+  it "right-clicking an adjacent empty tile records a planned move" $ do
+    let result = runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial destAxial
+
+  it "right-clicking a different adjacent tile overwrites the plan" $ do
+    let altDest = MkAxial 1 3
+        result  = runEvt (RightClick altDest)
+                $ runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial altDest
+
+  it "right-clicking the unit's own tile cancels the plan" $ do
+    let result = runEvt (RightClick playerAxial)
+               $ runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "EndTurn executes the planned move" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick destAxial) selectedState
+    result ^? game_board . ix destAxial . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+
+  it "EndTurn clears the unit from its original tile" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick destAxial) selectedState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player
+      `shouldBe` Nothing
+
+  it "EndTurn clears planned_moves" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "EndTurn skips a plan whose destination was taken by an earlier move" $ do
+    -- Two players both plan to move to the same tile; only the first succeeds.
+    let player2Axial = MkAxial 1 3  -- adjacent to destAxial
+        stateTwo = selectedState
+          & game_board . ix player2Axial . tile_content ?~ Player defUnit
+          & game_planned_moves .~ Map.fromList
+              [ (playerAxial, destAxial)
+              , (player2Axial, destAxial)
+              ]
+        result = runEvt EndTurn stateTwo
+        players = result ^.. game_board . traversed . tile_content . _Just . _Player
+    length players `shouldBe` 2

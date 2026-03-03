@@ -9,12 +9,14 @@ import           Plunder.Combat
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import qualified Data.Map.Strict      as Map
 import           Data.Bool
 import           Data.Foldable
 import           Data.Monoid
 import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
+import           Plunder.Render.Arrow
 import           Plunder.Render.Health
 import           Plunder.Render.Hexagon
 import           Plunder.Render.Image
@@ -27,6 +29,7 @@ renderState :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => Font ->  Dynamic t GameState -> m ()
 renderState font state = do
+  renderer <- ask
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
@@ -61,6 +64,11 @@ renderState font state = do
   -- Selection outline drawn last so it sits on top of unit sprites
   void $ holdView (pure ())
        $ hexagon . renderSelected font <$> mapMaybe (view game_selected) (updated state)
+
+  -- Draw planned-move arrows on top of units
+  commitLayer $ ffor (view game_planned_moves <$> state) $ \plans ->
+    for_ (Map.toList plans) $ \(src, dst) ->
+      drawArrow renderer (axialToPixel src) (axialToPixel dst) (V4 255 165 0 255)
 
   void $ imageEvt =<< dynView (state <&>
     \state' ->

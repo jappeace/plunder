@@ -16,6 +16,7 @@ module Plunder.State(GameState(..)
             , game_shop
             , game_inventory_open
             , game_phase
+            , game_planned_moves
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
@@ -49,6 +50,8 @@ import           Plunder.Grid
 import           System.Random
 import           Text.Printf
 import Plunder.Shop
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
 import Data.Maybe(listToMaybe)
@@ -64,12 +67,13 @@ data PlayerInventory = MkInventory {
   } deriving (Show)
 
 data GameState = MkGameState
-  { _game_selected :: Maybe Axial
-  , _game_board    :: Grid
+  { _game_selected      :: Maybe Axial
+  , _game_board         :: Grid
   , _game_player_inventory :: PlayerInventory
-  , _game_shop     :: Maybe ShopContent -- If just we're at the shopping screen
+  , _game_shop          :: Maybe ShopContent -- If just we're at the shopping screen
   , _game_inventory_open :: Bool
-  , _game_phase    :: GamePhase
+  , _game_phase         :: GamePhase
+  , _game_planned_moves :: Map Axial Axial   -- ^ from -> to: queued player moves
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -104,14 +108,15 @@ initialInventory = MkInventory
 
 initialState :: GameState
 initialState = MkGameState
-  { _game_selected = Nothing
-  , _game_board    = appEndo level initialGrid
+  { _game_selected      = Nothing
+  , _game_board         = appEndo level initialGrid
    -- indicating how much havoc a player caused,
    -- potentially we could use this later as currency?
   , _game_player_inventory = initialInventory
-  , _game_shop = Nothing
+  , _game_shop          = Nothing
   , _game_inventory_open = False
-  , _game_phase = Playing
+  , _game_phase         = Playing
+  , _game_planned_moves = Map.empty
   }
 
 data Attack = MkAttackMove
@@ -236,6 +241,7 @@ data UpdateEvts = LeftClick Axial
                 | ShopUpdates ShopAction
                 | ToggleInventory
                 | ResetGame -- ^ fired after the death/victory banner expires
+                | EndTurn   -- ^ execute all planned moves
                 deriving Show
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
@@ -262,6 +268,24 @@ countLoot plan res =
    when (has (_MkAttack . attack_to . _House) plan) $
          game_player_inventory . inventory_money += 10
 
+-- | If a Player is selected, allow planning a move to an adjacent empty tile
+--   (or to the unit's own tile to cancel the plan).
+planPlayerMove :: GameState -> Axial -> Maybe (Axial, Axial)
+planPlayerMove state' towards = do
+  selectedAxial <- state' ^. game_selected
+  _player :: Unit <- state' ^? game_board . ix selectedAxial . tile_content . _Just . _Player
+  guard $ towards == selectedAxial
+       || (towards `elem` neigbours selectedAxial && isMove state' towards)
+  pure (selectedAxial, towards)
+
+-- | Re-derive a walk action at execution time so that moves that became
+--   invalid (destination taken) are silently skipped.
+executePlannedMove :: GameState -> Axial -> Axial -> Maybe Action
+executePlannedMove gs src dst = do
+  unit' <- gs ^? game_board . ix src . tile_content . _Just . _Player
+  guard (isMove gs dst)
+  pure $ MkWalk $ MkMove { _move_from = src, _move_to = dst, _move_from_unit = unit' }
+
 updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
 updateLogic = \case
   Redraw -> pure ()
@@ -269,16 +293,30 @@ updateLogic = \case
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
   ResetGame -> put initialState
+  EndTurn -> do
+    plans <- use game_planned_moves
+    game_planned_moves .= Map.empty
+    for_ (Map.toList plans) $ \(src, dst) -> do
+      gs <- use id
+      for_ (executePlannedMove gs src dst) $ \plan ->
+        modifying game_board (figureOutMove Nothing plan)
+    game_selected .= Nothing
   RightClick towards -> do
     currentState <- use id
-    let movePlan = shouldCharacterMove currentState towards
-                    <|> isShopping currentState towards
-                    <|> shouldCharacterAttack currentState towards
-    for_ movePlan $ \plan -> trace (show plan) $ do
-      mCombatRes <- applyAttack plan
-      traverse_ (countLoot plan) mCombatRes
-      modifying game_board (figureOutMove mCombatRes plan)
-      traverse_ applyShop (plan ^? _OpenShop)
+    -- Shopping and attacks remain immediate; only empty-tile walks are queued.
+    let immediateAction = isShopping currentState towards
+                           <|> shouldCharacterAttack currentState towards
+    case immediateAction of
+      Just plan -> trace (show plan) $ do
+        mCombatRes <- applyAttack plan
+        traverse_ (countLoot plan) mCombatRes
+        modifying game_board (figureOutMove mCombatRes plan)
+        traverse_ applyShop (plan ^? _OpenShop)
+      Nothing ->
+        for_ (planPlayerMove currentState towards) $ \(src, dst) ->
+          if src == dst
+            then game_planned_moves . at src .= Nothing   -- cancel
+            else game_planned_moves . at src ?= dst        -- plan or overwrite
 
 applyShop :: MonadState GameState m => ShopContent -> m ()
 applyShop content = assign game_shop (Just content)

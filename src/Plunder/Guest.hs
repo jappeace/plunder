@@ -23,6 +23,8 @@ import Plunder.Render.Font(defaultFont, bigFont)
 import Plunder.Render.Shop
 import Plunder.Render.Inventory
 import Plunder.Render.Banner
+import Plunder.Render.Text (defaultStyle, surfaceToSettings, allocateText)
+import Plunder.Render.Image (image)
 import Data.Maybe (isJust)
 import Control.Concurrent (forkIO, threadDelay)
 
@@ -38,7 +40,7 @@ guest = mdo
   font <- defaultFont
   bannerFont <- bigFont
 
-  (gameState, alphaDyn, winSizeDyn) <- mkGameState shopEvt
+  (gameState, alphaDyn, winSizeDyn) <- mkGameState shopEvt endTurnEvt
   renderState font gameState
   shopEvt <- renderShop font
     (view game_shop <$> gameState)
@@ -46,6 +48,11 @@ guest = mdo
     (isJust . findFreeAdjacent <$> gameState)
   renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
   renderBanner bannerFont (view game_phase <$> gameState) alphaDyn winSizeDyn
+  -- End Turn button (top-right area, below money display)
+  endTurnSurface <- allocateText font defaultStyle "[ End Turn ]"
+  endTurnClicks  <- image $ pure $ Just $ surfaceToSettings endTurnSurface (P $ V2 500 30)
+  let endTurnEvt :: Event t ()
+      endTurnEvt = () <$ endTurnClicks
   pure ()
 
 
@@ -54,8 +61,8 @@ makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
 makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
-mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt))
-mkGameState shopActions = do
+mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> Event t () -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt))
+mkGameState shopActions endTurnClickEvt = do
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
   windowExposedEvt <- getWindowExposedEvent
@@ -89,6 +96,7 @@ mkGameState shopActions = do
                         , Redraw <$ windowExposedEvt
                         , ToggleInventory <$ toggleInvEvt
                         , ResetGame <$ resetEvt
+                        , EndTurn <$ endTurnClickEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
 
