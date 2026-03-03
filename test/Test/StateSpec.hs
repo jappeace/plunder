@@ -4,7 +4,7 @@ import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
-import           Plunder.Combat (Weapon(..), unit_hp)
+import           Plunder.Combat (Weapon(..), isDead, unit_hp)
 import           Plunder.Grid
 import           Plunder.Shop
 import           Plunder.State
@@ -320,3 +320,43 @@ spec = do
                $ runEvt (RightClick houseAxial) weakHouseState
     result ^? game_board . ix houseAxial . tile_background . _Just
       `shouldBe` Just BurnedHouse
+
+ describe "Selection" $ do
+  it "LeftClick sets game_selected" $
+    runEvt (LeftClick (MkAxial 2 3)) initialState ^. game_selected
+      `shouldBe` Just (MkAxial 2 3)
+
+  it "EndTurn clears game_selected" $ do
+    let selected = initialState & game_selected .~ Just (MkAxial 2 3)
+    runEvt EndTurn selected ^. game_selected `shouldBe` Nothing
+
+ describe "Money" $ do
+  let playerAxial = MkAxial 2 3
+      houseAxial  = MkAxial 3 3
+      selectedState = initialState & game_selected .~ Just playerAxial
+
+  it "EndTurn applies haulNewMoney as the new wallet balance" $ do
+    let haul   = MkHaul { haulItems = mempty, haulNewMoney = 42 }
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
+    result ^. game_player_inventory . inventory_money `shouldBe` 42
+
+  it "destroying a weak house on EndTurn awards 10 money" $ do
+    let weakHouseState = selectedState
+          & game_board . ix houseAxial . tile_content ?~ House (unit_hp .~ 1 $ defUnit)
+        result = runEvt EndTurn
+               $ runEvt (RightClick houseAxial) weakHouseState
+    result ^. game_player_inventory . inventory_money `shouldBe` 10
+
+  it "right-clicking a shop does not create a planned move" $
+    runEvt (RightClick shopAxial) playerAdjacentToShop ^. game_planned_moves
+      `shouldBe` Map.empty
+
+ describe "Combat" $ do
+  it "isDead is True for 0 HP" $
+    isDead 0 `shouldBe` True
+
+  it "isDead is True for negative HP" $
+    isDead (-1) `shouldBe` True
+
+  it "isDead is False for positive HP" $
+    isDead 1 `shouldBe` False
