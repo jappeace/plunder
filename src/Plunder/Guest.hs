@@ -23,6 +23,8 @@ import Plunder.Render.Font(defaultFont, bigFont)
 import Plunder.Render.Shop
 import Plunder.Render.Inventory
 import Plunder.Render.Banner
+import Plunder.Render.Text (defaultStyle, surfaceToSettings, allocateText, textSurfaceSize)
+import Plunder.Render.Image (image)
 import Data.Maybe (isJust)
 import Control.Concurrent (forkIO, threadDelay)
 
@@ -38,7 +40,7 @@ guest = mdo
   font <- defaultFont
   bannerFont <- bigFont
 
-  (gameState, alphaDyn, winSizeDyn) <- mkGameState shopEvt
+  (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState shopEvt
   renderState font gameState
   shopEvt <- renderShop font
     (view game_shop <$> gameState)
@@ -46,6 +48,13 @@ guest = mdo
     (isJust . findFreeAdjacent <$> gameState)
   renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
   renderBanner bannerFont (view game_phase <$> gameState) alphaDyn winSizeDyn
+  -- End Turn button: bottom-right corner, position tracks window size
+  endTurnSurface <- allocateText font defaultStyle "[ End Turn ]"
+  let V2 btnW btnH = textSurfaceSize endTurnSurface
+      endTurnImgDyn = ffor winSizeDyn $ \(V2 w h) ->
+        Just $ surfaceToSettings endTurnSurface (P $ V2 (w - btnW - 10) (h - btnH - 10))
+  endTurnClicks <- image endTurnImgDyn
+  performEvent_ $ ffor endTurnClicks $ \_ -> liftIO (fireEndTurn ())
   pure ()
 
 
@@ -54,7 +63,7 @@ makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
 makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
-mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt))
+mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
 mkGameState shopActions = do
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
@@ -67,6 +76,7 @@ mkGameState shopActions = do
   -- External triggers: fired from IO after the banner timer expires / for fade steps
   (resetEvt, fireReset) <- newTriggerEvent
   (alphaEvt, fireAlpha) <- newTriggerEvent
+  (endTurnEvt, fireEndTurn) <- newTriggerEvent
 
   let leftClickEvts :: Event t MouseButtonEventData
       leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
@@ -89,6 +99,7 @@ mkGameState shopActions = do
                         , Redraw <$ windowExposedEvt
                         , ToggleInventory <$ toggleInvEvt
                         , ResetGame <$ resetEvt
+                        , EndTurn <$ endTurnEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
 
@@ -116,4 +127,4 @@ mkGameState shopActions = do
 
   performEvent_ $ ffor (describeState <$> updated state) $ liftIO . print
 
-  pure (state, alphaDyn, winSizeDyn)
+  pure (state, alphaDyn, winSizeDyn, fireEndTurn)

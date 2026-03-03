@@ -10,6 +10,7 @@ module Plunder.Render.Text(
   , TextSurface
   , allocateText
   , surfaceToSettings
+  , textSurfaceSize
   ) where
 
 import Plunder.Lens
@@ -70,6 +71,9 @@ surfaceToSettings surface position  =
          Center -> (  position
               -  (_Point # fontHexSize `quotV2` V2 2 (-5))
               )
+
+textSurfaceSize :: TextSurface -> V2 CInt
+textSurfaceSize = textSurfaceFontHexSize
 
 renderText :: ReflexSDL2 t m
   => MonadReader Renderer m

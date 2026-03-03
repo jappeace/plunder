@@ -9,16 +9,20 @@ import           Plunder.Combat
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import qualified Data.Map.Strict      as Map
+import qualified Data.Text            as T
 import           Data.Bool
 import           Data.Foldable
 import           Data.Monoid
 import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
+import           Plunder.Render.Arrow
 import           Plunder.Render.Health
 import           Plunder.Render.Hexagon
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
+import           Plunder.Render.Terrain
 import           Plunder.State
 import           Plunder.Render.Font
 
@@ -27,6 +31,12 @@ renderState :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => Font ->  Dynamic t GameState -> m ()
 renderState font state = do
+  renderer <- ask
+
+  -- Terrain fill is the very first (lowest) layer: coloured hexagons for
+  -- every coordinate in range, with Water used for anything outside the grid.
+  renderTerrain renderer (view game_board <$> state)
+
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
@@ -62,10 +72,30 @@ renderState font state = do
   void $ holdView (pure ())
        $ hexagon . renderSelected font <$> mapMaybe (view game_selected) (updated state)
 
+  -- Draw planned-move arrows on top of units
+  commitLayer $ ffor (view game_planned_moves <$> state) $ \plans ->
+    for_ (Map.toList plans) $ \(src, dst) ->
+      drawArrow renderer (axialToPixel src) (axialToPixel dst) (V4 255 165 0 255)
+
   void $ imageEvt =<< dynView (state <&>
     \state' ->
       renderText font defaultStyle (P $ V2 500 10)
           ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
+
+  -- "Purchasing: <item>" label above the player tile when a purchase is queued
+  purchaseLabelEvt <- dynView (state <&> \gs ->
+    case gs ^. game_pending_purchase of
+      Nothing   -> pure Nothing
+      Just haul ->
+        case gs ^? game_board . traversed
+                  . filtered (has (tile_content . _Just . _Player))
+                  . tile_coordinate of
+          Nothing        -> pure Nothing
+          Just playerPos ->
+            let P (V2 px py) = axialToPixel playerPos
+            in Just <$> renderText font defaultStyle (P $ V2 px (py - 25))
+                          (describePurchase haul))
+  void $ image =<< holdDyn Nothing purchaseLabelEvt
 
 
 applyImage ::
@@ -88,3 +118,7 @@ renderSelected font = (hexagon_color .~ V4 255 255 0 255)
                . (hexagon_is_filled .~ False)
                . (hexagon_label .~ Nothing)
                . renderHex font
+
+describePurchase :: Haul -> T.Text
+describePurchase haul =
+  "Purchasing " <> T.intercalate ", " (itemTypeDescription . si_type <$> toList (haulItems haul))
