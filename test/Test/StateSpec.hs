@@ -187,6 +187,27 @@ spec = do
     result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_hp
       `shouldBe` Just 10
 
+ describe "Terrain" $ do
+  let playerAxial = MkAxial 2 3
+      adjAxial    = MkAxial 2 4   -- adjacent empty tile in initial layout
+      selectedState = initialState & game_selected .~ Just playerAxial
+
+  it "Water tiles are not plannable" $ do
+    let waterState = selectedState
+          & game_board . ix adjAxial . tile_terrain .~ Water
+        result = runEvt (RightClick adjAxial) waterState
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "Mountain tiles are not plannable" $ do
+    let mtnState = selectedState
+          & game_board . ix adjAxial . tile_terrain .~ Mountains
+        result = runEvt (RightClick adjAxial) mtnState
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "Land tiles remain plannable" $ do
+    let result = runEvt (RightClick adjAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial adjAxial
+
  describe "Turn-based movement" $ do
   -- Player starts at MkAxial 2 3; MkAxial 2 4 is an adjacent empty tile.
   let playerAxial = MkAxial 2 3

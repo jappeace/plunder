@@ -55,7 +55,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
-import Data.Maybe(listToMaybe)
+import Data.Maybe(listToMaybe, isJust)
 
 data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
@@ -156,6 +156,7 @@ isAttack state' towards =
 isMove :: GameState -> Axial -> Bool
 isMove state' towards =
   has (mTraverseBoard towards . _Nothing) state'
+  && has (game_board . ix towards . tile_terrain . _Land) state'
 
 -- figures out if the tile we're moving towards is a neigbour of the
 -- selected tile, and verifies that hte selected tile is the player.
@@ -270,8 +271,9 @@ planPlayerMove state' towards = do
   selectedAxial <- state' ^. game_selected
   _player :: Unit <- state' ^? game_board . ix selectedAxial . tile_content . _Just . _Player
   let isShopTile = has (game_board . ix towards . tile_content . _Just . _Shop) state'
+      canTarget  = isJust (isAttack state' towards) || isMove state' towards
   guard $ towards == selectedAxial
-       || (towards `elem` neigbours selectedAxial && not isShopTile)
+       || (towards `elem` neigbours selectedAxial && not isShopTile && canTarget)
   pure (selectedAxial, towards)
 
 -- | Re-derive a walk or attack action at execution time so that plans that

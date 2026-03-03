@@ -16,9 +16,11 @@ module Plunder.Grid
   , tile_axial
   , tile_content
   , tile_background
+  , tile_terrain
   , tile_coordinate
   , TileContent(..)
   , Background(..)
+  , Terrain(..)
   , Tile
   , _Player
   , _Enemy
@@ -26,6 +28,9 @@ module Plunder.Grid
   , _House
   , _Shop
   , _BurnedHouse
+  , _Land
+  , _Water
+  , _Mountains
   , contentFold
   , mkGrid
   , defUnit
@@ -66,12 +71,19 @@ data Background = Blood
                 | BurnedShop -- TODO make image
   deriving (Show, Generic, Eq)
 
+data Terrain = Land
+             | Water
+             | Mountains
+  deriving (Show, Generic, Eq)
+
 data Tile = MkTile
   { _tile_coordinate :: Axial
    -- | interactive layer (which can be destroyed)
   , _tile_content    :: Maybe TileContent
    -- | decorative layer (for destroyed things, blood bodies and ruins)
   , _tile_background :: Maybe Background
+   -- | terrain type; determines passability and appearance
+  , _tile_terrain    :: Terrain
   } deriving (Show, Generic, Eq)
 
 
@@ -80,6 +92,7 @@ makeLenses 'MkTile
 makeLenses ''TileContent
 makePrisms ''TileContent
 makePrisms ''Background
+makePrisms ''Terrain
 
 -- | A read only coordinate lens for 'Tile',
 --   within the module we can set but outside we can only read so it's
@@ -97,7 +110,7 @@ mkGrid begin end =
   q <- size
   r <- size
   let coordinate = MkAxial q r
-  pure $ (coordinate , MkTile coordinate Nothing Nothing)
+  pure (coordinate, MkTile coordinate Nothing Nothing Land)
   where
     size :: [Int]
     size = [begin .. end]
@@ -187,9 +200,14 @@ instance Arbitrary Axial where
   arbitrary = MkAxial <$> choose (0,6) <*> choose (0,6)
   shrink = genericShrink
 
+instance Arbitrary Terrain where
+  arbitrary = elements [Land, Water, Mountains]
+  shrink = genericShrink
+
 instance Arbitrary Tile where
-  arbitrary = MkTile <$> arbitrary <*>
-    frequency [(10, Just <$> arbitrary ), (5, pure Nothing)]
+  arbitrary = MkTile <$> arbitrary
+    <*> frequency [(10, Just <$> arbitrary), (5, pure Nothing)]
+    <*> arbitrary
     <*> arbitrary
   shrink = genericShrink
 

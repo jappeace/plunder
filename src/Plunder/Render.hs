@@ -22,6 +22,7 @@ import           Plunder.Render.Health
 import           Plunder.Render.Hexagon
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
+import           Plunder.Render.Terrain
 import           Plunder.State
 import           Plunder.Render.Font
 
@@ -31,6 +32,11 @@ renderState :: ReflexSDL2 t m
   => Font ->  Dynamic t GameState -> m ()
 renderState font state = do
   renderer <- ask
+
+  -- Terrain fill is the very first (lowest) layer: coloured hexagons for
+  -- every coordinate in range, with Water used for anything outside the grid.
+  renderTerrain renderer (view game_board <$> state)
+
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
   loadBloodF <- renderImage <$> loadBlood
