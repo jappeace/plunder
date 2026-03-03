@@ -18,7 +18,7 @@ import           Reflex.SDL2 hiding (Playing) -- avoid clash with SDL.Audio.Play
 
 bannerW, bannerH :: CInt
 bannerW = 500
-bannerH = 110
+bannerH = 140
 
 msgStyle :: Style
 msgStyle = defaultStyle
