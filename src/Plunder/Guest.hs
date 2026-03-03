@@ -92,6 +92,12 @@ mkGameState shopActions = do
           not (keyboardEventRepeat kd) &&
           keysymKeycode (keyboardEventKeysym kd) == KeycodeI
         ) keyboardEvt
+      spaceEvt :: Event t ()
+      spaceEvt = () <$ ffilter (\kd ->
+          has _Pressed (keyboardEventKeyMotion kd) &&
+          not (keyboardEventRepeat kd) &&
+          keysymKeycode (keyboardEventKeysym kd) == KeycodeSpace
+        ) keyboardEvt
       events = leftmost [ ShopUpdates <$> shopActions
                         , LeftClick <$> leftClickAxial
                         , RightClick <$> rightClickAxialEvt
@@ -100,6 +106,7 @@ mkGameState shopActions = do
                         , ToggleInventory <$ toggleInvEvt
                         , ResetGame <$ resetEvt
                         , EndTurn <$ endTurnEvt
+                        , EndTurn <$ spaceEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
 

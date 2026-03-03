@@ -9,6 +9,7 @@ import           Plunder.Combat
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import           Foreign.C.Types      (CInt)
 import qualified Data.Map.Strict      as Map
 import qualified Data.Text            as T
 import           Data.Bool
@@ -24,6 +25,7 @@ import           Plunder.Render.Image
 import           Plunder.Render.Layer
 import           Plunder.Render.Terrain
 import           Plunder.State
+import           Plunder.Render.Color
 import           Plunder.Render.Font
 
 renderState :: ReflexSDL2 t m
@@ -77,10 +79,17 @@ renderState font state = do
     for_ (Map.toList plans) $ \(src, dst) ->
       drawArrow renderer (axialToPixel src) (axialToPixel dst) (V4 255 165 0 255)
 
+  let moneyStyle :: Style
+      moneyStyle = defaultStyle & styleColorLens .~ V4 255 215 0 255
+      moneyBgRect :: Rectangle CInt
+      moneyBgRect = Rectangle (P $ V2 492 4) (V2 142 28)
+  commitLayer $ pure $ do
+    setDrawColor renderer (V4 0 0 0 200)
+    fillRect renderer (Just moneyBgRect)
   void $ imageEvt =<< dynView (state <&>
     \state' ->
-      renderText font defaultStyle (P $ V2 500 10)
-          ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
+      renderText font moneyStyle (P $ V2 500 10)
+          ("$ " <> tshow (state' ^. game_player_inventory . inventory_money)))
 
   -- "Purchasing: <item>" label above the player tile when a purchase is queued
   purchaseLabelEvt <- dynView (state <&> \gs ->
