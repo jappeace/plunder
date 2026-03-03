@@ -22,7 +22,7 @@ data Haul = MkHaul
   { haulItems :: Set ShopItem
   , haulNewMoney :: Word64
   }
-  deriving Show
+  deriving (Show, Eq)
 
 data ShopAction = MkBought Haul
                 | MkExited

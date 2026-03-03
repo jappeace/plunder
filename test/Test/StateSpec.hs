@@ -2,6 +2,7 @@ module Test.StateSpec(spec) where
 
 import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
+import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
 import           Plunder.Combat (Weapon(..), unit_hp)
 import           Plunder.Grid
@@ -9,7 +10,7 @@ import           Plunder.Shop
 import           Plunder.State
 import           System.Random                   (mkStdGen)
 import           Test.Hspec
-import           Test.QuickCheck                 (property)
+import           Test.QuickCheck                 ()
 
 -- | Run a single update event against a game state (ignoring randomness)
 runEvt :: UpdateEvts -> GameState -> GameState
@@ -52,13 +53,13 @@ spec = do
  describe "Friend spawning" $ do
   it "buying a friend spawns a second Player on the board" $ do
     let haul   = MkHaul { haulItems = Set.singleton (MkShopItem 0 ShopUnit), haulNewMoney = 0 }
-        result = runEvt (ShopUpdates (MkBought haul)) initialState
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
         players = result ^.. game_board . traversed . tile_content . _Just . _Player
     length players `shouldBe` 2
 
   it "buying a friend does not add it to the inventory" $ do
     let haul   = MkHaul { haulItems = Set.singleton (MkShopItem 0 ShopUnit), haulNewMoney = 0 }
-        result = runEvt (ShopUpdates (MkBought haul)) initialState
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
     result ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
 
   it "findFreeAdjacent returns Just when an adjacent tile is free" $
@@ -73,7 +74,7 @@ spec = do
 
   it "spawned friend is adjacent to the player" $ do
     let haul         = MkHaul { haulItems = Set.singleton (MkShopItem 0 ShopUnit), haulNewMoney = 0 }
-        result       = runEvt (ShopUpdates (MkBought haul)) initialState
+        result       = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
         playerAxial  = MkAxial 2 3
         friendAxials = result ^.. game_board
                                 . itraversed
@@ -97,7 +98,7 @@ spec = do
   it "buying an item adds it to inventory" $ do
     let item   = MkShopItem 4 ShopHealthPotion
         haul   = MkHaul { haulItems = Set.singleton item, haulNewMoney = 0 }
-        result = runEvt (ShopUpdates (MkBought haul)) initialState
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
     result ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
 
   it "buying multiple items accumulates them" $ do
@@ -105,10 +106,45 @@ spec = do
         item2 = MkShopItem 2 (ShopWeapon Sword)
         haul1 = MkHaul { haulItems = Set.singleton item1, haulNewMoney = 10 }
         haul2 = MkHaul { haulItems = Set.singleton item2, haulNewMoney = 5  }
-        result = runEvt (ShopUpdates (MkBought haul2))
-               $ runEvt (ShopUpdates (MkBought haul1)) initialState
+        -- Each purchase is committed separately with its own EndTurn
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul2))
+               $ runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul1)) initialState
     result ^. game_player_inventory . inventroy_item
       `shouldBe` Set.fromList [item1, item2]
+
+ describe "Queued purchases" $ do
+  let item = MkShopItem 4 ShopHealthPotion
+      haul = MkHaul { haulItems = Set.singleton item, haulNewMoney = 5 }
+      afterBuy = runEvt (ShopUpdates (MkBought haul)) initialState
+
+  it "buying records a pending purchase" $
+    afterBuy ^. game_pending_purchase `shouldBe` Just haul
+
+  it "buying closes the shop" $
+    afterBuy ^. game_shop `shouldBe` Nothing
+
+  it "buying does not immediately add to inventory" $
+    afterBuy ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
+
+  it "EndTurn applies the pending purchase to inventory" $
+    runEvt EndTurn afterBuy ^. game_player_inventory . inventroy_item
+      `shouldBe` Set.singleton item
+
+  it "EndTurn clears the pending purchase" $
+    runEvt EndTurn afterBuy ^. game_pending_purchase `shouldBe` Nothing
+
+  it "planning a move cancels the pending purchase" $ do
+    let playerAxial   = MkAxial 2 3
+        destAxial     = MkAxial 2 4
+        selectedAfterBuy = afterBuy & game_selected .~ Just playerAxial
+        result = runEvt (RightClick destAxial) selectedAfterBuy
+    result ^. game_pending_purchase `shouldBe` Nothing
+
+  it "canceling a move does not cancel the pending purchase" $ do
+    let playerAxial = MkAxial 2 3
+        selectedAfterBuy = afterBuy & game_selected .~ Just playerAxial
+        result = runEvt (RightClick playerAxial) selectedAfterBuy
+    result ^. game_pending_purchase `shouldBe` Just haul
 
  describe "Death and lose condition" $ do
   -- Place a second Player with 0 HP adjacent to the original player
@@ -150,3 +186,116 @@ spec = do
     result ^. game_phase `shouldBe` Playing
     result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_hp
       `shouldBe` Just 10
+
+ describe "Turn-based movement" $ do
+  -- Player starts at MkAxial 2 3; MkAxial 2 4 is an adjacent empty tile.
+  let playerAxial = MkAxial 2 3
+      destAxial   = MkAxial 2 4
+      selectedState = initialState & game_selected .~ Just playerAxial
+
+  it "right-clicking an adjacent empty tile no longer moves the unit immediately" $ do
+    let result = runEvt (RightClick destAxial) selectedState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+
+  it "right-clicking an adjacent empty tile records a planned move" $ do
+    let result = runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial destAxial
+
+  it "right-clicking a different adjacent tile overwrites the plan" $ do
+    let altDest = MkAxial 1 3
+        result  = runEvt (RightClick altDest)
+                $ runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial altDest
+
+  it "right-clicking the unit's own tile cancels the plan" $ do
+    let result = runEvt (RightClick playerAxial)
+               $ runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "EndTurn executes the planned move" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick destAxial) selectedState
+    result ^? game_board . ix destAxial . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+
+  it "EndTurn clears the unit from its original tile" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick destAxial) selectedState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player
+      `shouldBe` Nothing
+
+  it "EndTurn clears planned_moves" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick destAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "EndTurn skips a plan whose destination was taken by an earlier move" $ do
+    -- Two players both plan to move to the same tile; only the first succeeds.
+    let player2Axial = MkAxial 1 3  -- adjacent to destAxial
+        stateTwo = selectedState
+          & game_board . ix player2Axial . tile_content ?~ Player defUnit
+          & game_planned_moves .~ Map.fromList
+              [ (playerAxial, destAxial)
+              , (player2Axial, destAxial)
+              ]
+        result = runEvt EndTurn stateTwo
+        players = result ^.. game_board . traversed . tile_content . _Just . _Player
+    length players `shouldBe` 2
+
+ describe "Queued attacks" $ do
+  -- Player at MkAxial 2 3 has an Axe (from level).
+  -- We place a weak enemy (1 HP) at MkAxial 2 4 (adjacent) so it always dies
+  -- on EndTurn (Axe does Bigly = rng*2 ≥ 2 damage).
+  let playerAxial  = MkAxial 2 3
+      enemyAxial   = MkAxial 2 4  -- adjacent empty tile in initial layout
+      houseAxial   = MkAxial 3 3  -- adjacent house in initial layout
+      selectedState = initialState & game_selected .~ Just playerAxial
+      weakEnemy    = Enemy (unit_hp .~ 1 $ defUnit)
+      withEnemy    = selectedState
+                       & game_board . ix enemyAxial . tile_content ?~ weakEnemy
+
+  it "right-clicking an adjacent enemy does not kill it immediately" $ do
+    let result = runEvt (RightClick enemyAxial) withEnemy
+    result ^? game_board . ix enemyAxial . tile_content . _Just . _Enemy
+      `shouldNotBe` Nothing
+
+  it "right-clicking an adjacent enemy records a planned attack" $ do
+    let result = runEvt (RightClick enemyAxial) withEnemy
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial enemyAxial
+
+  it "EndTurn on a queued enemy attack kills a weak enemy" $ do
+    -- Axe vs no-weapon: Bigly damage (rng*2 ≥ 2 > 1 HP) → always dies.
+    let result = runEvt EndTurn
+               $ runEvt (RightClick enemyAxial) withEnemy
+    result ^? game_board . ix enemyAxial . tile_content . _Just . _Enemy
+      `shouldBe` Nothing
+
+  it "EndTurn on a queued enemy attack leaves blood at the target tile" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick enemyAxial) withEnemy
+    result ^? game_board . ix enemyAxial . tile_background . _Just
+      `shouldBe` Just Blood
+
+  it "EndTurn on a queued attack clears planned_moves" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick enemyAxial) withEnemy
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "right-clicking an adjacent house does not destroy it immediately" $ do
+    let result = runEvt (RightClick houseAxial) selectedState
+    result ^? game_board . ix houseAxial . tile_content . _Just . _House
+      `shouldNotBe` Nothing
+
+  it "right-clicking an adjacent house records a planned attack" $ do
+    let result = runEvt (RightClick houseAxial) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial houseAxial
+
+  it "EndTurn on a queued house attack destroys a weak house" $ do
+    -- Replace the house with a weak one (1 HP) so it always dies.
+    let weakHouseState = selectedState
+          & game_board . ix houseAxial . tile_content ?~ House (unit_hp .~ 1 $ defUnit)
+        result = runEvt EndTurn
+               $ runEvt (RightClick houseAxial) weakHouseState
+    result ^? game_board . ix houseAxial . tile_background . _Just
+      `shouldBe` Just BurnedHouse
