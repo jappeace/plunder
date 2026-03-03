@@ -17,6 +17,7 @@ module Plunder.State(GameState(..)
             , game_inventory_open
             , game_phase
             , game_planned_moves
+            , game_pending_purchase
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
@@ -67,13 +68,14 @@ data PlayerInventory = MkInventory {
   } deriving (Show)
 
 data GameState = MkGameState
-  { _game_selected      :: Maybe Axial
-  , _game_board         :: Grid
-  , _game_player_inventory :: PlayerInventory
-  , _game_shop          :: Maybe ShopContent -- If just we're at the shopping screen
-  , _game_inventory_open :: Bool
-  , _game_phase         :: GamePhase
-  , _game_planned_moves :: Map Axial Axial   -- ^ from -> to: queued player moves
+  { _game_selected          :: Maybe Axial
+  , _game_board             :: Grid
+  , _game_player_inventory  :: PlayerInventory
+  , _game_shop              :: Maybe ShopContent -- If just we're at the shopping screen
+  , _game_inventory_open    :: Bool
+  , _game_phase             :: GamePhase
+  , _game_planned_moves     :: Map Axial Axial   -- ^ from -> to: queued player moves
+  , _game_pending_purchase  :: Maybe Haul        -- ^ purchase queued, applied on EndTurn
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -108,15 +110,16 @@ initialInventory = MkInventory
 
 initialState :: GameState
 initialState = MkGameState
-  { _game_selected      = Nothing
-  , _game_board         = appEndo level initialGrid
+  { _game_selected         = Nothing
+  , _game_board            = appEndo level initialGrid
    -- indicating how much havoc a player caused,
    -- potentially we could use this later as currency?
   , _game_player_inventory = initialInventory
-  , _game_shop          = Nothing
-  , _game_inventory_open = False
-  , _game_phase         = Playing
-  , _game_planned_moves = Map.empty
+  , _game_shop             = Nothing
+  , _game_inventory_open   = False
+  , _game_phase            = Playing
+  , _game_planned_moves    = Map.empty
+  , _game_pending_purchase = Nothing
   }
 
 data Attack = MkAttackMove
@@ -291,6 +294,7 @@ updateLogic = \case
   LeftClick axial -> assign game_selected (Just axial)
   ResetGame -> put initialState
   EndTurn -> do
+    applyPendingPurchase
     plans <- use game_planned_moves
     game_planned_moves .= Map.empty
     for_ (Map.toList plans) $ \(src, dst) -> do
@@ -313,8 +317,10 @@ updateLogic = \case
       Nothing ->
         for_ (planPlayerMove currentState towards) $ \(src, dst) ->
           if src == dst
-            then game_planned_moves . at src .= Nothing   -- cancel
-            else game_planned_moves . at src ?= dst        -- plan or overwrite
+            then game_planned_moves . at src .= Nothing       -- cancel move, keep purchase
+            else do
+              game_planned_moves . at src ?= dst              -- plan or overwrite
+              game_pending_purchase .= Nothing                -- moving cancels purchase
 
 applyShop :: MonadState GameState m => ShopContent -> m ()
 applyShop content = assign game_shop (Just content)
@@ -340,12 +346,20 @@ applyShopUpdates :: MonadState GameState m => ShopAction -> m ()
 applyShopUpdates = \case
     MkExited -> assign game_shop Nothing
     MkBought bought -> do
-      let spawnableItems = Set.filter (\i -> si_type i == ShopUnit) (haulItems bought)
-          carryableItems = Set.filter (\i -> si_type i /= ShopUnit) (haulItems bought)
-      game_player_inventory . inventroy_item <>= carryableItems
-      assign (game_player_inventory . inventory_money) $ haulNewMoney bought
       assign game_shop Nothing
-      traverse_ (const spawnFriend) (Set.toList spawnableItems)
+      game_pending_purchase .= Just bought
+
+-- | Apply and clear any pending purchase.  Called at the start of EndTurn.
+applyPendingPurchase :: MonadState GameState m => m ()
+applyPendingPurchase = do
+  mHaul <- use game_pending_purchase
+  game_pending_purchase .= Nothing
+  for_ mHaul $ \haul -> do
+    let spawnableItems = Set.filter (\i -> si_type i == ShopUnit) (haulItems haul)
+        carryableItems = Set.filter (\i -> si_type i /= ShopUnit) (haulItems haul)
+    game_player_inventory . inventroy_item <>= carryableItems
+    assign (game_player_inventory . inventory_money) $ haulNewMoney haul
+    traverse_ (const spawnFriend) (Set.toList spawnableItems)
 
 -- | Remove any Player unit whose HP has reached zero, leaving a blood splash
 --   in their place.  Runs before checkPlayerLives so the lose check is simply

@@ -53,13 +53,13 @@ spec = do
  describe "Friend spawning" $ do
   it "buying a friend spawns a second Player on the board" $ do
     let haul   = MkHaul { haulItems = Set.singleton (MkShopItem 0 ShopUnit), haulNewMoney = 0 }
-        result = runEvt (ShopUpdates (MkBought haul)) initialState
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
         players = result ^.. game_board . traversed . tile_content . _Just . _Player
     length players `shouldBe` 2
 
   it "buying a friend does not add it to the inventory" $ do
     let haul   = MkHaul { haulItems = Set.singleton (MkShopItem 0 ShopUnit), haulNewMoney = 0 }
-        result = runEvt (ShopUpdates (MkBought haul)) initialState
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
     result ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
 
   it "findFreeAdjacent returns Just when an adjacent tile is free" $
@@ -74,7 +74,7 @@ spec = do
 
   it "spawned friend is adjacent to the player" $ do
     let haul         = MkHaul { haulItems = Set.singleton (MkShopItem 0 ShopUnit), haulNewMoney = 0 }
-        result       = runEvt (ShopUpdates (MkBought haul)) initialState
+        result       = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
         playerAxial  = MkAxial 2 3
         friendAxials = result ^.. game_board
                                 . itraversed
@@ -98,7 +98,7 @@ spec = do
   it "buying an item adds it to inventory" $ do
     let item   = MkShopItem 4 ShopHealthPotion
         haul   = MkHaul { haulItems = Set.singleton item, haulNewMoney = 0 }
-        result = runEvt (ShopUpdates (MkBought haul)) initialState
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul)) initialState
     result ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
 
   it "buying multiple items accumulates them" $ do
@@ -106,10 +106,45 @@ spec = do
         item2 = MkShopItem 2 (ShopWeapon Sword)
         haul1 = MkHaul { haulItems = Set.singleton item1, haulNewMoney = 10 }
         haul2 = MkHaul { haulItems = Set.singleton item2, haulNewMoney = 5  }
-        result = runEvt (ShopUpdates (MkBought haul2))
-               $ runEvt (ShopUpdates (MkBought haul1)) initialState
+        -- Each purchase is committed separately with its own EndTurn
+        result = runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul2))
+               $ runEvt EndTurn $ runEvt (ShopUpdates (MkBought haul1)) initialState
     result ^. game_player_inventory . inventroy_item
       `shouldBe` Set.fromList [item1, item2]
+
+ describe "Queued purchases" $ do
+  let item = MkShopItem 4 ShopHealthPotion
+      haul = MkHaul { haulItems = Set.singleton item, haulNewMoney = 5 }
+      afterBuy = runEvt (ShopUpdates (MkBought haul)) initialState
+
+  it "buying records a pending purchase" $
+    afterBuy ^. game_pending_purchase `shouldBe` Just haul
+
+  it "buying closes the shop" $
+    afterBuy ^. game_shop `shouldBe` Nothing
+
+  it "buying does not immediately add to inventory" $
+    afterBuy ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
+
+  it "EndTurn applies the pending purchase to inventory" $
+    runEvt EndTurn afterBuy ^. game_player_inventory . inventroy_item
+      `shouldBe` Set.singleton item
+
+  it "EndTurn clears the pending purchase" $
+    runEvt EndTurn afterBuy ^. game_pending_purchase `shouldBe` Nothing
+
+  it "planning a move cancels the pending purchase" $ do
+    let playerAxial   = MkAxial 2 3
+        destAxial     = MkAxial 2 4
+        selectedAfterBuy = afterBuy & game_selected .~ Just playerAxial
+        result = runEvt (RightClick destAxial) selectedAfterBuy
+    result ^. game_pending_purchase `shouldBe` Nothing
+
+  it "canceling a move does not cancel the pending purchase" $ do
+    let playerAxial = MkAxial 2 3
+        selectedAfterBuy = afterBuy & game_selected .~ Just playerAxial
+        result = runEvt (RightClick playerAxial) selectedAfterBuy
+    result ^. game_pending_purchase `shouldBe` Just haul
 
  describe "Death and lose condition" $ do
   -- Place a second Player with 0 HP adjacent to the original player

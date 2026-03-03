@@ -10,6 +10,7 @@ import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
 import qualified Data.Map.Strict      as Map
+import qualified Data.Text            as T
 import           Data.Bool
 import           Data.Foldable
 import           Data.Monoid
@@ -75,6 +76,21 @@ renderState font state = do
       renderText font defaultStyle (P $ V2 500 10)
           ("Money " <> tshow (state' ^. game_player_inventory . inventory_money)))
 
+  -- "Purchasing: <item>" label above the player tile when a purchase is queued
+  purchaseLabelEvt <- dynView (state <&> \gs ->
+    case gs ^. game_pending_purchase of
+      Nothing   -> pure Nothing
+      Just haul ->
+        case gs ^? game_board . traversed
+                  . filtered (has (tile_content . _Just . _Player))
+                  . tile_coordinate of
+          Nothing        -> pure Nothing
+          Just playerPos ->
+            let P (V2 px py) = axialToPixel playerPos
+            in Just <$> renderText font defaultStyle (P $ V2 px (py - 25))
+                          (describePurchase haul))
+  void $ image =<< holdDyn Nothing purchaseLabelEvt
+
 
 applyImage ::
   DynamicWriter t [Performable m ()] m
@@ -96,3 +112,7 @@ renderSelected font = (hexagon_color .~ V4 255 255 0 255)
                . (hexagon_is_filled .~ False)
                . (hexagon_label .~ Nothing)
                . renderHex font
+
+describePurchase :: Haul -> T.Text
+describePurchase haul =
+  "Purchasing " <> T.intercalate ", " (itemTypeDescription . si_type <$> toList (haulItems haul))
