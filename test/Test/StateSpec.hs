@@ -96,6 +96,23 @@ spec = do
     runEvt (LeftClick (MkAxial 2 3)) withPotion
       ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
 
+  it "UseItem with no unit selected does not consume the item" $ do
+    let item      = MkShopItem 4 ShopHealthPotion
+        noSel     = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+          & game_selected .~ Nothing
+    runEvt (UseItem item) noSel
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
+
+  it "UseItem on a non-player tile does not consume the item" $ do
+    let item        = MkShopItem 5 (ShopWeapon Sword)
+        enemyAxial  = MkAxial 4 5   -- enemy in initial layout
+        withWeapon2 = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+          & game_selected .~ Just enemyAxial
+    runEvt (UseItem item) withWeapon2
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
+
   it "starts closed" $
     initialState ^. game_inventory_open `shouldBe` False
 
