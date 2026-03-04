@@ -36,6 +36,7 @@ library
       Plunder.Render.Color
       Plunder.Render.Font
       Plunder.Render.Health
+      Plunder.Render.Help
       Plunder.Render.Hexagon
       Plunder.Render.Image
       Plunder.Render.Arrow
