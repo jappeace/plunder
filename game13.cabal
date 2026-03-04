@@ -153,6 +153,7 @@ test-suite unit
   other-modules:
       Test.HexagonSpec
       Test.Orphanage
+      Test.ReflexSpec
       Test.StateSpec
       Paths_game13
   hs-source-dirs:
@@ -187,6 +188,7 @@ test-suite unit
     , file-embed
     , game13
     , generic-lens
+    , dependent-sum
     , hspec
     , hspec-core
     , lens

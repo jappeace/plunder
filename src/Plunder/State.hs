@@ -238,7 +238,7 @@ data UpdateEvts = LeftClick Axial
                 | ResetGame -- ^ fired after the death/victory banner expires
                 | EndTurn   -- ^ execute all planned moves
                 | UseItem ShopItem
-                deriving Show
+                deriving (Show, Eq)
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
 applyAttack = \case

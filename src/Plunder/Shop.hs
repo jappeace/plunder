@@ -26,7 +26,7 @@ data Haul = MkHaul
 
 data ShopAction = MkBought Haul
                 | MkExited
-                deriving Show
+                deriving (Show, Eq)
 
 
 -- | user facing description
