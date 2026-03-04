@@ -24,6 +24,8 @@ This is a small breakdown of things I'll build next.
   - [x] Move on top of unit causes a combat.
   - [x] combat is rock paper scissers + dice?
 - [x] Add treasure to plunder (you burn down houses for plunder)
+- [x] Add message on deth
+- [x] Add turn resolution (que up moves, show moves queed, play them on turn pres)
 - [x] Add win condition
     - [x] Kill all oponents (temporary goal, can add other later, kill king, get loot etc)
 - [ ] Add shop for healing / buy weapons / hire mercs
@@ -32,11 +34,23 @@ This is a small breakdown of things I'll build next.
   - [x] Add purchase button
   - [x] What to do with inventory?
   - [x] What to do with buying a unit?
+  - [ ] buy weapon?
+       - [ ] switch weapon?
 - [ ] Add explenation of controls, it's not obious that you first need to left click
       select someone and then right click to move
-- [x] Add message on deth
-- [ ] Add turn resolution (que up moves, show moves queed, play them on turn pres)
+- [ ] create a level file format, preferably a standard one.
+- [ ] Better combat system
+  - [ ] attacking from 2 sides causes a flank
+  - [ ] bows should attack over 2 tiles and not cause move on death.
+  - [ ] axe/sword move onto kill on death.
+- [ ] click on payer show, name, life.
+- [ ] XP system?
+   - [ ] I guess the goal is to get attached to your guys
+- [ ] fog of war?
+  - [ ] probably should do some research on this.
 - [ ] AI ????
+  - [ ] line of sight 2 tiles
+  - [ ] if sees the player will mark it and start killing it
 - [ ] Set up shipping pipe line
 - [ ] ....
 - [ ] Make it more fun
