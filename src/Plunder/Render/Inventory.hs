@@ -25,7 +25,7 @@ renderInventory
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => MonadReader Renderer m
-  => Font -> Dynamic t Bool -> Dynamic t (Set ShopItem) -> m ()
+  => Font -> Dynamic t Bool -> Dynamic t (Set ShopItem) -> m (Event t ShopItem)
 renderInventory font isOpen items = do
   renderer <- ask
 
@@ -37,10 +37,12 @@ renderInventory font isOpen items = do
     <$> isOpen
 
   let itemListDyn = padTo maxSlots . Set.toList <$> items
-  forM_ [0 .. maxSlots - 1] $ \idx -> do
+  evts <- forM [0 .. maxSlots - 1] $ \idx -> do
     let slotDyn = (!! idx) <$> itemListDyn
-    void $ image =<< holdDyn Nothing =<<
+    clicks <- image =<< holdDyn Nothing =<<
       dynView (renderSlot font idx <$> isOpen <*> slotDyn)
+    pure $ fmapMaybe id $ current slotDyn <@ clicks
+  pure (leftmost evts)
 
 padTo :: Int -> [a] -> [Maybe a]
 padTo n xs =

@@ -8,6 +8,7 @@ module Plunder.Combat
   , defUnit
   , resolveCombat
   , unit_weapon
+  , unit_status
   , _Axe
   , _Bow
   , _Sword
@@ -19,6 +20,9 @@ module Plunder.Combat
   , res_left_unit
   , res_right_unit
   , weaponDescription
+  , StatusEffect(..)
+  , _DrinkingPotion
+  , _Healing
   )
 where
 
@@ -70,18 +74,25 @@ type Health = Int -- TODO change to something better
 isDead :: Health -> Bool
 isDead x = x <= 0
 
+data StatusEffect = DrinkingPotion
+                  | Healing Int
+  deriving (Show, Eq, Generic)
+
 data Unit = MkUnit
   { _unit_hp     :: Health
   , _unit_weapon :: Maybe Weapon
+  , _unit_status :: Maybe StatusEffect
   } deriving (Show, Eq, Generic)
 
 defUnit :: Unit
 defUnit = MkUnit
   { _unit_hp = 10
   , _unit_weapon = Nothing
+  , _unit_status = Nothing
   }
 makeLenses ''Unit
 makePrisms ''Weapon
+makePrisms ''StatusEffect
 
 applyDamage :: Int -> Maybe Weapon -> Maybe Weapon -> Health
 applyDamage rng applying defending=
@@ -117,9 +128,14 @@ resolveCombat leftunit rightunit = do
 instance Arbitrary Weapon where
   arbitrary = elements [minBound .. maxBound]
 
+instance Arbitrary StatusEffect where
+  arbitrary = oneof [pure DrinkingPotion, Healing <$> arbitrary]
+  shrink = genericShrink
+
 instance Arbitrary Unit where
   arbitrary = do
-    _unit_hp <- arbitrary
+    _unit_hp     <- arbitrary
     _unit_weapon <- arbitrary
+    _unit_status <- arbitrary
     pure $ MkUnit {..}
   shrink = genericShrink

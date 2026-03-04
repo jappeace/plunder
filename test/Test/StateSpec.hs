@@ -4,7 +4,7 @@ import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
-import           Plunder.Combat (Weapon(..), isDead, unit_hp)
+import           Plunder.Combat (Weapon(..), isDead, unit_hp, StatusEffect(..), unit_status, _DrinkingPotion, _Healing)
 import           Plunder.Grid
 import           Plunder.Shop
 import           Plunder.State
@@ -23,7 +23,7 @@ shopAxial :: Axial
 shopAxial = MkAxial 2 6
 
 shopTileContent :: ShopContent
-shopTileContent = MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) Nothing
+shopTileContent = MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) (Just (MkShopItem 5 (ShopWeapon Sword)))
 
 -- | A state where the player is on an adjacent tile and selected
 playerAdjacentToShop :: GameState
@@ -360,3 +360,44 @@ spec = do
 
   it "isDead is False for positive HP" $
     isDead 1 `shouldBe` False
+
+ describe "Health potion" $ do
+  let item        = MkShopItem 4 ShopHealthPotion
+      playerAxial = MkAxial 2 3
+      withPotion  = initialState
+        & game_player_inventory . inventroy_item .~ Set.singleton item
+        & game_selected .~ Just playerAxial
+
+  it "using a health potion removes it from inventory" $
+    runEvt (UseItem item) withPotion
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
+
+  it "using a health potion marks the player as DrinkingPotion" $
+    runEvt (UseItem item) withPotion
+      ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just DrinkingPotion
+
+  it "EndTurn after drinking applies first heal and transitions to Healing 4" $ do
+    let result = runEvt EndTurn $ runEvt (UseItem item) withPotion
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just (Healing 4)
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
+      `shouldBe` Just 20
+
+  it "Healing ticks down and heals each EndTurn" $ do
+    let healingState = initialState
+          & game_board . ix playerAxial . tile_content . _Just . _Player . unit_status ?~ Healing 3
+        result = runEvt EndTurn healingState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just (Healing 2)
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
+      `shouldBe` Just 20
+
+  it "Healing 0 is cleared on EndTurn without healing" $ do
+    let healingState = initialState
+          & game_board . ix playerAxial . tile_content . _Just . _Player . unit_status ?~ Healing 0
+        result = runEvt EndTurn healingState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status
+      `shouldBe` Just Nothing
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
+      `shouldBe` Just 10
