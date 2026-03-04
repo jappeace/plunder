@@ -96,22 +96,30 @@ spec = do
     runEvt (LeftClick (MkAxial 2 3)) withPotion
       ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
 
-  it "UseItem with no unit selected does not consume the item" $ do
-    let item      = MkShopItem 4 ShopHealthPotion
-        noSel     = initialState
+  it "UseItem with no selection falls back to first player on board" $ do
+    let item  = MkShopItem 4 ShopHealthPotion
+        noSel = initialState
           & game_player_inventory . inventroy_item .~ Set.singleton item
           & game_selected .~ Nothing
-    runEvt (UseItem item) noSel
-      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
+        result = runEvt (UseItem item) noSel
+    -- item is consumed even without a selection
+    result ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
+    -- and it was applied to the player
+    result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just DrinkingPotion
 
-  it "UseItem on a non-player tile does not consume the item" $ do
-    let item        = MkShopItem 5 (ShopWeapon Sword)
-        enemyAxial  = MkAxial 4 5   -- enemy in initial layout
-        withWeapon2 = initialState
+  it "UseItem with an enemy selected falls back to first player on board" $ do
+    let item       = MkShopItem 5 (ShopWeapon Sword)
+        enemyAxial = MkAxial 4 5
+        withEnemy  = initialState
           & game_player_inventory . inventroy_item .~ Set.singleton item
           & game_selected .~ Just enemyAxial
-    runEvt (UseItem item) withWeapon2
-      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
+        result = runEvt (UseItem item) withEnemy
+    -- sword equipped; old axe swapped back into inventory
+    result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_weapon . _Just
+      `shouldBe` Just Sword
+    result ^. game_player_inventory . inventroy_item
+      `shouldBe` Set.singleton (MkShopItem 0 (ShopWeapon Axe))
 
   it "starts closed" $
     initialState ^. game_inventory_open `shouldBe` False

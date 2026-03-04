@@ -366,22 +366,30 @@ applyPendingPurchase = do
     assign (game_player_inventory . inventory_money) $ haulNewMoney haul
     traverse_ (const spawnFriend) (Set.toList spawnableItems)
 
+-- | Resolve which player unit to apply an inventory item to.
+--   Prefers the currently selected Player; falls back to the first Player on
+--   the board so items work without requiring an explicit re-selection.
+itemTarget :: GameState -> Maybe Axial
+itemTarget gs = case gs ^. game_selected of
+  Just axial | has (game_board . ix axial . tile_content . _Just . _Player) gs -> Just axial
+  _          -> gs ^? game_board . traversed
+                        . filtered (has (tile_content . _Just . _Player))
+                        . tile_coordinate
+
 applyUseItem :: MonadState GameState m => ShopItem -> m ()
 applyUseItem item = do
-  mSel <- use game_selected
-  for_ mSel $ \axial -> do
-    mPlayer <- preuse (game_board . ix axial . tile_content . _Just . _Player)
-    for_ mPlayer $ \_ -> do
-      game_player_inventory . inventroy_item %= Set.delete item
-      case si_type item of
-        ShopHealthPotion ->
-          game_board . ix axial . tile_content . _Just . _Player . unit_status ?= DrinkingPotion
-        ShopWeapon newWeapon -> do
-          mOldWeapon <- preuse (game_board . ix axial . tile_content . _Just . _Player . unit_weapon . _Just)
-          game_board . ix axial . tile_content . _Just . _Player . unit_weapon .= Just newWeapon
-          for_ mOldWeapon $ \oldWeapon ->
-            game_player_inventory . inventroy_item %= Set.insert (MkShopItem 0 (ShopWeapon oldWeapon))
-        ShopUnit -> pure ()
+  gs <- use id
+  for_ (itemTarget gs) $ \axial -> do
+    game_player_inventory . inventroy_item %= Set.delete item
+    case si_type item of
+      ShopHealthPotion ->
+        game_board . ix axial . tile_content . _Just . _Player . unit_status ?= DrinkingPotion
+      ShopWeapon newWeapon -> do
+        mOldWeapon <- preuse (game_board . ix axial . tile_content . _Just . _Player . unit_weapon . _Just)
+        game_board . ix axial . tile_content . _Just . _Player . unit_weapon .= Just newWeapon
+        for_ mOldWeapon $ \oldWeapon ->
+          game_player_inventory . inventroy_item %= Set.insert (MkShopItem 0 (ShopWeapon oldWeapon))
+      ShopUnit -> pure ()
 
 tickStatus :: Unit -> Unit
 tickStatus unit = case unit ^. unit_status of
