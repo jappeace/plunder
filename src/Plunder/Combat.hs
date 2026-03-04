@@ -13,6 +13,7 @@ module Plunder.Combat
   , _Bow
   , _Sword
   , Health
+  , maxHealth
   , unit_hp
   , isDead
   , isTargetDead
@@ -70,6 +71,9 @@ getDmg (Just a) (Just b) = if
             | True         -> Medium
 
 type Health = Int -- TODO change to something better
+
+maxHealth :: Health
+maxHealth = 10
 
 isDead :: Health -> Bool
 isDead x = x <= 0

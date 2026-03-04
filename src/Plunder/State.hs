@@ -391,12 +391,15 @@ applyUseItem item = do
           game_player_inventory . inventroy_item %= Set.insert (MkShopItem 0 (ShopWeapon oldWeapon))
       ShopUnit -> pure ()
 
+heal :: Unit -> Unit
+heal unit = unit & unit_hp %~ min maxHealth . (+ 10)
+
 tickStatus :: Unit -> Unit
 tickStatus unit = case unit ^. unit_status of
   Nothing             -> unit
-  Just DrinkingPotion -> unit & unit_status .~ Just (Healing 4) & unit_hp +~ 10
+  Just DrinkingPotion -> heal unit & unit_status .~ Just (Healing 4)
   Just (Healing 0)    -> unit & unit_status .~ Nothing
-  Just (Healing n)    -> unit & unit_status .~ Just (Healing (n - 1)) & unit_hp +~ 10
+  Just (Healing n)    -> heal unit & unit_status .~ Just (Healing (n - 1))
 
 applyStatusEffects :: MonadState GameState m => m ()
 applyStatusEffects =

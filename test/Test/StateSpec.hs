@@ -417,17 +417,19 @@ spec = do
     let result = runEvt EndTurn $ runEvt (UseItem item) withPotion
     result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
       `shouldBe` Just (Healing 4)
+    -- player was already at maxHealth (10), healing is capped
     result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
-      `shouldBe` Just 20
+      `shouldBe` Just 10
 
   it "Healing ticks down and heals each EndTurn" $ do
     let healingState = initialState
+          & game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp .~ 5
           & game_board . ix playerAxial . tile_content . _Just . _Player . unit_status ?~ Healing 3
         result = runEvt EndTurn healingState
     result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
       `shouldBe` Just (Healing 2)
     result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
-      `shouldBe` Just 20
+      `shouldBe` Just 10
 
   it "Healing 0 is cleared on EndTurn without healing" $ do
     let healingState = initialState
