@@ -99,6 +99,7 @@ mkGameState shopActions inventoryActions = do
           keysymKeycode (keyboardEventKeysym kd) == KeycodeSpace
         ) keyboardEvt
       events = leftmost [ ShopUpdates <$> shopActions
+                        , UseItem <$> inventoryActions
                         , LeftClick <$> leftClickAxial
                         , RightClick <$> rightClickAxialEvt
                         , Redraw <$ windowSizeChangedEvt
@@ -107,7 +108,6 @@ mkGameState shopActions inventoryActions = do
                         , ResetGame <$ resetEvt
                         , EndTurn <$ endTurnEvt
                         , EndTurn <$ spaceEvt
-                        , UseItem <$> inventoryActions
                         ]
   performEvent_ $ ffor events $ liftIO . print
 
