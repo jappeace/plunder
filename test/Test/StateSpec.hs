@@ -85,6 +85,17 @@ spec = do
     friends `shouldSatisfy` all (`elem` neigbours playerAxial)
 
  describe "Inventory" $ do
+  -- Regression: inventory clicks fire both UseItem and LeftClick in the same
+  -- Reflex frame. leftmost must list UseItem first or LeftClick silently wins
+  -- and items are never consumed.  This test pins the invariant: LeftClick
+  -- must not touch the inventory.
+  it "LeftClick does not consume inventory items" $ do
+    let item       = MkShopItem 4 ShopHealthPotion
+        withPotion = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+    runEvt (LeftClick (MkAxial 2 3)) withPotion
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
+
   it "starts closed" $
     initialState ^. game_inventory_open `shouldBe` False
 
