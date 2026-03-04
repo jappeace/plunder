@@ -40,13 +40,13 @@ guest = mdo
   font <- defaultFont
   bannerFont <- bigFont
 
-  (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState shopEvt
+  (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState shopEvt inventoryClickEvt
   renderState font gameState
   shopEvt <- renderShop font
     (view game_shop <$> gameState)
     (view (game_player_inventory . inventory_money) <$> gameState)
     (isJust . findFreeAdjacent <$> gameState)
-  renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
+  inventoryClickEvt <- renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
   renderBanner bannerFont (view game_phase <$> gameState) alphaDyn winSizeDyn
   -- End Turn button: bottom-right corner, position tracks window size
   endTurnSurface <- allocateText font defaultStyle "[ End Turn ]"
@@ -63,8 +63,8 @@ makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
 makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
-mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
-mkGameState shopActions = do
+mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> Event t ShopItem -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
+mkGameState shopActions inventoryActions = do
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
   windowExposedEvt <- getWindowExposedEvent
@@ -99,6 +99,7 @@ mkGameState shopActions = do
           keysymKeycode (keyboardEventKeysym kd) == KeycodeSpace
         ) keyboardEvt
       events = leftmost [ ShopUpdates <$> shopActions
+                        , UseItem <$> inventoryActions
                         , LeftClick <$> leftClickAxial
                         , RightClick <$> rightClickAxialEvt
                         , Redraw <$ windowSizeChangedEvt

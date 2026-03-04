@@ -4,7 +4,7 @@ import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
-import           Plunder.Combat (Weapon(..), isDead, unit_hp)
+import           Plunder.Combat (Weapon(..), isDead, unit_hp, unit_weapon, StatusEffect(..), unit_status, _DrinkingPotion, _Healing)
 import           Plunder.Grid
 import           Plunder.Shop
 import           Plunder.State
@@ -23,7 +23,7 @@ shopAxial :: Axial
 shopAxial = MkAxial 2 6
 
 shopTileContent :: ShopContent
-shopTileContent = MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) Nothing
+shopTileContent = MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) (Just (MkShopItem 5 (ShopWeapon Sword)))
 
 -- | A state where the player is on an adjacent tile and selected
 playerAdjacentToShop :: GameState
@@ -85,6 +85,42 @@ spec = do
     friends `shouldSatisfy` all (`elem` neigbours playerAxial)
 
  describe "Inventory" $ do
+  -- Regression: inventory clicks fire both UseItem and LeftClick in the same
+  -- Reflex frame. leftmost must list UseItem first or LeftClick silently wins
+  -- and items are never consumed.  This test pins the invariant: LeftClick
+  -- must not touch the inventory.
+  it "LeftClick does not consume inventory items" $ do
+    let item       = MkShopItem 4 ShopHealthPotion
+        withPotion = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+    runEvt (LeftClick (MkAxial 2 3)) withPotion
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton item
+
+  it "UseItem with no selection falls back to first player on board" $ do
+    let item  = MkShopItem 4 ShopHealthPotion
+        noSel = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+          & game_selected .~ Nothing
+        result = runEvt (UseItem item) noSel
+    -- item is consumed even without a selection
+    result ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
+    -- and it was applied to the player
+    result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just DrinkingPotion
+
+  it "UseItem with an enemy selected falls back to first player on board" $ do
+    let item       = MkShopItem 5 (ShopWeapon Sword)
+        enemyAxial = MkAxial 4 5
+        withEnemy  = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+          & game_selected .~ Just enemyAxial
+        result = runEvt (UseItem item) withEnemy
+    -- sword equipped; old axe swapped back into inventory
+    result ^? game_board . ix (MkAxial 2 3) . tile_content . _Just . _Player . unit_weapon . _Just
+      `shouldBe` Just Sword
+    result ^. game_player_inventory . inventroy_item
+      `shouldBe` Set.singleton (MkShopItem 0 (ShopWeapon Axe))
+
   it "starts closed" $
     initialState ^. game_inventory_open `shouldBe` False
 
@@ -360,3 +396,89 @@ spec = do
 
   it "isDead is False for positive HP" $
     isDead 1 `shouldBe` False
+
+ describe "Health potion" $ do
+  let item        = MkShopItem 4 ShopHealthPotion
+      playerAxial = MkAxial 2 3
+      withPotion  = initialState
+        & game_player_inventory . inventroy_item .~ Set.singleton item
+        & game_selected .~ Just playerAxial
+
+  it "using a health potion removes it from inventory" $
+    runEvt (UseItem item) withPotion
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
+
+  it "using a health potion marks the player as DrinkingPotion" $
+    runEvt (UseItem item) withPotion
+      ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just DrinkingPotion
+
+  it "EndTurn after drinking applies first heal and transitions to Healing 4" $ do
+    let result = runEvt EndTurn $ runEvt (UseItem item) withPotion
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just (Healing 4)
+    -- player was already at maxHealth (10), healing is capped
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
+      `shouldBe` Just 10
+
+  it "Healing ticks down and heals each EndTurn" $ do
+    let healingState = initialState
+          & game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp .~ 5
+          & game_board . ix playerAxial . tile_content . _Just . _Player . unit_status ?~ Healing 3
+        result = runEvt EndTurn healingState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just (Healing 2)
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
+      `shouldBe` Just 6
+
+  it "Healing 0 is cleared on EndTurn without healing" $ do
+    let healingState = initialState
+          & game_board . ix playerAxial . tile_content . _Just . _Player . unit_status ?~ Healing 0
+        result = runEvt EndTurn healingState
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status
+      `shouldBe` Just Nothing
+    result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
+      `shouldBe` Just 10
+
+  it "health potion applies to the selected friend" $ do
+    let potionItem  = MkShopItem 4 ShopHealthPotion
+        friendAxial = MkAxial 1 3
+        friendState = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton potionItem
+          & game_board . ix friendAxial . tile_content ?~ Player defUnit
+          & game_selected .~ Just friendAxial
+    runEvt (UseItem potionItem) friendState
+      ^? game_board . ix friendAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just DrinkingPotion
+
+ describe "Weapon equip" $ do
+  let weaponItem  = MkShopItem 5 (ShopWeapon Sword)
+      playerAxial = MkAxial 2 3
+      friendAxial = MkAxial 1 3
+      -- player at playerAxial starts with Axe equipped (from level)
+      withWeapon  = initialState
+        & game_player_inventory . inventroy_item .~ Set.singleton weaponItem
+        & game_selected .~ Just playerAxial
+
+  it "using a weapon removes it from inventory" $
+    runEvt (UseItem weaponItem) withWeapon
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton (MkShopItem 0 (ShopWeapon Axe))
+
+  it "using a weapon equips it on the selected player" $
+    runEvt (UseItem weaponItem) withWeapon
+      ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_weapon . _Just
+      `shouldBe` Just Sword
+
+  it "using a weapon swaps the previously equipped weapon back into inventory" $ do
+    let result = runEvt (UseItem weaponItem) withWeapon
+    result ^. game_player_inventory . inventroy_item
+      `shouldBe` Set.singleton (MkShopItem 0 (ShopWeapon Axe))
+
+  it "equipping a weapon on a friend with no weapon leaves inventory empty" $ do
+    let friendState = withWeapon
+          & game_board . ix friendAxial . tile_content ?~ Player defUnit
+          & game_selected .~ Just friendAxial
+        result = runEvt (UseItem weaponItem) friendState
+    result ^? game_board . ix friendAxial . tile_content . _Just . _Player . unit_weapon . _Just
+      `shouldBe` Just Sword
+    result ^. game_player_inventory . inventroy_item `shouldBe` Set.empty

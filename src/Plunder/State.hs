@@ -91,7 +91,7 @@ level :: Endo Grid
 level = fold $ Endo <$>
   [ at (MkAxial 2 3) . _Just . tile_content ?~ Player (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 3 3) . _Just . tile_content ?~ House defUnit
-  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) Nothing)
+  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) (Just (MkShopItem 5 (ShopWeapon Sword))))
   , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Axe $ defUnit)
   , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Bow $ defUnit)
   , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Sword $ defUnit)
@@ -237,7 +237,8 @@ data UpdateEvts = LeftClick Axial
                 | ToggleInventory
                 | ResetGame -- ^ fired after the death/victory banner expires
                 | EndTurn   -- ^ execute all planned moves
-                deriving Show
+                | UseItem ShopItem
+                deriving (Show, Eq)
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
 applyAttack = \case
@@ -295,8 +296,10 @@ updateLogic = \case
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
   ResetGame -> put initialState
+  UseItem item -> applyUseItem item
   EndTurn -> do
     applyPendingPurchase
+    applyStatusEffects
     plans <- use game_planned_moves
     game_planned_moves .= Map.empty
     for_ (Map.toList plans) $ \(src, dst) -> do
@@ -362,6 +365,48 @@ applyPendingPurchase = do
     game_player_inventory . inventroy_item <>= carryableItems
     assign (game_player_inventory . inventory_money) $ haulNewMoney haul
     traverse_ (const spawnFriend) (Set.toList spawnableItems)
+
+-- | Resolve which player unit to apply an inventory item to.
+--   Prefers the currently selected Player; falls back to the first Player on
+--   the board so items work without requiring an explicit re-selection.
+itemTarget :: GameState -> Maybe Axial
+itemTarget gs = case gs ^. game_selected of
+  Just axial | has (game_board . ix axial . tile_content . _Just . _Player) gs -> Just axial
+  _          -> gs ^? game_board . traversed
+                        . filtered (has (tile_content . _Just . _Player))
+                        . tile_coordinate
+
+applyUseItem :: MonadState GameState m => ShopItem -> m ()
+applyUseItem item = do
+  gs <- use id
+  for_ (itemTarget gs) $ \axial -> do
+    game_player_inventory . inventroy_item %= Set.delete item
+    case si_type item of
+      ShopHealthPotion ->
+        game_board . ix axial . tile_content . _Just . _Player . unit_status ?= DrinkingPotion
+      ShopWeapon newWeapon -> do
+        mOldWeapon <- preuse (game_board . ix axial . tile_content . _Just . _Player . unit_weapon . _Just)
+        game_board . ix axial . tile_content . _Just . _Player . unit_weapon .= Just newWeapon
+        for_ mOldWeapon $ \oldWeapon ->
+          game_player_inventory . inventroy_item %= Set.insert (MkShopItem 0 (ShopWeapon oldWeapon))
+      ShopUnit -> pure ()
+
+healAmount :: Health
+healAmount = maxHealth `div` 10
+
+heal :: Unit -> Unit
+heal unit = unit & unit_hp %~ min maxHealth . (+ healAmount)
+
+tickStatus :: Unit -> Unit
+tickStatus unit = case unit ^. unit_status of
+  Nothing             -> unit
+  Just DrinkingPotion -> heal unit & unit_status .~ Just (Healing 4)
+  Just (Healing 0)    -> unit & unit_status .~ Nothing
+  Just (Healing n)    -> heal unit & unit_status .~ Just (Healing (n - 1))
+
+applyStatusEffects :: MonadState GameState m => m ()
+applyStatusEffects =
+  game_board . traversed . tile_content . _Just . _Player %= tickStatus
 
 -- | Remove any Player unit whose HP has reached zero, leaving a blood splash
 --   in their place.  Runs before checkPlayerLives so the lose check is simply

@@ -27,7 +27,7 @@ barHeight :: Num a => a
 barHeight = 6
 
 maxHealth :: Combat.Health
-maxHealth = 10
+maxHealth = Combat.maxHealth
 
 pixelsPerHealth :: Num a => a
 pixelsPerHealth = 12
