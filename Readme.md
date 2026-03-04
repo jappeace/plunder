@@ -39,18 +39,20 @@ This is a small breakdown of things I'll build next.
 - [ ] Add explenation of controls, it's not obious that you first need to left click
       select someone and then right click to move
 - [ ] create a level file format, preferably a standard one.
+  - [ ] should do some research on this
+- [ ] fog of war.
+   - [ ] prevent overwhelming player with tmi
+   - [ ] makes exploration more interesting.
+- [ ] click on payer show, name, life.
+- [ ] XP system?
+   - [ ] I guess the goal is to get attached to your guys
+- [ ] AI ????
+  - [ ] line of sight 2 tiles
+  - [ ] if sees the player will mark it and start killing it
 - [ ] Better combat system
   - [ ] attacking from 2 sides causes a flank
   - [ ] bows should attack over 2 tiles and not cause move on death.
   - [ ] axe/sword move onto kill on death.
-- [ ] click on payer show, name, life.
-- [ ] XP system?
-   - [ ] I guess the goal is to get attached to your guys
-- [ ] fog of war?
-  - [ ] probably should do some research on this.
-- [ ] AI ????
-  - [ ] line of sight 2 tiles
-  - [ ] if sees the player will mark it and start killing it
 - [ ] Set up shipping pipe line
 - [ ] ....
 - [ ] Make it more fun
