@@ -374,8 +374,14 @@ applyUseItem item = do
       mSel <- use game_selected
       for_ mSel $ \axial ->
         game_board . ix axial . tile_content . _Just . _Player . unit_status ?= DrinkingPotion
-    ShopWeapon _ -> pure ()
-    ShopUnit     -> pure ()
+    ShopWeapon newWeapon -> do
+      mSel <- use game_selected
+      for_ mSel $ \axial -> do
+        mOldWeapon <- preuse (game_board . ix axial . tile_content . _Just . _Player . unit_weapon . _Just)
+        game_board . ix axial . tile_content . _Just . _Player . unit_weapon .= Just newWeapon
+        for_ mOldWeapon $ \oldWeapon ->
+          game_player_inventory . inventroy_item %= Set.insert (MkShopItem 0 (ShopWeapon oldWeapon))
+    ShopUnit -> pure ()
 
 tickStatus :: Unit -> Unit
 tickStatus unit = case unit ^. unit_status of

@@ -4,7 +4,7 @@ import           Control.Lens
 import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
-import           Plunder.Combat (Weapon(..), isDead, unit_hp, StatusEffect(..), unit_status, _DrinkingPotion, _Healing)
+import           Plunder.Combat (Weapon(..), isDead, unit_hp, unit_weapon, StatusEffect(..), unit_status, _DrinkingPotion, _Healing)
 import           Plunder.Grid
 import           Plunder.Shop
 import           Plunder.State
@@ -401,3 +401,46 @@ spec = do
       `shouldBe` Just Nothing
     result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
       `shouldBe` Just 10
+
+  it "health potion applies to the selected friend" $ do
+    let potionItem  = MkShopItem 4 ShopHealthPotion
+        friendAxial = MkAxial 1 3
+        friendState = initialState
+          & game_player_inventory . inventroy_item .~ Set.singleton potionItem
+          & game_board . ix friendAxial . tile_content ?~ Player defUnit
+          & game_selected .~ Just friendAxial
+    runEvt (UseItem potionItem) friendState
+      ^? game_board . ix friendAxial . tile_content . _Just . _Player . unit_status . _Just
+      `shouldBe` Just DrinkingPotion
+
+ describe "Weapon equip" $ do
+  let weaponItem  = MkShopItem 5 (ShopWeapon Sword)
+      playerAxial = MkAxial 2 3
+      friendAxial = MkAxial 1 3
+      -- player at playerAxial starts with Axe equipped (from level)
+      withWeapon  = initialState
+        & game_player_inventory . inventroy_item .~ Set.singleton weaponItem
+        & game_selected .~ Just playerAxial
+
+  it "using a weapon removes it from inventory" $
+    runEvt (UseItem weaponItem) withWeapon
+      ^. game_player_inventory . inventroy_item `shouldBe` Set.singleton (MkShopItem 0 (ShopWeapon Axe))
+
+  it "using a weapon equips it on the selected player" $
+    runEvt (UseItem weaponItem) withWeapon
+      ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_weapon . _Just
+      `shouldBe` Just Sword
+
+  it "using a weapon swaps the previously equipped weapon back into inventory" $ do
+    let result = runEvt (UseItem weaponItem) withWeapon
+    result ^. game_player_inventory . inventroy_item
+      `shouldBe` Set.singleton (MkShopItem 0 (ShopWeapon Axe))
+
+  it "equipping a weapon on a friend with no weapon leaves inventory empty" $ do
+    let friendState = withWeapon
+          & game_board . ix friendAxial . tile_content ?~ Player defUnit
+          & game_selected .~ Just friendAxial
+        result = runEvt (UseItem weaponItem) friendState
+    result ^? game_board . ix friendAxial . tile_content . _Just . _Player . unit_weapon . _Just
+      `shouldBe` Just Sword
+    result ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
