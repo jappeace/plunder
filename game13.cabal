@@ -154,7 +154,6 @@ test-suite unit
       Test.HexagonSpec
       Test.Orphanage
       Test.StateSpec
-      Test.TestSpec
       Paths_game13
   hs-source-dirs:
       test

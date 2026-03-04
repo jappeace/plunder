@@ -25,7 +25,6 @@ spec = do
 
   describe "neighbor function" $ do
     it "should never generate more then 6" $ property $ \x -> length (neigbours x) <= 6
-    it "should be bigger or equal to zero" $ property $ \x -> length (neigbours x) >= 0
     it "diff should be no bigger then one" $ property tileDiffNoBiggerThenOne
     it "neighbors should be in grid " $ property niegBourInGrid
     it "1,1 always has 6 neighbors" $ length (neigbours (MkAxial 1 1)) `shouldBe` 6
