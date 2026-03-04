@@ -23,6 +23,7 @@ import Plunder.Render.Font(defaultFont, bigFont)
 import Plunder.Render.Shop
 import Plunder.Render.Inventory
 import Plunder.Render.Banner
+import Plunder.Render.Help
 import Plunder.Render.Text (defaultStyle, surfaceToSettings, allocateText, textSurfaceSize)
 import Plunder.Render.Image (image)
 import Data.Maybe (isJust)
@@ -39,6 +40,11 @@ guest = mdo
 
   font <- defaultFont
   bannerFont <- bigFont
+
+  anyMouseEvt <- getMouseButtonEvent
+  anyKeyEvt   <- getKeyboardEvent
+  helpOpenDyn <- holdDyn True $ False <$ leftmost [() <$ anyMouseEvt, () <$ anyKeyEvt]
+  renderHelp font helpOpenDyn
 
   (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState shopEvt inventoryClickEvt
   renderState font gameState
