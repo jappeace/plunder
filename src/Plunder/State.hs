@@ -391,8 +391,11 @@ applyUseItem item = do
           game_player_inventory . inventroy_item %= Set.insert (MkShopItem 0 (ShopWeapon oldWeapon))
       ShopUnit -> pure ()
 
+healAmount :: Health
+healAmount = maxHealth `div` 10
+
 heal :: Unit -> Unit
-heal unit = unit & unit_hp %~ min maxHealth . (+ 10)
+heal unit = unit & unit_hp %~ min maxHealth . (+ healAmount)
 
 tickStatus :: Unit -> Unit
 tickStatus unit = case unit ^. unit_status of

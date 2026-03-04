@@ -429,7 +429,7 @@ spec = do
     result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_status . _Just
       `shouldBe` Just (Healing 2)
     result ^? game_board . ix playerAxial . tile_content . _Just . _Player . unit_hp
-      `shouldBe` Just 10
+      `shouldBe` Just 6
 
   it "Healing 0 is cleared on EndTurn without healing" $ do
     let healingState = initialState
