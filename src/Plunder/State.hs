@@ -347,7 +347,9 @@ countLoot plan res =
 
 -- | If a Player is selected, compute a BFS path to @towards@ (or return an
 --   empty path when @towards == selectedAxial@ to signal cancellation).
---   Shops are excluded because they are handled immediately on right-click.
+--   Adjacent shops are handled immediately by the RightClick handler before
+--   this function is reached; distant shops are pathable so the player walks
+--   toward them (the final step onto the shop is skipped by executePlannedMove).
 planPlayerMove :: GameState -> Axial -> Maybe (Axial, [Axial])
 planPlayerMove state' towards = do
   selectedAxial <- state' ^. game_selected
@@ -355,8 +357,6 @@ planPlayerMove state' towards = do
   if towards == selectedAxial
     then pure (selectedAxial, [])
     else do
-      let isShopTile = has (game_board . ix towards . tile_content . _Just . _Shop) state'
-      guard (not isShopTile)
       path <- findPath (state' ^. game_board) selectedAxial towards
       guard (not (null path))
       pure (selectedAxial, path)
