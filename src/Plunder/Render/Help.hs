@@ -5,6 +5,7 @@ module Plunder.Render.Help(renderHelp) where
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import           Data.List            (foldl')
 import           Data.Text            (Text)
 import           Foreign.C.Types      (CInt)
 import           Plunder.Render.Color
@@ -17,18 +18,24 @@ import           Reflex.SDL2
 
 data LineStyle = Header | Body | Dim
 
-helpLines :: [(Text, LineStyle)]
+data HelpLine
+  = HelpHeader Text
+  | HelpRow Text Text          -- ^ key, description
+  | HelpSpacer
+  | HelpFooter Text
+
+helpLines :: [HelpLine]
 helpLines =
-  [ ("Controls",                          Header)
-  , (" ",                                 Body)
-  , ("Left click   select unit",          Body)
-  , ("Right click  plan move / attack",   Body)
-  , ("Right click  open nearby shop",     Body)
-  , ("Space        end turn",             Body)
-  , ("I            toggle inventory",     Body)
-  , ("Click item   use from inventory",   Body)
-  , (" ",                                 Body)
-  , ("Press Enter or click OK to start",  Dim)
+  [ HelpHeader "Controls"
+  , HelpSpacer
+  , HelpRow "Left click"  "select unit"
+  , HelpRow "Right click" "plan move / attack"
+  , HelpRow "Right click" "open nearby shop"
+  , HelpRow "Space"       "end turn"
+  , HelpRow "I"           "toggle inventory"
+  , HelpRow "Click item"  "use from inventory"
+  , HelpSpacer
+  , HelpFooter "Press Enter or click OK to start"
   ]
 
 toStyle :: LineStyle -> Style
@@ -51,6 +58,33 @@ textPadX = 14
 textPadY :: CInt
 textPadY = 14
 
+-- | A rendered help line, ready to blit.
+data RenderedLine
+  = RenderedSingle TextSurface LineStyle
+  | RenderedPair   TextSurface TextSurface  -- ^ key surface, description surface
+  | RenderedBlank
+
+allocateLine
+  :: (ReflexSDL2 t m, MonadReader Renderer m)
+  => Font -> HelpLine -> m RenderedLine
+allocateLine font (HelpHeader t) = RenderedSingle <$> allocateText font (toStyle Header) t <*> pure Header
+allocateLine font (HelpRow k d)  = RenderedPair <$> allocateText font (toStyle Body) k
+                                                <*> allocateText font (toStyle Body) d
+allocateLine _    HelpSpacer     = pure RenderedBlank
+allocateLine font (HelpFooter t) = RenderedSingle <$> allocateText font (toStyle Dim) t <*> pure Dim
+
+-- | Column gap between key and description columns.
+colGap :: CInt
+colGap = 16
+
+-- | Compute the width of the key column (widest key surface).
+keyColumnWidth :: [RenderedLine] -> CInt
+keyColumnWidth = foldl' maxKey 0
+  where
+    maxKey acc (RenderedPair keySurf _) = max acc (let V2 w _ = textSurfaceSize keySurf in w)
+    maxKey acc (RenderedSingle _ _)     = acc
+    maxKey acc RenderedBlank            = acc
+
 -- | Render the help overlay.  Returns an event that fires when the OK
 --   button inside the overlay is clicked.
 renderHelp
@@ -60,9 +94,11 @@ renderHelp
   => Font -> Dynamic t Bool -> Dynamic t (V2 CInt) -> m (Event t ())
 renderHelp font isOpen winSizeDyn = do
   renderer <- ask
-  surfaces <- forM helpLines $ \(text, ls) -> allocateText font (toStyle ls) text
+  rendered <- forM helpLines $ allocateLine font
   okSurface <- allocateText font (toStyle Body) "[ OK ]"
   let V2 okW okH = textSurfaceSize okSurface
+      keyColW    = keyColumnWidth rendered
+      descX      = textPadX + keyColW + colGap
       combined   = (,) <$> isOpen <*> winSizeDyn
       okImgDyn   = ffor combined $ \(open, V2 w h) ->
         if open
@@ -80,8 +116,15 @@ renderHelp font isOpen winSizeDyn = do
     fillRect renderer $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
     setDrawColor renderer (V4 0 0 0 255)
     drawRect renderer $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
-    forM_ (zip [(0 :: Int) ..] surfaces) $ \(idx, surf) ->
-      let img = surfaceToSettings surf (P $ V2 textX (textY idx))
-      in  copy renderer (_image_content img) Nothing (Just $ img ^. image_position)
+    forM_ (zip [(0 :: Int) ..] rendered) $ \(idx, rl) -> case rl of
+      RenderedSingle surf _ -> do
+        let img = surfaceToSettings surf (P $ V2 textX (textY idx))
+        copy renderer (_image_content img) Nothing (Just $ img ^. image_position)
+      RenderedPair keySurf descSurf -> do
+        let kImg = surfaceToSettings keySurf (P $ V2 textX (textY idx))
+            dImg = surfaceToSettings descSurf (P $ V2 (bgX + descX) (textY idx))
+        copy renderer (_image_content kImg) Nothing (Just $ kImg ^. image_position)
+        copy renderer (_image_content dImg) Nothing (Just $ dImg ^. image_position)
+      RenderedBlank -> pure ()
   okClicks <- image okImgDyn
   pure (() <$ okClicks)
