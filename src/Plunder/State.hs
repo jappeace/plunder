@@ -41,7 +41,6 @@ module Plunder.State(GameState(..)
 import qualified Control.Monad.State.Class as SC
 import           Plunder.Combat
 import           Plunder.Level
-import           Control.Applicative
 import           Control.Lens hiding (Level)
 import           Control.Monad
 import           Control.Monad.Random.Class
@@ -55,6 +54,7 @@ import           Data.Word
 import           Debug.Trace
 import           GHC.Generics                    (Generic)
 import           Plunder.Grid
+import           Plunder.Pathfinding
 import           System.Random
 import           Text.Printf
 import Plunder.Shop
@@ -62,7 +62,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Set(Set)
-import Data.Maybe(listToMaybe, isJust, mapMaybe)
+import Data.Maybe(listToMaybe, mapMaybe, catMaybes)
 
 data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
@@ -83,7 +83,7 @@ data GameState = MkGameState
   , _game_shop              :: Maybe ShopContent -- If just we're at the shopping screen
   , _game_inventory_open    :: Bool
   , _game_phase             :: GamePhase
-  , _game_planned_moves     :: Map Axial Axial   -- ^ from -> to: queued player moves
+  , _game_planned_moves     :: Map Axial [Axial]  -- ^ from -> path (excluding src): queued player moves
   , _game_pending_purchase  :: Maybe Haul        -- ^ purchase queued, applied on EndTurn
   , _game_explored          :: Set Axial         -- ^ tiles that have been within visibility range
   } deriving (Show)
@@ -345,18 +345,21 @@ countLoot plan res =
    when (has (_MkAttack . attack_to . _House) plan) $
          game_player_inventory . inventory_money += 10
 
--- | If a Player is selected, allow planning a move or attack to an adjacent
---   tile (or to the unit's own tile to cancel).  Shops are excluded because
---   they are handled immediately on right-click.
-planPlayerMove :: GameState -> Axial -> Maybe (Axial, Axial)
+-- | If a Player is selected, compute a BFS path to @towards@ (or return an
+--   empty path when @towards == selectedAxial@ to signal cancellation).
+--   Shops are excluded because they are handled immediately on right-click.
+planPlayerMove :: GameState -> Axial -> Maybe (Axial, [Axial])
 planPlayerMove state' towards = do
   selectedAxial <- state' ^. game_selected
   _player :: Unit <- state' ^? game_board . ix selectedAxial . tile_content . _Just . _Player
-  let isShopTile = has (game_board . ix towards . tile_content . _Just . _Shop) state'
-      canTarget  = isJust (isAttack state' towards) || isMove state' towards
-  guard $ towards == selectedAxial
-       || (towards `elem` neigbours selectedAxial && not isShopTile && canTarget)
-  pure (selectedAxial, towards)
+  if towards == selectedAxial
+    then pure (selectedAxial, [])
+    else do
+      let isShopTile = has (game_board . ix towards . tile_content . _Just . _Shop) state'
+      guard (not isShopTile)
+      path <- findPath (state' ^. game_board) selectedAxial towards
+      guard (not (null path))
+      pure (selectedAxial, path)
 
 -- | Re-derive a walk or attack action at execution time so that plans that
 --   became invalid are silently skipped.
@@ -386,12 +389,21 @@ updateLogic resetTo = \case
     applyStatusEffects
     plans <- use game_planned_moves
     game_planned_moves .= Map.empty
-    for_ (Map.toList plans) $ \(src, dst) -> do
-      gs <- use id
-      for_ (executePlannedMove gs src dst) $ \plan -> do
-        mCombatRes <- applyAttack plan
-        traverse_ (countLoot plan) mCombatRes
-        modifying game_board (figureOutMove mCombatRes plan)
+    survivors <- fmap (Map.fromList . catMaybes) $ forM (Map.toList plans) $ \(src, path) ->
+      case path of
+        []         -> pure Nothing   -- empty path, nothing to do
+        (dst:rest) -> do
+          gs <- use id
+          case executePlannedMove gs src dst of
+            Nothing   -> pure Nothing   -- invalid step, discard entire path
+            Just plan -> do
+              mCombatRes <- applyAttack plan
+              traverse_ (countLoot plan) mCombatRes
+              modifying game_board (figureOutMove mCombatRes plan)
+              case plan of
+                MkWalk _  | not (null rest) -> pure (Just (dst, rest))
+                _                           -> pure Nothing
+    game_planned_moves .= survivors
     game_selected .= Nothing
     updateExplored
   RightClick towards -> do
@@ -405,11 +417,11 @@ updateLogic resetTo = \case
         modifying game_board (figureOutMove mCombatRes plan)
         traverse_ applyShop (plan ^? _OpenShop)
       Nothing ->
-        for_ (planPlayerMove currentState towards) $ \(src, dst) ->
-          if src == dst
+        for_ (planPlayerMove currentState towards) $ \(src, path) ->
+          if null path
             then game_planned_moves . at src .= Nothing       -- cancel move, keep purchase
             else do
-              game_planned_moves . at src ?= dst              -- plan or overwrite
+              game_planned_moves . at src ?= path             -- plan or overwrite
               game_pending_purchase .= Nothing                -- moving cancels purchase
 
 applyShop :: MonadState GameState m => ShopContent -> m ()

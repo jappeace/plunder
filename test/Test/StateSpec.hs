@@ -242,7 +242,7 @@ spec = do
 
   it "Land tiles remain plannable" $ do
     let result = runEvt (RightClick adjAxial) selectedState
-    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial adjAxial
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial [adjAxial]
 
  describe "Turn-based movement" $ do
   -- Player starts at MkAxial 2 3; MkAxial 2 4 is an adjacent empty tile.
@@ -257,13 +257,13 @@ spec = do
 
   it "right-clicking an adjacent empty tile records a planned move" $ do
     let result = runEvt (RightClick destAxial) selectedState
-    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial destAxial
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial [destAxial]
 
   it "right-clicking a different adjacent tile overwrites the plan" $ do
     let altDest = MkAxial 1 3
         result  = runEvt (RightClick altDest)
                 $ runEvt (RightClick destAxial) selectedState
-    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial altDest
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial [altDest]
 
   it "right-clicking the unit's own tile cancels the plan" $ do
     let result = runEvt (RightClick playerAxial)
@@ -293,12 +293,88 @@ spec = do
         stateTwo = selectedState
           & game_board . ix player2Axial . tile_content ?~ Player defUnit
           & game_planned_moves .~ Map.fromList
-              [ (playerAxial, destAxial)
-              , (player2Axial, destAxial)
+              [ (playerAxial, [destAxial])
+              , (player2Axial, [destAxial])
               ]
         result = runEvt EndTurn stateTwo
         players = result ^.. game_board . traversed . tile_content . _Just . _Player
     length players `shouldBe` 2
+
+ describe "Multi-tile pathfinding" $ do
+  let playerAxial = MkAxial 2 3
+      selectedState = initialState & game_selected .~ Just playerAxial
+
+  it "right-clicking 2 tiles away records a multi-step path" $ do
+    -- MkAxial 2 5 is 2 steps from player at MkAxial 2 3 via MkAxial 2 4
+    let result = runEvt (RightClick (MkAxial 2 5)) selectedState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial [MkAxial 2 4, MkAxial 2 5]
+
+  it "EndTurn executes one step and keeps the remainder" $ do
+    let afterPlan = runEvt (RightClick (MkAxial 2 5)) selectedState
+        afterTurn = runEvt EndTurn afterPlan
+    -- Player moved to MkAxial 2 4 (first step)
+    afterTurn ^? game_board . ix (MkAxial 2 4) . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+    -- Original tile cleared
+    afterTurn ^? game_board . ix playerAxial . tile_content . _Just . _Player
+      `shouldBe` Nothing
+    -- Remaining path is re-keyed from MkAxial 2 4
+    afterTurn ^. game_planned_moves `shouldBe` Map.singleton (MkAxial 2 4) [MkAxial 2 5]
+
+  it "second EndTurn completes the path" $ do
+    let afterPlan  = runEvt (RightClick (MkAxial 2 5)) selectedState
+        afterTurn1 = runEvt EndTurn afterPlan
+        afterTurn2 = runEvt EndTurn afterTurn1
+    afterTurn2 ^? game_board . ix (MkAxial 2 5) . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+    afterTurn2 ^. game_planned_moves `shouldBe` Map.empty
+
+  it "blocked intermediate tile forces alternate route" $ do
+    -- Place an enemy on MkAxial 2 4; BFS can still route around it
+    let blockedState = selectedState
+          & game_board . ix (MkAxial 2 4) . tile_content ?~ Enemy defUnit
+        result = runEvt (RightClick (MkAxial 2 5)) blockedState
+    -- Path exists but doesn't go through (2,4)
+    result ^. game_planned_moves `shouldSatisfy` \m ->
+      case Map.lookup playerAxial m of
+        Just path -> MkAxial 2 4 `notElem` path && last path == MkAxial 2 5
+        Nothing   -> False
+
+  it "attack at end of multi-tile path stops movement" $ do
+    -- Place weak enemy at MkAxial 2 5 (2 steps away), path: [2 4, 2 5]
+    let withEnemy = selectedState
+          & game_board . ix (MkAxial 2 5) . tile_content ?~ Enemy (unit_hp .~ 1 $ defUnit)
+        afterPlan = runEvt (RightClick (MkAxial 2 5)) withEnemy
+        afterTurn1 = runEvt EndTurn afterPlan
+    -- First turn: walks to MkAxial 2 4, rest is [MkAxial 2 5]
+    afterTurn1 ^? game_board . ix (MkAxial 2 4) . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+    -- Second turn: attacks enemy, path should be fully consumed
+    let afterTurn2 = runEvt EndTurn afterTurn1
+    afterTurn2 ^. game_planned_moves `shouldBe` Map.empty
+
+  it "Water surrounding destination blocks pathfinding" $ do
+    -- Surround MkAxial 2 5 with Water so no path exists
+    let waterState = selectedState
+          & game_board . ix (MkAxial 2 4) . tile_terrain .~ Water
+          & game_board . ix (MkAxial 1 5) . tile_terrain .~ Water
+          & game_board . ix (MkAxial 3 4) . tile_terrain .~ Water
+          & game_board . ix (MkAxial 1 6) . tile_terrain .~ Water
+          & game_board . ix (MkAxial 3 5) . tile_terrain .~ Water
+          & game_board . ix (MkAxial 2 6) . tile_terrain .~ Water
+        result = runEvt (RightClick (MkAxial 2 5)) waterState
+    result ^. game_planned_moves `shouldBe` Map.empty
+
+  it "Mountains surrounding destination block pathfinding" $ do
+    let mtnState = selectedState
+          & game_board . ix (MkAxial 2 4) . tile_terrain .~ Mountains
+          & game_board . ix (MkAxial 1 5) . tile_terrain .~ Mountains
+          & game_board . ix (MkAxial 3 4) . tile_terrain .~ Mountains
+          & game_board . ix (MkAxial 1 6) . tile_terrain .~ Mountains
+          & game_board . ix (MkAxial 3 5) . tile_terrain .~ Mountains
+          & game_board . ix (MkAxial 2 6) . tile_terrain .~ Mountains
+        result = runEvt (RightClick (MkAxial 2 5)) mtnState
+    result ^. game_planned_moves `shouldBe` Map.empty
 
  describe "Queued attacks" $ do
   -- Player at MkAxial 2 3 has an Axe (from level).
@@ -319,7 +395,7 @@ spec = do
 
   it "right-clicking an adjacent enemy records a planned attack" $ do
     let result = runEvt (RightClick enemyAxial) withEnemy
-    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial enemyAxial
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial [enemyAxial]
 
   it "EndTurn on a queued enemy attack kills a weak enemy" $ do
     -- Axe vs no-weapon: Bigly damage (rng*2 ≥ 2 > 1 HP) → always dies.
@@ -346,7 +422,7 @@ spec = do
 
   it "right-clicking an adjacent house records a planned attack" $ do
     let result = runEvt (RightClick houseAxial) selectedState
-    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial houseAxial
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial [houseAxial]
 
   it "EndTurn on a queued house attack destroys a weak house" $ do
     -- Replace the house with a weak one (1 HP) so it always dies.
