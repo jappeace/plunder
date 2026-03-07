@@ -132,7 +132,7 @@ decodeTerrain = do
   t <- tomlDecoder @Text
   case terrainFromText t of
     Just tr -> pure tr
-    Nothing -> fail "Expected terrain: grass, water, or mountains"
+    Nothing -> fail $ "Unknown terrain: " <> T.unpack t <> ". Expected one of: grass, water, mountains"
 
 decodeShopItemType :: Decoder ShopItemType
 decodeShopItemType = do
