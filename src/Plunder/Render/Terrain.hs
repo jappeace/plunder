@@ -2,6 +2,7 @@
 
 module Plunder.Render.Terrain
   ( renderTerrain
+  , renderFogOverlay
   ) where
 
 import qualified Data.Foldable        as Foldable
@@ -11,6 +12,7 @@ import           Control.Lens
 import           Data.Int             (Int16)
 import           Foreign.C.Types      (CInt)
 import           Plunder.Grid
+import           Plunder.State (GameState, Visibility(Visible, Fog, Unexplored), tileVisibility)
 import           Plunder.Render.Layer
 import           Reflex
 import           Reflex.SDL2
@@ -61,3 +63,18 @@ renderTerrain renderer boardDyn =
                     Just tile -> terrainToColor (tile ^. tile_terrain)
           (xs, ys) = hexPolyPoints axial
       in fillPolygon renderer xs ys color
+
+-- | Render a fog-of-war overlay on top of terrain and sprites.
+--   Tiles close to a player are fully visible, farther tiles get a
+--   semi-transparent or fully opaque dark overlay.
+renderFogOverlay :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => Renderer -> Dynamic t GameState -> m ()
+renderFogOverlay renderer stateDyn =
+  commitLayer $ ffor stateDyn $ \gs ->
+    Foldable.for_ terrainCoords $ \axial ->
+      let (xs, ys) = hexPolyPoints axial
+      in case tileVisibility gs axial of
+        Visible -> pure ()
+        Fog     -> fillPolygon renderer xs ys (V4 0 0 0 128)
+        Unexplored -> fillPolygon renderer xs ys (V4 0 0 0 255)

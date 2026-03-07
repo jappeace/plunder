@@ -482,3 +482,40 @@ spec = do
     result ^? game_board . ix friendAxial . tile_content . _Just . _Player . unit_weapon . _Just
       `shouldBe` Just Sword
     result ^. game_player_inventory . inventroy_item `shouldBe` Set.empty
+
+ describe "Fog of war" $ do
+  -- Player starts at MkAxial 2 3 in the default level.
+  let playerAxial = MkAxial 2 3
+
+  it "the player's own tile is Visible" $
+    tileVisibility initialState playerAxial `shouldBe` Visible
+
+  it "a tile adjacent to the player is Visible" $
+    tileVisibility initialState (MkAxial 2 4) `shouldBe` Visible
+
+  it "a tile at distance 3 is Fog" $
+    tileVisibility initialState (MkAxial 5 3) `shouldBe` Fog
+
+  it "a tile at distance 5 that was never explored is Unexplored" $
+    tileVisibility initialState (MkAxial 0 0) `shouldBe` Unexplored
+
+  it "after moving closer then away, previously visible tile becomes Fog not Unexplored" $ do
+    -- Move player to MkAxial 2 4, then back to MkAxial 2 3.
+    -- MkAxial 2 6 is distance 2 from MkAxial 2 4 (visible), distance 3 from MkAxial 2 3 (fog).
+    -- After moving away it should be Fog (explored) rather than Unexplored.
+    let selected   = initialState & game_selected .~ Just playerAxial
+        afterPlan  = runEvt (RightClick (MkAxial 2 4)) selected
+        afterMove  = runEvt EndTurn afterPlan
+        -- Now player is at MkAxial 2 4, move back
+        selected2  = afterMove & game_selected .~ Just (MkAxial 2 4)
+        afterPlan2 = runEvt (RightClick playerAxial) selected2
+        afterBack  = runEvt EndTurn afterPlan2
+    -- MkAxial 2 6 was within range when player was at 2 4, so it's now explored
+    tileVisibility afterBack (MkAxial 2 6) `shouldBe` Fog
+
+  it "explored set is initialized from player starting position" $
+    Set.member playerAxial (initialState ^. game_explored) `shouldBe` True
+
+  it "ResetGame re-initializes explored set" $ do
+    let result = runEvt ResetGame (initialState & game_phase .~ YouDied)
+    Set.member playerAxial (result ^. game_explored) `shouldBe` True

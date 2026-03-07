@@ -28,6 +28,19 @@ spec = do
     it "diff should be no bigger then one" $ property tileDiffNoBiggerThenOne
     it "neighbors should be in grid " $ property niegBourInGrid
     it "1,1 always has 6 neighbors" $ length (neigbours (MkAxial 1 1)) `shouldBe` 6
+  describe "hexDistance" $ do
+    it "distance from a tile to itself is 0" $ property $ \a ->
+      hexDistance a a `shouldBe` 0
+    it "is symmetric" $ property $ \a b ->
+      hexDistance a b `shouldBe` hexDistance b a
+    it "is non-negative" $ property $ \a b ->
+      hexDistance a b >= 0 `shouldBe` True
+    it "adjacent tiles are distance 1" $
+      hexDistance (MkAxial 2 3) (MkAxial 3 3) `shouldBe` 1
+    it "diagonal two steps away is distance 2" $
+      hexDistance (MkAxial 0 0) (MkAxial 1 1) `shouldBe` 2
+    it "opposite corners of 6x6 grid" $
+      hexDistance (MkAxial 0 0) (MkAxial 6 6) `shouldBe` 12
   describe "move" $ do
     it "character should move" $
       shouldCharacterMove testState (MkAxial 3 3) `shouldBe`
