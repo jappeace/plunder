@@ -52,12 +52,13 @@ genTilePlacement :: Gen TilePlacement
 genTilePlacement = do
   q <- choose (-50, 50)
   r <- choose (-50, 50)
-  -- at least one of content/background must be present
+  -- at least one of content/background/terrain must be present
   hasContent <- arbitrary
   hasBg      <- if hasContent then arbitrary else pure True
   content    <- if hasContent then Just <$> genTileContentDef else pure Nothing
   bg         <- if hasBg then Just <$> genBackground else pure Nothing
-  pure $ MkTilePlacement q r content bg
+  terrain    <- frequency [(1, Just <$> elements [Land, Water, Mountains]), (3, pure Nothing)]
+  pure $ MkTilePlacement q r content bg terrain
 
 genLevel :: Gen Level
 genLevel = do

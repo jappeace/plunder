@@ -57,3 +57,13 @@ hp = 10
 q = 1
 r = 6
 background = "blood"
+
+[[tiles]]
+q = 0
+r = 0
+terrain = "water"
+
+[[tiles]]
+q = 6
+r = 6
+terrain = "mountains"

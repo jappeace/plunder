@@ -165,6 +165,7 @@ levelToGameState lvl =
     applyPlacement tp g = g
       & maybe id (\c -> at axial . _Just . tile_content ?~ tileContentDefToContent c) (tp ^. tp_content)
       & maybe id (\b -> at axial . _Just . tile_background ?~ b) (tp ^. tp_background)
+      & maybe id (\t -> at axial . _Just . tile_terrain .~ t) (tp ^. tp_terrain)
       where
         axial :: Axial
         axial = MkAxial (tp ^. tp_q) (tp ^. tp_r)
@@ -180,12 +181,16 @@ gameStateToLevel begin end gs = MkLevel
   where
     tileToPlacement :: Tile -> Maybe TilePlacement
     tileToPlacement tile
-      | hasn't (tile_content . _Just) tile && hasn't (tile_background . _Just) tile = Nothing
+      | hasn't (tile_content . _Just) tile
+        && hasn't (tile_background . _Just) tile
+        && has (tile_terrain . _Land) tile
+        = Nothing
       | otherwise = Just $ MkTilePlacement
           { _tp_q          = tile ^. tile_coordinate . _q
           , _tp_r          = tile ^. tile_coordinate . _r
           , _tp_content    = tileContentToDef <$> tile ^. tile_content
           , _tp_background = tile ^. tile_background
+          , _tp_terrain    = if has (tile_terrain . _Land) tile then Nothing else Just (tile ^. tile_terrain)
           }
 
 --------------------------------------------------------------------------------
