@@ -58,7 +58,7 @@ guest initGS = mdo
     (isJust . findFreeAdjacent <$> gameState)
   inventoryClickEvt <- renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
   renderBanner bannerFont (view game_phase <$> gameState) alphaDyn winSizeDyn
-  okClickEvt <- renderHelp font helpOpenDyn
+  okClickEvt <- renderHelp font helpOpenDyn winSizeDyn
   -- End Turn button: bottom-right corner, position tracks window size
   endTurnSurface <- allocateText font defaultStyle "[ End Turn ]"
   let V2 btnW btnH = textSurfaceSize endTurnSurface

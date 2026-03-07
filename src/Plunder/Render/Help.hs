@@ -40,22 +40,16 @@ bgW :: CInt
 bgW = 330
 
 bgH :: CInt
-bgH = 230
-
-bgX :: CInt
-bgX = (640 - bgW) `div` 2
-
-bgY :: CInt
-bgY = (480 - bgH) `div` 2
+bgH = 260
 
 lineH :: CInt
 lineH = 20
 
-textX :: CInt
-textX = bgX + 14
+textPadX :: CInt
+textPadX = 14
 
-textY :: Int -> CInt
-textY idx = bgY + 14 + fromIntegral idx * lineH
+textPadY :: CInt
+textPadY = 14
 
 -- | Render the help overlay.  Returns an event that fires when the OK
 --   button inside the overlay is clicked.
@@ -63,21 +57,30 @@ renderHelp
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => MonadReader Renderer m
-  => Font -> Dynamic t Bool -> m (Event t ())
-renderHelp font isOpen = do
+  => Font -> Dynamic t Bool -> Dynamic t (V2 CInt) -> m (Event t ())
+renderHelp font isOpen winSizeDyn = do
   renderer <- ask
   surfaces <- forM helpLines $ \(text, ls) -> allocateText font (toStyle ls) text
   okSurface <- allocateText font (toStyle Body) "[ OK ]"
   let V2 okW okH = textSurfaceSize okSurface
-      okPos      = P $ V2 (bgX + (bgW - okW) `div` 2) (bgY + bgH - okH - 10)
-      okImgDyn   = ffor isOpen $ \open ->
-        if open then Just (surfaceToSettings okSurface okPos) else Nothing
-  commitLayer $ ffor isOpen $ \open -> when open $ do
+      combined   = (,) <$> isOpen <*> winSizeDyn
+      okImgDyn   = ffor combined $ \(open, V2 w h) ->
+        if open
+        then let bgX = (w - bgW) `div` 2
+                 bgY = (h - bgH) `div` 2
+                 okPos = P $ V2 (bgX + (bgW - okW) `div` 2) (bgY + bgH - okH - 10)
+             in Just (surfaceToSettings okSurface okPos)
+        else Nothing
+  commitLayer $ ffor combined $ \(open, V2 w h) -> when open $ do
+    let bgX = (w - bgW) `div` 2
+        bgY = (h - bgH) `div` 2
+        textX = bgX + textPadX
+        textY idx = bgY + textPadY + fromIntegral idx * lineH
     setDrawColor renderer (V4 210 210 210 245)
     fillRect renderer $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
     setDrawColor renderer (V4 0 0 0 255)
     drawRect renderer $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
-    forM_ (zip [0 ..] surfaces) $ \(idx, surf) ->
+    forM_ (zip [(0 :: Int) ..] surfaces) $ \(idx, surf) ->
       let img = surfaceToSettings surf (P $ V2 textX (textY idx))
       in  copy renderer (_image_content img) Nothing (Just $ img ^. image_position)
   okClicks <- image okImgDyn
