@@ -30,7 +30,7 @@ import Plunder.Combat
 import Plunder.Grid
 import Plunder.Shop
 import TOML (TOMLError)
-import TOML.Decode (Decoder, DecodeTOML(..), getField, getFieldOpt,
+import TOML.Decode (Decoder, DecodeTOML(..), getField, getFieldOpt, getFieldOr,
                      getFieldWith, getFieldOptWith, decodeWith)
 
 -- | What kind of content a tile has in a level definition.
@@ -169,7 +169,7 @@ decodeLevelDecoder = do
   _level_grid_begin <- getFieldWith (getField "begin") "grid"
   _level_grid_end   <- getFieldWith (getField "end") "grid"
   _level_money      <- getFieldWith (getField "money") "inventory"
-  _level_tiles      <- getField "tiles"
+  _level_tiles      <- getFieldOr [] "tiles"
   pure MkLevel{..}
 
 -- | Decode a Level from TOML text.

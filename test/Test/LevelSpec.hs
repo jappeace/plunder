@@ -1,15 +1,76 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Test.LevelSpec
   ( spec
   )
 where
 
-import Control.Lens
+import Control.Lens hiding (Level, elements)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as TIO
+import Plunder.Combat
 import Plunder.Grid
 import Plunder.Level
+import Plunder.Shop
 import Plunder.State
 import Test.Hspec
+import Test.QuickCheck
+
+-- Custom generators that produce values safe for TOML roundtripping.
+-- We can't redefine Arbitrary for types that already have instances
+-- (Background, ShopItem, etc.) so we use explicit generators.
+
+genBackground :: Gen Background
+genBackground = elements [Blood, BurnedHouse, BurnedShop]
+
+genShopItemType :: Gen ShopItemType
+genShopItemType = oneof
+  [ ShopWeapon <$> arbitrary
+  , pure ShopUnit
+  , pure ShopHealthPotion
+  ]
+
+-- | Prices must fit in TOML's signed 64-bit integer range
+genShopItem :: Gen ShopItem
+genShopItem = MkShopItem <$> choose (0, 1000) <*> genShopItemType
+
+genShopContent :: Gen ShopContent
+genShopContent = MkShopContent
+  <$> frequency [(3, Just <$> genShopItem), (1, pure Nothing)]
+  <*> frequency [(3, Just <$> genShopItem), (1, pure Nothing)]
+  <*> frequency [(3, Just <$> genShopItem), (1, pure Nothing)]
+
+genTileContentDef :: Gen TileContentDef
+genTileContentDef = oneof
+  [ PlayerDef <$> choose (1, 100) <*> arbitrary
+  , EnemyDef  <$> choose (1, 100) <*> arbitrary
+  , HouseDef  <$> choose (1, 100)
+  , ShopDef   <$> genShopContent
+  ]
+
+genTilePlacement :: Gen TilePlacement
+genTilePlacement = do
+  q <- choose (-50, 50)
+  r <- choose (-50, 50)
+  -- at least one of content/background must be present
+  hasContent <- arbitrary
+  hasBg      <- if hasContent then arbitrary else pure True
+  content    <- if hasContent then Just <$> genTileContentDef else pure Nothing
+  bg         <- if hasBg then Just <$> genBackground else pure Nothing
+  pure $ MkTilePlacement q r content bg
+
+genLevel :: Gen Level
+genLevel = do
+  begin <- choose (-10, 10)
+  end   <- choose (begin, begin + 20)
+  money <- choose (0, 1000)
+  tiles <- listOf1 genTilePlacement
+  pure $ MkLevel begin end money tiles
+
+prop_tomlRoundtrip :: Property
+prop_tomlRoundtrip = forAll genLevel $ \lvl ->
+  counterexample ("TOML output:\n" <> show (levelToToml lvl)) $
+    decodeLevel (levelToToml lvl) === Right lvl
 
 spec :: Spec
 spec = do
@@ -57,9 +118,11 @@ spec = do
       let gs = levelToGameState defaultLevel
           lvl' = gameStateToLevel 0 6 gs
           gs'  = levelToGameState lvl'
-      -- board equality (tile contents + backgrounds)
       (gs ^. game_board) `shouldBe` (gs' ^. game_board)
 
     it "initialState matches levelToGameState defaultLevel" $ do
       let gs = levelToGameState defaultLevel
       (initialState ^. game_board) `shouldBe` (gs ^. game_board)
+
+    it "arbitrary levels roundtrip through TOML encode/decode" $
+      property prop_tomlRoundtrip
