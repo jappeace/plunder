@@ -13,6 +13,7 @@ module Plunder.Level
   , tp_r
   , tp_content
   , tp_background
+  , tp_terrain
   , decodeLevel
   , decodeLevelFile
   , levelToToml
@@ -48,6 +49,7 @@ data TilePlacement = MkTilePlacement
   , _tp_r          :: Int
   , _tp_content    :: Maybe TileContentDef
   , _tp_background :: Maybe Background
+  , _tp_terrain    :: Maybe Terrain
   } deriving (Show, Eq)
 
 -- | A complete level definition.
@@ -95,6 +97,13 @@ backgroundFromText t = case T.toLower t of
   "burned-shop"  -> Just BurnedShop
   _              -> Nothing
 
+terrainFromText :: Text -> Maybe Terrain
+terrainFromText t = case T.toLower t of
+  "grass"     -> Just Land
+  "water"     -> Just Water
+  "mountains" -> Just Mountains
+  _           -> Nothing
+
 shopItemTypeFromText :: Text -> Maybe ShopItemType
 shopItemTypeFromText t = case T.toLower t of
   "health-potion" -> Just ShopHealthPotion
@@ -117,6 +126,13 @@ decodeBackground = do
   case backgroundFromText t of
     Just b  -> pure b
     Nothing -> fail "Expected background: blood, burned-house, or burned-shop"
+
+decodeTerrain :: Decoder Terrain
+decodeTerrain = do
+  t <- tomlDecoder @Text
+  case terrainFromText t of
+    Just tr -> pure tr
+    Nothing -> fail $ "Unknown terrain: " <> T.unpack t <> ". Expected one of: grass, water, mountains"
 
 decodeShopItemType :: Decoder ShopItemType
 decodeShopItemType = do
@@ -162,6 +178,7 @@ instance DecodeTOML TilePlacement where
           pure $ Just $ ShopDef sc
         _ -> fail $ "Unknown content type: " <> T.unpack tag
     _tp_background <- getFieldOptWith decodeBackground "background"
+    _tp_terrain    <- getFieldOptWith decodeTerrain "terrain"
     pure MkTilePlacement{..}
 
 decodeLevelDecoder :: Decoder Level
@@ -194,6 +211,11 @@ backgroundToText Blood       = "blood"
 backgroundToText BurnedHouse = "burned-house"
 backgroundToText BurnedShop  = "burned-shop"
 
+terrainToText :: Terrain -> Text
+terrainToText Land      = "grass"
+terrainToText Water     = "water"
+terrainToText Mountains = "mountains"
+
 shopItemTypeToText :: ShopItemType -> Text
 shopItemTypeToText ShopHealthPotion = "health-potion"
 shopItemTypeToText ShopUnit         = "unit"
@@ -211,7 +233,7 @@ tilePlacementToToml tp = T.unlines $
   [ "[[tiles]]"
   , "q = " <> textShow (_tp_q tp)
   , "r = " <> textShow (_tp_r tp)
-  ] <> contentLines <> backgroundLines
+  ] <> contentLines <> backgroundLines <> terrainLines
   where
     contentLines :: [Text]
     contentLines = case _tp_content tp of
@@ -233,6 +255,10 @@ tilePlacementToToml tp = T.unlines $
     backgroundLines = case _tp_background tp of
       Nothing -> []
       Just bg -> ["background = \"" <> backgroundToText bg <> "\""]
+    terrainLines :: [Text]
+    terrainLines = case _tp_terrain tp of
+      Nothing -> []
+      Just tr -> ["terrain = \"" <> terrainToText tr <> "\""]
 
 -- | Render a Level to TOML text.
 levelToToml :: Level -> Text
@@ -257,16 +283,16 @@ defaultLevel = MkLevel
   , _level_grid_end   = 6
   , _level_money      = 0
   , _level_tiles =
-      [ MkTilePlacement 2 3 (Just (PlayerDef 10 (Just Axe))) Nothing
-      , MkTilePlacement 3 3 (Just (HouseDef 10)) Nothing
+      [ MkTilePlacement 2 3 (Just (PlayerDef 10 (Just Axe))) Nothing Nothing
+      , MkTilePlacement 3 3 (Just (HouseDef 10)) Nothing Nothing
       , MkTilePlacement 2 6 (Just (ShopDef (MkShopContent
           (Just (MkShopItem 4 ShopHealthPotion))
           (Just (MkShopItem 8 ShopUnit))
-          (Just (MkShopItem 5 (ShopWeapon Sword)))))) Nothing
-      , MkTilePlacement 4 5 (Just (EnemyDef 10 (Just Axe))) Nothing
-      , MkTilePlacement 4 4 (Just (EnemyDef 10 (Just Bow))) Nothing
-      , MkTilePlacement 4 3 (Just (EnemyDef 10 (Just Sword))) Nothing
-      , MkTilePlacement 0 6 (Just (EnemyDef 10 Nothing)) Nothing
-      , MkTilePlacement 1 6 Nothing (Just Blood)
+          (Just (MkShopItem 5 (ShopWeapon Sword)))))) Nothing Nothing
+      , MkTilePlacement 4 5 (Just (EnemyDef 10 (Just Axe))) Nothing Nothing
+      , MkTilePlacement 4 4 (Just (EnemyDef 10 (Just Bow))) Nothing Nothing
+      , MkTilePlacement 4 3 (Just (EnemyDef 10 (Just Sword))) Nothing Nothing
+      , MkTilePlacement 0 6 (Just (EnemyDef 10 Nothing)) Nothing Nothing
+      , MkTilePlacement 1 6 Nothing (Just Blood) Nothing
       ]
   }
