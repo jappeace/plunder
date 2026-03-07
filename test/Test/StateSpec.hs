@@ -376,6 +376,26 @@ spec = do
         result = runEvt (RightClick (MkAxial 2 5)) mtnState
     result ^. game_planned_moves `shouldBe` Map.empty
 
+  it "right-clicking a distant shop records a path toward it" $ do
+    -- Shop is at MkAxial 2 6, player at MkAxial 2 3 (3 tiles away)
+    let result = runEvt (RightClick shopAxial) selectedState
+    result ^. game_planned_moves `shouldSatisfy` \m ->
+      case Map.lookup playerAxial m of
+        Just path -> not (null path) && last path == shopAxial
+        Nothing   -> False
+
+  it "pathing to a distant shop opens the shop on arrival" $ do
+    -- Player at MkAxial 2 3, shop at MkAxial 2 6 — path through 2 4, 2 5, 2 6
+    let afterPlan = runEvt (RightClick shopAxial) selectedState
+        -- Step through each turn until path is consumed
+        afterTurn1 = runEvt EndTurn afterPlan
+        afterTurn2 = runEvt EndTurn afterTurn1
+        afterTurn3 = runEvt EndTurn afterTurn2
+    -- Shop should be open after the final step
+    afterTurn3 ^. game_shop `shouldBe` Just shopTileContent
+    -- Path fully consumed
+    afterTurn3 ^. game_planned_moves `shouldBe` Map.empty
+
  describe "Queued attacks" $ do
   -- Player at MkAxial 2 3 has an Axe (from level).
   -- We place a weak enemy (1 HP) at MkAxial 2 4 (adjacent) so it always dies
