@@ -76,8 +76,8 @@ renderState font state = do
 
   -- Draw planned-move arrows on top of units
   commitLayer $ ffor (view game_planned_moves <$> state) $ \plans ->
-    for_ (Map.toList plans) $ \(src, dst) ->
-      drawArrow renderer (axialToPixel src) (axialToPixel dst) (V4 255 165 0 255)
+    for_ (Map.toList plans) $ \(src, path) ->
+      drawPathArrows renderer axialToPixel src path (V4 255 165 0 255)
 
   -- Fog of war overlay (covers terrain, sprites and arrows, but not HUD)
   renderFogOverlay renderer state

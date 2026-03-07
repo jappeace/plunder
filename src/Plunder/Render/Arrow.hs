@@ -1,4 +1,4 @@
-module Plunder.Render.Arrow (drawArrow) where
+module Plunder.Render.Arrow (drawArrow, drawPathArrows) where
 
 import           Control.Monad.IO.Class (MonadIO)
 import           Foreign.C.Types        (CInt)
@@ -44,3 +44,22 @@ drawArrow renderer (P (V2 fx fy)) (P (V2 tx ty)) color
     tip   = V2 tx ty
     wing1 = V2 (round (bx + wx)) (round (by + wy))
     wing2 = V2 (round (bx - wx)) (round (by - wy))
+
+-- | Draw chained arrows for each consecutive pair in the path.
+--   @src@ is the starting tile; @waypoints@ is the path (excluding src).
+drawPathArrows
+  :: MonadIO m
+  => Renderer
+  -> (a -> Point V2 CInt)  -- ^ convert a coordinate to pixel position
+  -> a                     -- ^ source coordinate
+  -> [a]                   -- ^ path waypoints (excluding source)
+  -> Color
+  -> m ()
+drawPathArrows renderer toPixel src waypoints color =
+  go (toPixel src) waypoints
+  where
+    go _ []     = pure ()
+    go from (w:ws) = do
+      let to = toPixel w
+      drawArrow renderer from to color
+      go to ws
