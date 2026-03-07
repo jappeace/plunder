@@ -30,6 +30,7 @@ library
       Plunder.Grid
       Plunder.Guest
       Plunder.Lens
+      Plunder.Level
       Plunder.Mouse
       Plunder.Render
       Plunder.Render.Color
@@ -90,6 +91,7 @@ library
     , sdl2-ttf
     , template-haskell
     , text
+    , toml-reader
     , transformers
     , vector
     , witherable
@@ -152,6 +154,7 @@ test-suite unit
   main-is: Spec.hs
   other-modules:
       Test.HexagonSpec
+      Test.LevelSpec
       Test.Orphanage
       Test.StateSpec
       Paths_game13
@@ -200,6 +203,7 @@ test-suite unit
     , sdl2-ttf
     , template-haskell
     , text
+    , toml-reader
     , transformers
     , vector
     , witherable

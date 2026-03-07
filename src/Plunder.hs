@@ -14,12 +14,14 @@ import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
 import           Plunder.Guest
+import           Plunder.Level (decodeLevelFile)
+import           Plunder.State (GameState, levelToGameState)
 import           qualified SDL.Font as Font
 
-app :: (ReflexSDL2 t m, MonadReader Renderer m) => m ()
-app = do
+app :: (ReflexSDL2 t m, MonadReader Renderer m) => GameState -> m ()
+app initGS = do
   (_, dynLayers) <- runDynamicWriterT $ do
-    guest
+    guest initGS
     onQuit
   r <- ask
   performEvent_ $ ffor (updated dynLayers) $ \layers -> do
@@ -33,6 +35,13 @@ main = do
   initializeAll
   putStrLn "initializing"
   Font.initialize
+
+  putStrLn "loading level..."
+  levelResult <- decodeLevelFile "assets/levels/level1.toml"
+  let initGS = case levelResult of
+        Left err -> error $ "Failed to load level: " <> show err
+        Right lvl -> levelToGameState lvl
+
   let ogl = defaultOpenGL{ glProfile = Compatibility Debug 4 6 }
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
                          , windowResizable       = True
@@ -51,7 +60,7 @@ main = do
   rendererDrawBlendMode r $= BlendAlphaBlend
   -- Host the network with an example of how to embed your own effects.
   -- In this case it's a simple reader.
-  host $ (runReaderT app r)
+  host $ (runReaderT (app initGS) r)
   destroyRenderer r
   destroyWindow window
   quit

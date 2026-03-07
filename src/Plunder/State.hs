@@ -9,6 +9,8 @@ module Plunder.State(GameState(..)
             , shouldCharacterMove
             , updateState
             , initialState
+            , levelToGameState
+            , gameStateToLevel
             , UpdateEvts(..)
             , game_board
             , game_selected
@@ -34,8 +36,9 @@ module Plunder.State(GameState(..)
 
 import qualified Control.Monad.State.Class as SC
 import           Plunder.Combat
+import           Plunder.Level
 import           Control.Applicative
-import           Control.Lens
+import           Control.Lens hiding (Level)
 import           Control.Monad
 import           Control.Monad.Random.Class
 import           Control.Monad.State.Class
@@ -53,9 +56,9 @@ import           Text.Printf
 import Plunder.Shop
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Data.Set(Set)
 import qualified Data.Set as Set
-import Data.Maybe(listToMaybe, isJust)
+import Data.Set(Set)
+import Data.Maybe(listToMaybe, isJust, mapMaybe)
 
 data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
@@ -87,40 +90,65 @@ describeState x = printf "describeState { _game_selected = %s, _game_shop = %s }
   (show (x ^. game_shop))
   -- (show (x ^.. game_board . contentFold))
 
-level :: Endo Grid
-level = fold $ Endo <$>
-  [ at (MkAxial 2 3) . _Just . tile_content ?~ Player (unit_weapon ?~ Axe $ defUnit)
-  , at (MkAxial 3 3) . _Just . tile_content ?~ House defUnit
-  , at (MkAxial 2 6) . _Just . tile_content ?~ Shop (MkShopContent (Just (MkShopItem 4 ShopHealthPotion)) (Just (MkShopItem 8 ShopUnit)) (Just (MkShopItem 5 (ShopWeapon Sword))))
-  , at (MkAxial 4 5) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Axe $ defUnit)
-  , at (MkAxial 4 4) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Bow $ defUnit)
-  , at (MkAxial 4 3) . _Just . tile_content ?~ Enemy (unit_weapon ?~ Sword $ defUnit)
-  , at (MkAxial 0 6) . _Just . tile_content ?~ Enemy defUnit
-  , at (MkAxial 1 6) . _Just . tile_background ?~ Blood
-  ]
+--------------------------------------------------------------------------------
+-- Level conversion
+--------------------------------------------------------------------------------
 
-allEnemies :: Traversal' GameState Unit
-allEnemies = game_board . traversed . tile_content . _Just . _Enemy
-
-initialInventory :: PlayerInventory
-initialInventory = MkInventory
-  { _inventory_money = 0
-  , _inventroy_item  = mempty
-  }
-
-initialState :: GameState
-initialState = MkGameState
+-- | Convert a Level to a GameState.
+levelToGameState :: Level -> GameState
+levelToGameState lvl = MkGameState
   { _game_selected         = Nothing
-  , _game_board            = appEndo level initialGrid
-   -- indicating how much havoc a player caused,
-   -- potentially we could use this later as currency?
-  , _game_player_inventory = initialInventory
+  , _game_board            = applyPlacements (lvl ^. level_tiles) baseGrid
+  , _game_player_inventory = MkInventory (lvl ^. level_money) Set.empty
   , _game_shop             = Nothing
   , _game_inventory_open   = False
   , _game_phase            = Playing
   , _game_planned_moves    = Map.empty
   , _game_pending_purchase = Nothing
   }
+  where
+    baseGrid :: Grid
+    baseGrid = mkGrid (lvl ^. level_grid_begin) (lvl ^. level_grid_end)
+
+    applyPlacements :: [TilePlacement] -> Grid -> Grid
+    applyPlacements tps g = appEndo (foldMap (Endo . applyPlacement) tps) g
+
+    applyPlacement :: TilePlacement -> Grid -> Grid
+    applyPlacement tp g = g
+      & maybe id (\c -> at axial . _Just . tile_content ?~ tileContentDefToContent c) (tp ^. tp_content)
+      & maybe id (\b -> at axial . _Just . tile_background ?~ b) (tp ^. tp_background)
+      where
+        axial :: Axial
+        axial = MkAxial (tp ^. tp_q) (tp ^. tp_r)
+
+-- | Extract a Level from a GameState.
+gameStateToLevel :: Int -> Int -> GameState -> Level
+gameStateToLevel begin end gs = MkLevel
+  { _level_grid_begin = begin
+  , _level_grid_end   = end
+  , _level_money      = gs ^. game_player_inventory . inventory_money
+  , _level_tiles      = mapMaybe tileToPlacement (Map.elems (gs ^. game_board))
+  }
+  where
+    tileToPlacement :: Tile -> Maybe TilePlacement
+    tileToPlacement tile
+      | hasn't (tile_content . _Just) tile && hasn't (tile_background . _Just) tile = Nothing
+      | otherwise = Just $ MkTilePlacement
+          { _tp_q          = tile ^. tile_coordinate . _q
+          , _tp_r          = tile ^. tile_coordinate . _r
+          , _tp_content    = tileContentToDef <$> tile ^. tile_content
+          , _tp_background = tile ^. tile_background
+          }
+
+--------------------------------------------------------------------------------
+-- Initial state
+--------------------------------------------------------------------------------
+
+allEnemies :: Traversal' GameState Unit
+allEnemies = game_board . traversed . tile_content . _Just . _Enemy
+
+initialState :: GameState
+initialState = levelToGameState defaultLevel
 
 data Attack = MkAttackMove
   { _attack_move :: Move
@@ -289,13 +317,14 @@ executePlannedMove gs src dst = do
                        { _attack_move = baseMove, _attack_to = target }
     Nothing       -> if isMove gs dst then Just (MkWalk baseMove) else Nothing
 
-updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
-updateLogic = \case
+-- | The first argument is the state to reset to on 'ResetGame'.
+updateLogic :: MonadRandom m => MonadState GameState m => GameState -> UpdateEvts -> m ()
+updateLogic resetTo = \case
   Redraw -> pure ()
   ToggleInventory -> modifying game_inventory_open not
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
-  ResetGame -> put initialState
+  ResetGame -> put resetTo
   UseItem item -> applyUseItem item
   EndTurn -> do
     applyPendingPurchase
@@ -438,10 +467,11 @@ checkWon = do
     when (hasn't allEnemies gs) $
       game_phase .= YouVictorious
 
-updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
-updateState gameState (resolveRng, evts) =
+-- | The first argument is the state to reset to on 'ResetGame'.
+updateState :: GameState -> GameState -> (RandTNT (), UpdateEvts) -> GameState
+updateState resetTo gameState (resolveRng, evts) =
   execState (unRandNt resolveRng $ do
-                updateLogic evts
+                updateLogic resetTo evts
                 removeDeadFriends
                 checkPlayerLives
                 checkWon

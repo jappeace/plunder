@@ -31,8 +31,8 @@ import Control.Concurrent (forkIO, threadDelay)
 guest
   :: forall t m
    . ReflexSDL2 t m
-  => DynamicWriter t [Layer m] m => MonadReader Renderer m => m ()
-guest = mdo
+  => DynamicWriter t [Layer m] m => MonadReader Renderer m => GameState -> m ()
+guest initGS = mdo
   -- Print some stuff after the network is built.
   evPB           <- getPostBuild
   performEvent_ $ ffor evPB $ \() -> liftIO $ putStrLn "starting up..."
@@ -40,7 +40,7 @@ guest = mdo
   font <- defaultFont
   bannerFont <- bigFont
 
-  (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState shopEvt inventoryClickEvt
+  (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState initGS shopEvt inventoryClickEvt
   renderState font gameState
   shopEvt <- renderShop font
     (view game_shop <$> gameState)
@@ -63,8 +63,8 @@ makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
 makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
-mkGameState :: forall t m . ReflexSDL2 t m => Event t ShopAction -> Event t ShopItem -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
-mkGameState shopActions inventoryActions = do
+mkGameState :: forall t m . ReflexSDL2 t m => GameState -> Event t ShopAction -> Event t ShopItem -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
+mkGameState initGS shopActions inventoryActions = do
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
   windowExposedEvt <- getWindowExposedEvent
@@ -112,7 +112,7 @@ mkGameState shopActions inventoryActions = do
   performEvent_ $ ffor events $ liftIO . print
 
   ntDyn <- holdView makeRandomNT $ makeRandomNT <$ events
-  state <- accumDyn updateState initialState ((,) <$> current ntDyn <@> events)
+  state <- accumDyn (updateState initGS) initGS ((,) <$> current ntDyn <@> events)
 
   phaseDyn <- holdUniqDyn (view game_phase <$> state)
 
