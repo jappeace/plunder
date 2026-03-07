@@ -23,6 +23,7 @@ import Plunder.Render.Font(defaultFont, bigFont)
 import Plunder.Render.Shop
 import Plunder.Render.Inventory
 import Plunder.Render.Banner
+import Plunder.Render.Help
 import Plunder.Render.Text (defaultStyle, surfaceToSettings, allocateText, textSurfaceSize)
 import Plunder.Render.Image (image)
 import Data.Maybe (isJust)
@@ -40,7 +41,16 @@ guest initGS = mdo
   font <- defaultFont
   bannerFont <- bigFont
 
-  (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState initGS shopEvt inventoryClickEvt
+  helpKeyEvt  <- getKeyboardEvent
+  let enterEvt :: Event t ()
+      enterEvt = () <$ ffilter (\kd ->
+          has _Pressed (keyboardEventKeyMotion kd) &&
+          not (keyboardEventRepeat kd) &&
+          keysymKeycode (keyboardEventKeysym kd) == KeycodeReturn
+        ) helpKeyEvt
+  helpOpenDyn <- holdDyn True $ False <$ leftmost [enterEvt, okClickEvt]
+
+  (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState initGS helpOpenDyn shopEvt inventoryClickEvt
   renderState font gameState
   shopEvt <- renderShop font
     (view game_shop <$> gameState)
@@ -48,6 +58,7 @@ guest initGS = mdo
     (isJust . findFreeAdjacent <$> gameState)
   inventoryClickEvt <- renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
   renderBanner bannerFont (view game_phase <$> gameState) alphaDyn winSizeDyn
+  okClickEvt <- renderHelp font helpOpenDyn winSizeDyn
   -- End Turn button: bottom-right corner, position tracks window size
   endTurnSurface <- allocateText font defaultStyle "[ End Turn ]"
   let V2 btnW btnH = textSurfaceSize endTurnSurface
@@ -63,8 +74,8 @@ makeRandomNT :: forall m a . MonadIO m => m (RandTNT a)
 makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
-mkGameState :: forall t m . ReflexSDL2 t m => GameState -> Event t ShopAction -> Event t ShopItem -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
-mkGameState initGS shopActions inventoryActions = do
+mkGameState :: forall t m . ReflexSDL2 t m => GameState -> Dynamic t Bool -> Event t ShopAction -> Event t ShopItem -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
+mkGameState initGS helpOpen shopActions inventoryActions = do
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
   windowExposedEvt <- getWindowExposedEvent
@@ -98,16 +109,17 @@ mkGameState initGS shopActions inventoryActions = do
           not (keyboardEventRepeat kd) &&
           keysymKeycode (keyboardEventKeysym kd) == KeycodeSpace
         ) keyboardEvt
-      events = leftmost [ ShopUpdates <$> shopActions
-                        , UseItem <$> inventoryActions
-                        , LeftClick <$> leftClickAxial
-                        , RightClick <$> rightClickAxialEvt
+      helpClosed = not <$> current helpOpen
+      events = leftmost [ gate helpClosed $ ShopUpdates <$> shopActions
+                        , gate helpClosed $ UseItem <$> inventoryActions
+                        , gate helpClosed $ LeftClick <$> leftClickAxial
+                        , gate helpClosed $ RightClick <$> rightClickAxialEvt
                         , Redraw <$ windowSizeChangedEvt
                         , Redraw <$ windowExposedEvt
-                        , ToggleInventory <$ toggleInvEvt
+                        , gate helpClosed $ ToggleInventory <$ toggleInvEvt
                         , ResetGame <$ resetEvt
-                        , EndTurn <$ endTurnEvt
-                        , EndTurn <$ spaceEvt
+                        , gate helpClosed $ EndTurn <$ endTurnEvt
+                        , gate helpClosed $ EndTurn <$ spaceEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
 
