@@ -79,6 +79,9 @@ renderState font state = do
     for_ (Map.toList plans) $ \(src, dst) ->
       drawArrow renderer (axialToPixel src) (axialToPixel dst) (V4 255 165 0 255)
 
+  -- Fog of war overlay (covers terrain, sprites and arrows, but not HUD)
+  renderFogOverlay renderer state
+
   let moneyStyle :: Style
       moneyStyle = defaultStyle & styleColorLens .~ V4 255 215 0 255
       moneyBgRect :: Rectangle CInt

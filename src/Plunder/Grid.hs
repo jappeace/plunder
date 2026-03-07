@@ -35,6 +35,7 @@ module Plunder.Grid
   , mkGrid
   , defUnit
   , tc_unit
+  , hexDistance
   )
 where
 
@@ -175,6 +176,15 @@ sqrt3 = sqrt 3.0
 
 two :: Double
 two = 2.0 -- no better descriptive name in the universe, magick numbers DIE!
+
+-- | Hex distance using cube coordinates: max(|dq|, |dr|, |ds|) where s = -q - r.
+-- See https://www.redblobgames.com/grids/hexagons/#distances
+hexDistance :: Axial -> Axial -> Int
+hexDistance (MkAxial q1 r1) (MkAxial q2 r2) =
+  let dq = abs (q1 - q2)
+      dr = abs (r1 - r2)
+      ds = abs ((q1 + r1) - (q2 + r2))
+  in max dq (max dr ds)
 
 neigbours :: Axial -> [Axial]
 neigbours parent = filter (\x -> SMap.member x initialGrid)

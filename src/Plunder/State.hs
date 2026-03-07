@@ -20,18 +20,22 @@ module Plunder.State(GameState(..)
             , game_phase
             , game_planned_moves
             , game_pending_purchase
+            , game_explored
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
             , Move(..)
             , Action(..)
             , GamePhase(..)
+            , Visibility(..)
             , describeState
             , move_from
             , move_to
             , move
             , RandTNT(..)
             , findFreeAdjacent
+            , playerPositions
+            , tileVisibility
             ) where
 
 import qualified Control.Monad.State.Class as SC
@@ -62,6 +66,8 @@ import Data.Maybe(listToMaybe, isJust, mapMaybe)
 
 data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
+data Visibility = Visible | Fog | Unexplored deriving (Show, Eq)
+
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
 data PlayerInventory = MkInventory {
@@ -79,6 +85,7 @@ data GameState = MkGameState
   , _game_phase             :: GamePhase
   , _game_planned_moves     :: Map Axial Axial   -- ^ from -> to: queued player moves
   , _game_pending_purchase  :: Maybe Haul        -- ^ purchase queued, applied on EndTurn
+  , _game_explored          :: Set Axial         -- ^ tiles that have been within visibility range
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -91,21 +98,62 @@ describeState x = printf "describeState { _game_selected = %s, _game_shop = %s }
   -- (show (x ^.. game_board . contentFold))
 
 --------------------------------------------------------------------------------
+-- Fog of war
+--------------------------------------------------------------------------------
+
+-- | Get all player positions from the board.
+playerPositions :: GameState -> [Axial]
+playerPositions gs = gs ^.. game_board . traversed
+                         . filtered (has (tile_content . _Just . _Player))
+                         . tile_coordinate
+
+-- | Compute visibility for a single tile based on distance to nearest player.
+tileVisibility :: GameState -> Axial -> Visibility
+tileVisibility gs axial =
+  case playerPositions gs of
+    [] -> Unexplored
+    ps ->
+      let minDist = minimum $ fmap (hexDistance axial) ps
+      in if minDist < 3 then Visible
+         else if minDist <= 4 then Fog
+         else if Set.member axial (gs ^. game_explored) then Fog
+         else Unexplored
+
+-- | Compute the set of tiles currently within sight range (distance < 5).
+computeNewlyExplored :: GameState -> Set Axial
+computeNewlyExplored gs =
+  Set.fromList
+    [ axial
+    | axial <- Map.keys (gs ^. game_board)
+    , p     <- playerPositions gs
+    , hexDistance axial p < 5
+    ]
+
+-- | Union the currently visible tiles into the explored set.
+updateExplored :: MonadState GameState m => m ()
+updateExplored = do
+  gs <- use id
+  game_explored <>= computeNewlyExplored gs
+
+--------------------------------------------------------------------------------
 -- Level conversion
 --------------------------------------------------------------------------------
 
 -- | Convert a Level to a GameState.
 levelToGameState :: Level -> GameState
-levelToGameState lvl = MkGameState
-  { _game_selected         = Nothing
-  , _game_board            = applyPlacements (lvl ^. level_tiles) baseGrid
-  , _game_player_inventory = MkInventory (lvl ^. level_money) Set.empty
-  , _game_shop             = Nothing
-  , _game_inventory_open   = False
-  , _game_phase            = Playing
-  , _game_planned_moves    = Map.empty
-  , _game_pending_purchase = Nothing
-  }
+levelToGameState lvl =
+  let gs0 = MkGameState
+        { _game_selected         = Nothing
+        , _game_board            = applyPlacements (lvl ^. level_tiles) baseGrid
+        , _game_player_inventory = MkInventory (lvl ^. level_money) Set.empty
+        , _game_shop             = Nothing
+        , _game_inventory_open   = False
+        , _game_phase            = Playing
+        , _game_planned_moves    = Map.empty
+        , _game_pending_purchase = Nothing
+        , _game_explored         = Set.empty
+        }
+  in gs0 & game_explored .~ computeNewlyExplored gs0
   where
     baseGrid :: Grid
     baseGrid = mkGrid (lvl ^. level_grid_begin) (lvl ^. level_grid_end)
@@ -324,7 +372,9 @@ updateLogic resetTo = \case
   ToggleInventory -> modifying game_inventory_open not
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
-  ResetGame -> put resetTo
+  ResetGame -> do
+    put resetTo
+    updateExplored
   UseItem item -> applyUseItem item
   EndTurn -> do
     applyPendingPurchase
@@ -338,6 +388,7 @@ updateLogic resetTo = \case
         traverse_ (countLoot plan) mCombatRes
         modifying game_board (figureOutMove mCombatRes plan)
     game_selected .= Nothing
+    updateExplored
   RightClick towards -> do
     currentState <- use id
     -- Only shopping is immediate; walks and attacks are queued.
