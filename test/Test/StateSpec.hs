@@ -615,3 +615,50 @@ spec = do
   it "ResetGame re-initializes explored set" $ do
     let result = runEvt ResetGame (initialState & game_phase .~ YouDied)
     Set.member playerAxial (result ^. game_explored) `shouldBe` True
+
+ describe "selectedTileInfo" $ do
+  let playerAxial = MkAxial 2 3
+
+  it "no selection returns ContextEmpty Land" $
+    selectedTileInfo initialState `shouldBe` ContextEmpty Land
+
+  it "selecting the player tile returns ContextPlayer with correct HP" $ do
+    let gs = initialState & game_selected .~ Just playerAxial
+    case selectedTileInfo gs of
+      ContextPlayer unit _inv -> unit ^. unit_hp `shouldBe` 10
+      other                   -> expectationFailure $ "Expected ContextPlayer, got: " <> show other
+
+  it "selecting a visible enemy returns ContextEnemy with correct HP" $ do
+    let enemyAxial = MkAxial 2 4
+        gs = initialState
+          & game_board . ix enemyAxial . tile_content ?~ Enemy defUnit
+          & game_selected .~ Just enemyAxial
+    case selectedTileInfo gs of
+      ContextEnemy unit -> unit ^. unit_hp `shouldBe` 10
+      other             -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
+
+  it "fog tile returns ContextFog" $ do
+    -- MkAxial 5 3 is at distance 3 from player, which is Fog
+    let gs = initialState & game_selected .~ Just (MkAxial 5 3)
+    selectedTileInfo gs `shouldBe` ContextFog
+
+  it "visible shop tile returns ContextShop" $ do
+    -- Shop at MkAxial 2 6 is visible when player is adjacent at MkAxial 2 5
+    let gs = initialState
+          & game_board . at (MkAxial 2 5) . _Just . tile_content ?~ Player defUnit
+          & game_selected .~ Just shopAxial
+    case selectedTileInfo gs of
+      ContextShop _ -> pure ()
+      other         -> expectationFailure $ "Expected ContextShop, got: " <> show other
+
+  it "enemy in fog returns ContextFog not ContextEnemy" $ do
+    -- Place enemy at a foggy distance
+    let fogAxial = MkAxial 5 3  -- distance 3 from player = Fog
+        gs = initialState
+          & game_board . ix fogAxial . tile_content ?~ Enemy defUnit
+          & game_selected .~ Just fogAxial
+    selectedTileInfo gs `shouldBe` ContextFog
+
+  it "right-clicking adjacent shop sets game_selected to shop tile" $
+    runEvt (RightClick shopAxial) playerAdjacentToShop ^. game_selected
+      `shouldBe` Just shopAxial

@@ -36,6 +36,8 @@ module Plunder.State(GameState(..)
             , findFreeAdjacent
             , playerPositions
             , tileVisibility
+            , ContextInfo(..)
+            , selectedTileInfo
             ) where
 
 import qualified Control.Monad.State.Class as SC
@@ -68,13 +70,23 @@ data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
 data Visibility = Visible | Fog | Unexplored deriving (Show, Eq)
 
+-- | What the context panel shows for a selected tile.
+data ContextInfo
+  = ContextPlayer Unit PlayerInventory
+  | ContextEnemy Unit
+  | ContextHouse Unit
+  | ContextShop ShopContent
+  | ContextFog
+  | ContextEmpty Terrain
+  deriving (Show, Eq)
+
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
 data PlayerInventory = MkInventory {
    -- | indicating how much money a player has
     _inventory_money :: Word64
   , _inventroy_item  :: Set ShopItem
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data GameState = MkGameState
   { _game_selected          :: Maybe Axial
@@ -118,6 +130,22 @@ tileVisibility gs axial =
          else if minDist <= 4 then Fog
          else if Set.member axial (gs ^. game_explored) then Fog
          else Unexplored
+
+-- | Derive context-panel info for the currently selected tile.
+selectedTileInfo :: GameState -> ContextInfo
+selectedTileInfo gs = case gs ^. game_selected of
+  Nothing    -> ContextEmpty Land
+  Just axial -> case gs ^. game_board . at axial of
+    Nothing   -> ContextEmpty Land          -- off-grid
+    Just tile -> case tileVisibility gs axial of
+      Unexplored -> ContextEmpty (tile ^. tile_terrain)
+      Fog        -> ContextFog
+      Visible    -> case tile ^. tile_content of
+        Nothing            -> ContextEmpty (tile ^. tile_terrain)
+        Just (Player unit) -> ContextPlayer unit (gs ^. game_player_inventory)
+        Just (Enemy unit)  -> ContextEnemy unit
+        Just (House unit)  -> ContextHouse unit
+        Just (Shop content) -> ContextShop content
 
 -- | Compute the set of tiles currently within sight range (distance < 5).
 computeNewlyExplored :: GameState -> Set Axial
@@ -413,6 +441,7 @@ updateLogic resetTo = \case
     let immediateAction = isShopping currentState towards
     case immediateAction of
       Just plan -> trace (show plan) $ do
+        game_selected .= Just towards
         mCombatRes <- applyAttack plan
         traverse_ (countLoot plan) mCombatRes
         modifying game_board (figureOutMove mCombatRes plan)
