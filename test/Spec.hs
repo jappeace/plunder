@@ -2,9 +2,11 @@ module Main (main) where
 
 import Test.Hspec
 import qualified Test.HexagonSpec as HexagonSpec
+import qualified Test.LevelSpec   as LevelSpec
 import qualified Test.StateSpec   as StateSpec
 
 main :: IO ()
 main = hspec $ do
   describe "Test.Hexagon" HexagonSpec.spec
+  describe "Test.Level"   LevelSpec.spec
   describe "Test.State"   StateSpec.spec

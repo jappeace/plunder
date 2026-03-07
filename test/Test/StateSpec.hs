@@ -14,7 +14,7 @@ import           Test.QuickCheck                 ()
 
 -- | Run a single update event against a game state (ignoring randomness)
 runEvt :: UpdateEvts -> GameState -> GameState
-runEvt evt gs = updateState gs (rng, evt)
+runEvt evt gs = updateState initialState gs (rng, evt)
   where
     rng = MkRandTNT (\inner -> fst <$> runRandT inner (mkStdGen 42))
 
