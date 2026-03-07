@@ -72,12 +72,13 @@ data Visibility = Visible | Fog | Unexplored deriving (Show, Eq)
 
 -- | What the context panel shows for a selected tile.
 data ContextInfo
-  = ContextPlayer Unit PlayerInventory
-  | ContextEnemy Unit
-  | ContextHouse Unit
-  | ContextShop ShopContent
-  | ContextFog
+  = ContextPlayer Terrain Unit PlayerInventory
+  | ContextEnemy Terrain Unit
+  | ContextHouse Terrain Unit
+  | ContextShop Terrain ShopContent
+  | ContextFog Terrain
   | ContextEmpty Terrain
+  | ContextNone
   deriving (Show, Eq)
 
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
@@ -134,18 +135,20 @@ tileVisibility gs axial =
 -- | Derive context-panel info for the currently selected tile.
 selectedTileInfo :: GameState -> ContextInfo
 selectedTileInfo gs = case gs ^. game_selected of
-  Nothing    -> ContextEmpty Land
+  Nothing    -> ContextNone
   Just axial -> case gs ^. game_board . at axial of
     Nothing   -> ContextEmpty Land          -- off-grid
-    Just tile -> case tileVisibility gs axial of
-      Unexplored -> ContextEmpty (tile ^. tile_terrain)
-      Fog        -> ContextFog
-      Visible    -> case tile ^. tile_content of
-        Nothing            -> ContextEmpty (tile ^. tile_terrain)
-        Just (Player unit) -> ContextPlayer unit (gs ^. game_player_inventory)
-        Just (Enemy unit)  -> ContextEnemy unit
-        Just (House unit)  -> ContextHouse unit
-        Just (Shop content) -> ContextShop content
+    Just tile ->
+      let terrain = tile ^. tile_terrain
+      in case tileVisibility gs axial of
+        Unexplored -> ContextEmpty terrain
+        Fog        -> ContextFog terrain
+        Visible    -> case tile ^. tile_content of
+          Nothing            -> ContextEmpty terrain
+          Just (Player unit) -> ContextPlayer terrain unit (gs ^. game_player_inventory)
+          Just (Enemy unit)  -> ContextEnemy terrain unit
+          Just (House unit)  -> ContextHouse terrain unit
+          Just (Shop content) -> ContextShop terrain content
 
 -- | Compute the set of tiles currently within sight range (distance < 5).
 computeNewlyExplored :: GameState -> Set Axial

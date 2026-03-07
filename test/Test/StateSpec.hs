@@ -619,14 +619,16 @@ spec = do
  describe "selectedTileInfo" $ do
   let playerAxial = MkAxial 2 3
 
-  it "no selection returns ContextEmpty Land" $
-    selectedTileInfo initialState `shouldBe` ContextEmpty Land
+  it "no selection returns ContextNone" $
+    selectedTileInfo initialState `shouldBe` ContextNone
 
-  it "selecting the player tile returns ContextPlayer with correct HP" $ do
+  it "selecting the player tile returns ContextPlayer with correct HP and terrain" $ do
     let gs = initialState & game_selected .~ Just playerAxial
     case selectedTileInfo gs of
-      ContextPlayer unit _inv -> unit ^. unit_hp `shouldBe` 10
-      other                   -> expectationFailure $ "Expected ContextPlayer, got: " <> show other
+      ContextPlayer terrain unit' _inv -> do
+        unit' ^. unit_hp `shouldBe` 10
+        terrain `shouldBe` Land
+      other -> expectationFailure $ "Expected ContextPlayer, got: " <> show other
 
   it "selecting a visible enemy returns ContextEnemy with correct HP" $ do
     let enemyAxial = MkAxial 2 4
@@ -634,13 +636,15 @@ spec = do
           & game_board . ix enemyAxial . tile_content ?~ Enemy defUnit
           & game_selected .~ Just enemyAxial
     case selectedTileInfo gs of
-      ContextEnemy unit -> unit ^. unit_hp `shouldBe` 10
-      other             -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
+      ContextEnemy _terrain unit' -> unit' ^. unit_hp `shouldBe` 10
+      other                       -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
 
-  it "fog tile returns ContextFog" $ do
+  it "fog tile returns ContextFog with terrain" $ do
     -- MkAxial 5 3 is at distance 3 from player, which is Fog
     let gs = initialState & game_selected .~ Just (MkAxial 5 3)
-    selectedTileInfo gs `shouldBe` ContextFog
+    case selectedTileInfo gs of
+      ContextFog Land -> pure ()
+      other           -> expectationFailure $ "Expected ContextFog Land, got: " <> show other
 
   it "visible shop tile returns ContextShop" $ do
     -- Shop at MkAxial 2 6 is visible when player is adjacent at MkAxial 2 5
@@ -648,8 +652,8 @@ spec = do
           & game_board . at (MkAxial 2 5) . _Just . tile_content ?~ Player defUnit
           & game_selected .~ Just shopAxial
     case selectedTileInfo gs of
-      ContextShop _ -> pure ()
-      other         -> expectationFailure $ "Expected ContextShop, got: " <> show other
+      ContextShop _ _ -> pure ()
+      other           -> expectationFailure $ "Expected ContextShop, got: " <> show other
 
   it "enemy in fog returns ContextFog not ContextEnemy" $ do
     -- Place enemy at a foggy distance
@@ -657,7 +661,14 @@ spec = do
         gs = initialState
           & game_board . ix fogAxial . tile_content ?~ Enemy defUnit
           & game_selected .~ Just fogAxial
-    selectedTileInfo gs `shouldBe` ContextFog
+    case selectedTileInfo gs of
+      ContextFog _ -> pure ()
+      other        -> expectationFailure $ "Expected ContextFog, got: " <> show other
+
+  it "empty visible tile returns ContextEmpty with terrain" $ do
+    let emptyAxial = MkAxial 2 4  -- adjacent to player, empty
+        gs = initialState & game_selected .~ Just emptyAxial
+    selectedTileInfo gs `shouldBe` ContextEmpty Land
 
   it "right-clicking adjacent shop sets game_selected to shop tile" $
     runEvt (RightClick shopAxial) playerAdjacentToShop ^. game_selected
