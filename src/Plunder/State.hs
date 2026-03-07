@@ -368,7 +368,7 @@ executePlannedMove gs src dst = do
   unit' <- gs ^? game_board . ix src . tile_content . _Just . _Player
   let baseMove = MkMove { _move_from = src, _move_to = dst, _move_from_unit = unit' }
   case isAttack gs dst of
-    Just (Shop _) -> Nothing   -- shops are never queued
+    Just (Shop content) -> Just (OpenShop content)
     Just target   -> Just $ MkAttack $ MkAttackMove
                        { _attack_move = baseMove, _attack_to = target }
     Nothing       -> if isMove gs dst then Just (MkWalk baseMove) else Nothing
@@ -400,6 +400,7 @@ updateLogic resetTo = \case
               mCombatRes <- applyAttack plan
               traverse_ (countLoot plan) mCombatRes
               modifying game_board (figureOutMove mCombatRes plan)
+              traverse_ applyShop (plan ^? _OpenShop)
               case plan of
                 MkWalk _  | not (null rest) -> pure (Just (dst, rest))
                 _                           -> pure Nothing
