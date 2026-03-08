@@ -673,3 +673,46 @@ spec = do
   it "right-clicking adjacent shop sets game_selected to shop tile" $
     runEvt (RightClick shopAxial) playerAdjacentToShop ^. game_selected
       `shouldBe` Just shopAxial
+
+  it "selecting a visible house returns ContextHouse with HP and terrain" $ do
+    let houseAxial = MkAxial 3 3  -- adjacent house in initial layout
+        gs = initialState & game_selected .~ Just houseAxial
+    case selectedTileInfo gs of
+      ContextHouse terrain unit' -> do
+        terrain `shouldBe` Land
+        unit' ^. unit_hp `shouldBe` 10
+      other -> expectationFailure $ "Expected ContextHouse, got: " <> show other
+
+  it "ContextPlayer carries the player inventory" $ do
+    let item = MkShopItem 4 ShopHealthPotion
+        gs = initialState
+          & game_selected .~ Just playerAxial
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+    case selectedTileInfo gs of
+      ContextPlayer _ _ inv -> inv ^. inventroy_item `shouldBe` Set.singleton item
+      other -> expectationFailure $ "Expected ContextPlayer, got: " <> show other
+
+  it "ContextEnemy carries the terrain type" $ do
+    let enemyAxial = MkAxial 2 4
+        gs = initialState
+          & game_board . ix enemyAxial . tile_content ?~ Enemy defUnit
+          & game_board . ix enemyAxial . tile_terrain .~ Water
+          & game_selected .~ Just enemyAxial
+    case selectedTileInfo gs of
+      ContextEnemy terrain _ -> terrain `shouldBe` Water
+      other -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
+
+  it "ContextEmpty carries terrain type for Water tiles" $ do
+    let emptyAxial = MkAxial 2 4
+        gs = initialState
+          & game_board . ix emptyAxial . tile_terrain .~ Water
+          & game_selected .~ Just emptyAxial
+    selectedTileInfo gs `shouldBe` ContextEmpty Water
+
+  it "ContextShop carries the shop content" $ do
+    let gs = initialState
+          & game_board . at (MkAxial 2 5) . _Just . tile_content ?~ Player defUnit
+          & game_selected .~ Just shopAxial
+    case selectedTileInfo gs of
+      ContextShop _ content -> content `shouldBe` shopTileContent
+      other -> expectationFailure $ "Expected ContextShop, got: " <> show other

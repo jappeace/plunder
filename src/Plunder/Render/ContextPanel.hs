@@ -74,6 +74,16 @@ panelPos :: V2 CInt -> CInt -> CInt -> Point V2 CInt
 panelPos (V2 _ h) xOff lineIdx =
   P $ V2 (10 + xOff) (h - panelHeight + 10 + lineIdx * 18)
 
+-- | Display a single text element on screen by rendering and committing it.
+panelText
+  :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => MonadReader Renderer m
+  => Font -> Style -> Point V2 CInt -> Text -> m ()
+panelText font style pos txt = do
+  imgSettings <- renderText font style pos txt
+  void $ image (constDyn (Just imgSettings))
+
 renderPanelContent
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
@@ -81,19 +91,19 @@ renderPanelContent
   => Font -> Dynamic t (V2 CInt) -> Dynamic t Word64 -> Dynamic t Bool -> ContextInfo -> m (Event t ShopAction)
 renderPanelContent _ _ _ _ ContextNone = pure never
 renderPanelContent font winSizeDyn _ _ (ContextEmpty terrain) = do
-  void $ image =<< holdDyn Nothing =<< dynView (renderEmptyPanel font terrain <$> winSizeDyn)
+  void $ dynView $ renderEmptyPanel font terrain <$> winSizeDyn
   pure never
 renderPanelContent font winSizeDyn _ _ (ContextFog terrain) = do
-  void $ image =<< holdDyn Nothing =<< dynView (renderFogPanel font terrain <$> winSizeDyn)
+  void $ dynView $ renderFogPanel font terrain <$> winSizeDyn
   pure never
 renderPanelContent font winSizeDyn _ _ (ContextPlayer terrain unit' inv) = do
-  void $ image =<< holdDyn Nothing =<< dynView (renderPlayerPanel font terrain unit' inv <$> winSizeDyn)
+  void $ dynView $ renderPlayerPanel font terrain unit' inv <$> winSizeDyn
   pure never
 renderPanelContent font winSizeDyn _ _ (ContextEnemy terrain unit') = do
-  void $ image =<< holdDyn Nothing =<< dynView (renderEnemyPanel font terrain unit' <$> winSizeDyn)
+  void $ dynView $ renderEnemyPanel font terrain unit' <$> winSizeDyn
   pure never
 renderPanelContent font winSizeDyn _ _ (ContextHouse terrain unit') = do
-  void $ image =<< holdDyn Nothing =<< dynView (renderHousePanel font terrain unit' <$> winSizeDyn)
+  void $ dynView $ renderHousePanel font terrain unit' <$> winSizeDyn
   pure never
 renderPanelContent font winSizeDyn moneyDyn hasRoomDyn (ContextShop terrain content) =
   renderShopPanel font terrain winSizeDyn moneyDyn hasRoomDyn content
@@ -107,72 +117,71 @@ terrainLabel Land      = "Land"
 terrainLabel Water     = "Water"
 terrainLabel Mountains = "Mountains"
 
--- | Render terrain info in the right column of the panel.
-renderTerrainInfo
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
-  => Font -> V2 CInt -> Terrain -> m ()
-renderTerrainInfo font winSize terrain =
-  void $ renderText font panelStyle (panelPos winSize 300 0)
-    ("Terrain: " <> terrainLabel terrain)
-
 renderEmptyPanel
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
-  => Font -> Terrain -> V2 CInt -> m (Maybe ImageSettings)
+  :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => MonadReader Renderer m
+  => Font -> Terrain -> V2 CInt -> m ()
 renderEmptyPanel font terrain winSize = do
-  void $ renderText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
-  Just <$> renderText font panelStyle (panelPos winSize 0 1) "Empty"
+  panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
+  panelText font panelStyle (panelPos winSize 0 1) "Empty"
 
 renderFogPanel
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
-  => Font -> Terrain -> V2 CInt -> m (Maybe ImageSettings)
+  :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => MonadReader Renderer m
+  => Font -> Terrain -> V2 CInt -> m ()
 renderFogPanel font terrain winSize = do
-  void $ renderText font panelHeaderStyle (panelPos winSize 0 0) "Fog of war"
-  Just <$> renderText font panelStyle (panelPos winSize 0 1) ("Terrain: " <> terrainLabel terrain)
+  panelText font panelHeaderStyle (panelPos winSize 0 0) "Fog of war"
+  panelText font panelStyle (panelPos winSize 0 1) ("Terrain: " <> terrainLabel terrain)
 
 renderPlayerPanel
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
-  => Font -> Terrain -> Unit -> PlayerInventory -> V2 CInt -> m (Maybe ImageSettings)
+  :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => MonadReader Renderer m
+  => Font -> Terrain -> Unit -> PlayerInventory -> V2 CInt -> m ()
 renderPlayerPanel font terrain unit' inv winSize = do
-  void $ renderText font panelHeaderStyle (panelPos winSize 0 0) "Player"
-  void $ renderText font panelStyle (panelPos winSize 0 1)
+  panelText font panelHeaderStyle (panelPos winSize 0 0) "Player"
+  panelText font panelStyle (panelPos winSize 0 1)
     ("HP: " <> tshow (unit' ^. unit_hp) <> "/" <> tshow maxHealth)
-  void $ renderText font panelStyle (panelPos winSize 0 2)
+  panelText font panelStyle (panelPos winSize 0 2)
     ("Weapon: " <> maybe "none" weaponDescription (unit' ^. unit_weapon))
-  void $ renderText font panelStyle (panelPos winSize 0 3)
+  panelText font panelStyle (panelPos winSize 0 3)
     (describeStatus (unit' ^. unit_status))
-  void $ renderText font panelStyle (panelPos winSize 200 0)
+  panelText font panelStyle (panelPos winSize 200 0)
     ("Gold: " <> tshow (inv ^. inventory_money))
-  void $ renderText font panelStyle (panelPos winSize 200 1)
+  panelText font panelStyle (panelPos winSize 200 1)
     ("Items: " <> tshow (length (inv ^. inventroy_item)))
-  renderTerrainInfo font winSize terrain
-  Just <$> renderText font panelStyle (panelPos winSize 300 1)
-    " "
+  panelText font panelStyle (panelPos winSize 300 0)
+    ("Terrain: " <> terrainLabel terrain)
 
 renderEnemyPanel
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
-  => Font -> Terrain -> Unit -> V2 CInt -> m (Maybe ImageSettings)
+  :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => MonadReader Renderer m
+  => Font -> Terrain -> Unit -> V2 CInt -> m ()
 renderEnemyPanel font terrain unit' winSize = do
-  void $ renderText font panelHeaderStyle (panelPos winSize 0 0) "Enemy"
-  void $ renderText font panelStyle (panelPos winSize 0 1)
+  panelText font panelHeaderStyle (panelPos winSize 0 0) "Enemy"
+  panelText font panelStyle (panelPos winSize 0 1)
     ("HP: " <> tshow (unit' ^. unit_hp) <> "/" <> tshow maxHealth)
-  void $ renderText font panelStyle (panelPos winSize 0 2)
+  panelText font panelStyle (panelPos winSize 0 2)
     ("Weapon: " <> maybe "none" weaponDescription (unit' ^. unit_weapon))
-  void $ renderText font panelStyle (panelPos winSize 0 3)
+  panelText font panelStyle (panelPos winSize 0 3)
     (describeStatus (unit' ^. unit_status))
-  renderTerrainInfo font winSize terrain
-  Just <$> renderText font panelStyle (panelPos winSize 300 1)
-    " "
+  panelText font panelStyle (panelPos winSize 300 0)
+    ("Terrain: " <> terrainLabel terrain)
 
 renderHousePanel
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
-  => Font -> Terrain -> Unit -> V2 CInt -> m (Maybe ImageSettings)
+  :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => MonadReader Renderer m
+  => Font -> Terrain -> Unit -> V2 CInt -> m ()
 renderHousePanel font terrain unit' winSize = do
-  void $ renderText font panelHeaderStyle (panelPos winSize 0 0) "House"
-  void $ renderText font panelStyle (panelPos winSize 0 1)
+  panelText font panelHeaderStyle (panelPos winSize 0 0) "House"
+  panelText font panelStyle (panelPos winSize 0 1)
     ("HP: " <> tshow (unit' ^. unit_hp) <> "/" <> tshow maxHealth)
-  renderTerrainInfo font winSize terrain
-  Just <$> renderText font panelStyle (panelPos winSize 300 1)
-    " "
+  panelText font panelStyle (panelPos winSize 300 0)
+    ("Terrain: " <> terrainLabel terrain)
 
 describeStatus :: Maybe StatusEffect -> Text
 describeStatus Nothing = "Status: none"
@@ -227,10 +236,10 @@ renderShopPanel
   => Font -> Terrain -> Dynamic t (V2 CInt) -> Dynamic t Word64 -> Dynamic t Bool -> ShopContent -> m (Event t ShopAction)
 renderShopPanel font terrain winSizeDyn moneyDyn hasRoomDyn content = mdo
   -- Header and terrain
-  void $ image =<< holdDyn Nothing =<< dynView ((\ws -> do
-    void $ renderText font panelHeaderStyle (panelPos ws 0 0) "Shop"
-    renderTerrainInfo font ws terrain
-    Just <$> renderText font panelStyle (panelPos ws 300 1) " ") <$> winSizeDyn)
+  void $ dynView $ (\ws -> do
+    panelText font panelHeaderStyle (panelPos ws 0 0) "Shop"
+    panelText font panelStyle (panelPos ws 300 0) ("Terrain: " <> terrainLabel terrain)
+    ) <$> winSizeDyn
 
   -- Shop slots
   let slots :: [(Word8, ShopContent -> Maybe ShopItem)]
