@@ -42,6 +42,8 @@ data TextSurface = MkTextSurface
   , textSurfaceStyle :: Style
   }
 
+-- | Create a 'TextSurface' from a font, style, and text string.
+--   This only allocates the SDL texture; it does not draw anything on screen.
 allocateText :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Style -> Text -> m TextSurface
 allocateText font style text = do
       r    <- ask
@@ -57,6 +59,8 @@ allocateText font style text = do
       where
        color = styleColor style
 
+-- | Convert a 'TextSurface' and a screen position into 'ImageSettings'.
+--   Pure conversion — does not draw anything; pass the result to 'image' to display.
 surfaceToSettings :: TextSurface -> Point V2 CInt -> ImageSettings
 surfaceToSettings surface position  =
       ImageSettings
@@ -75,6 +79,13 @@ surfaceToSettings surface position  =
 textSurfaceSize :: TextSurface -> V2 CInt
 textSurfaceSize = textSurfaceFontHexSize
 
+-- | Allocate a text texture and return its 'ImageSettings'.
+--
+--   __This does NOT display anything on screen.__  To actually render the text,
+--   pass the returned 'ImageSettings' to 'image' (which calls 'commitLayer').
+--
+--   For a convenience wrapper that renders /and/ displays in one step, see
+--   @panelText@ in "Plunder.Render.ContextPanel".
 renderText :: ReflexSDL2 t m
   => MonadReader Renderer m
   => Font -> Style -> Point V2 CInt -> Text -> m ImageSettings
