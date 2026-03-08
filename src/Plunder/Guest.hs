@@ -85,14 +85,23 @@ mkGameState initGS helpOpen shopActions inventoryActions = do
   (alphaEvt, fireAlpha) <- newTriggerEvent
   (endTurnEvt, fireEndTurn) <- newTriggerEvent
 
+  winSizeDyn <- holdDyn (V2 640 480) $
+    fmap (fromIntegral <$>) (windowSizeChangedEventSize <$> windowSizeChangedEvt)
+
   let leftClickEvts :: Event t MouseButtonEventData
       leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
       rightClickEvts :: Event t MouseButtonEventData
       rightClickEvts = ffilter (\x -> has (mouseButtons . rightClick) x
                                && has (mouseMotion . _Pressed) x
                                ) mouseButtonEvt
-      leftClickAxial = calcMouseClickAxial <$> leftClickEvts
-      rightClickAxialEvt = calcMouseClickAxial <$> rightClickEvts
+      onBoard :: V2 CInt -> MouseButtonEventData -> Maybe MouseButtonEventData
+      onBoard ws mbd = if isClickInPanel panelHeight ws mbd then Nothing else Just mbd
+      boardLeftClicks :: Event t MouseButtonEventData
+      boardLeftClicks  = attachWithMaybe onBoard (current winSizeDyn) leftClickEvts
+      boardRightClicks :: Event t MouseButtonEventData
+      boardRightClicks = attachWithMaybe onBoard (current winSizeDyn) rightClickEvts
+      leftClickAxial = calcMouseClickAxial <$> boardLeftClicks
+      rightClickAxialEvt = calcMouseClickAxial <$> boardRightClicks
       toggleInvEvt :: Event t ()
       toggleInvEvt = () <$ ffilter (\kd ->
           has _Pressed (keyboardEventKeyMotion kd) &&
@@ -137,9 +146,6 @@ mkGameState initGS helpOpen shopActions inventoryActions = do
         fireAlpha (fromIntegral (i * 11) `min` 220)
       threadDelay 4000000           -- hold for 4 s then reset
       fireReset ResetGame
-
-  winSizeDyn <- holdDyn (V2 640 480) $
-    fmap (fromIntegral <$>) (windowSizeChangedEventSize <$> windowSizeChangedEvt)
 
   performEvent_ $ ffor (describeState <$> updated state) $ liftIO . print
 

@@ -5,9 +5,14 @@ import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
 import           Plunder.Combat (Weapon(..), isDead, unit_hp, unit_weapon, StatusEffect(..), unit_status, _DrinkingPotion, _Healing)
+import           Data.Int                        (Int32)
+import           Foreign.C.Types                 (CInt)
 import           Plunder.Grid
+import           Plunder.Mouse                   (isClickInPanel)
+import           Plunder.Render.ContextPanel      (panelHeight)
 import           Plunder.Shop
 import           Plunder.State
+import           SDL                             (MouseButtonEventData(..), InputMotion(..), MouseButton(..), MouseDevice(..), V2(..), Point(..))
 import           System.Random                   (mkStdGen)
 import           Test.Hspec
 import           Test.QuickCheck                 ()
@@ -716,3 +721,21 @@ spec = do
     case selectedTileInfo gs of
       ContextShop _ content -> content `shouldBe` shopTileContent
       other -> expectationFailure $ "Expected ContextShop, got: " <> show other
+
+ describe "isClickInPanel" $ do
+  let mkClick :: Int32 -> MouseButtonEventData
+      mkClick y = MouseButtonEventData Nothing Pressed (Mouse 0) ButtonLeft 1 (P (V2 100 y))
+      winSize :: CInt -> V2 CInt
+      winSize h = V2 640 h
+
+  it "click inside panel area returns True" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 400) `shouldBe` True
+
+  it "click above panel area returns False" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 300) `shouldBe` False
+
+  it "click at exact boundary returns True" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 360) `shouldBe` True
+
+  it "click one pixel above boundary returns False" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 359) `shouldBe` False
