@@ -6,10 +6,10 @@ module Plunder.Render.Inventory(renderInventory) where
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Set             (Set)
 import qualified Data.Set             as Set
 import           Foreign.C.Types      (CInt)
-import           Plunder.Render.Color
 import           Plunder.Render.Font
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
@@ -24,12 +24,12 @@ maxSlots = 8
 renderInventory
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Dynamic t Bool -> Dynamic t (Set ShopItem) -> m (Event t ShopItem)
 renderInventory font isOpen items = do
-  renderer <- ask
+  rf <- ask
 
-  commitLayer $ renderInventoryBackground renderer <$> isOpen
+  commitLayer $ renderInventoryBackground rf <$> isOpen
 
   titleSurface <- allocateText font inventoryStyle "Inventory"
   void $ image $
@@ -50,7 +50,7 @@ padTo n xs =
   in map Just taken ++ replicate (n - length taken) Nothing
 
 renderSlot
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
+  :: (ReflexSDL2 t m, MonadReader RenderFun m)
   => Font -> Int -> Bool -> Maybe ShopItem -> m (Maybe ImageSettings)
 renderSlot _ _ False _ = pure Nothing
 renderSlot font idx True mItem =
@@ -64,8 +64,8 @@ inventoryStyle = defaultStyle & styleColorLens .~ V4 0 0 0 255
 invPosition :: Int -> Point V2 CInt
 invPosition offset = P $ V2 250 (20 + fromIntegral offset * 20)
 
-renderInventoryBackground :: MonadIO m => Renderer -> Bool -> m ()
-renderInventoryBackground renderer open = do
-  setDrawColor renderer $ V4 200 200 200 255
+renderInventoryBackground :: MonadIO m => RenderFun -> Bool -> m ()
+renderInventoryBackground rf open = do
+  rf_setDrawColor rf $ V4 200 200 200 255
   when open $
-    fillRect renderer (Just (Rectangle (P $ V2 240 20) (V2 200 200)))
+    rf_fillRect rf (Just (Rectangle (P $ V2 240 20) (V2 200 200)))

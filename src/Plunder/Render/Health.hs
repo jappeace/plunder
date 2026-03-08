@@ -6,6 +6,7 @@ import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Maybe
 import           Foreign.C.Types        (CInt)
 import           Plunder.Grid
@@ -13,15 +14,14 @@ import           Reflex
 import           Reflex.SDL2
 import           Plunder.Render.Layer
 import SDL.Primitive(Color)
-import Plunder.Render.Color
 
 healthBar :: DynamicWriter t [Layer m] m
         => ReflexSDL2 t m
-        => MonadReader Renderer m
+        => MonadReader RenderFun m
         => Dynamic t Tile -> m ()
 healthBar tileDyn = do
-  renderer    <- ask
-  commitLayer $ healthBar' renderer <$> tileDyn
+  rf <- ask
+  commitLayer $ healthBar' rf <$> tileDyn
 
 barHeight :: Num a => a
 barHeight = 6
@@ -42,17 +42,17 @@ borderColor :: Color
 borderColor = V4 0 0 0 255
 
 healthBar' :: MonadIO m
-        => Renderer -> Tile -> m ()
-healthBar' renderer tile = unless isDead $ do
+        => RenderFun -> Tile -> m ()
+healthBar' rf tile = unless isDead $ do
     -- dark background (full max-health width)
-    setDrawColor renderer bgColor
-    fillRect renderer $ Just bgRect
+    rf_setDrawColor rf bgColor
+    rf_fillRect rf $ Just bgRect
     -- green health fill
-    setDrawColor renderer fillColor
-    fillRect renderer $ Just fillRect'
+    rf_setDrawColor rf fillColor
+    rf_fillRect rf $ Just fillRect'
     -- black border on top
-    setDrawColor renderer borderColor
-    drawRect renderer $ Just bgRect
+    rf_setDrawColor rf borderColor
+    rf_drawRect rf $ Just bgRect
     where
       isDead :: Bool
       isDead = fromMaybe True $ do

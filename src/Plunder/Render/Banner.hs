@@ -5,9 +5,9 @@ module Plunder.Render.Banner(renderBanner) where
 
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Word            (Word8)
 import           Foreign.C.Types      (CInt)
-import           Plunder.Render.Color
 import           Plunder.Render.Font
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
@@ -33,10 +33,10 @@ msgStyle = defaultStyle
 renderBanner
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Dynamic t GamePhase -> Dynamic t Word8 -> Dynamic t (V2 CInt) -> m ()
 renderBanner font phaseDyn alphaDyn winSizeDyn = do
-  renderer <- ask
+  MkRenderFun{rf_setDrawColor, rf_fillRect, rf_copy} <- ask
   -- Pre-allocate text textures once; never recreated per frame.
   diedImg <- allocateText font msgStyle "YOU DIED"
   victImg <- allocateText font msgStyle "YOU ARE VICTORIOUS"
@@ -53,7 +53,7 @@ renderBanner font phaseDyn alphaDyn winSizeDyn = do
           bannerRect = Rectangle
             (P $ V2 ((w - bannerW) `div` 2) ((h - bannerH) `div` 2))
             (V2 bannerW bannerH)
-      setDrawColor renderer (V4 20 20 20 alpha)
-      fillRect renderer (Just bannerRect)
+      rf_setDrawColor (V4 20 20 20 alpha)
+      rf_fillRect (Just bannerRect)
       textureAlphaMod tex $= alpha
-      copy renderer tex Nothing (Just $ img ^. image_position)
+      rf_copy tex Nothing (Just $ img ^. image_position)

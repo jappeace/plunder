@@ -2,23 +2,24 @@ module Plunder.Render.Arrow (drawArrow, drawPathArrows) where
 
 import           Control.Monad.IO.Class (MonadIO)
 import           Foreign.C.Types        (CInt)
-import           Reflex.SDL2            (Renderer, V2 (..), Point (..))
-import           SDL.Primitive          (Color, fillTriangle, thickLine)
+import           Reflex.SDL2            (V2 (..), Point (..))
+import           SDL.Primitive          (Color)
+import           Plunder.Render.RenderFun (RenderFun(..))
 
 -- | Draw an arrow (thick shaft + filled arrowhead) from one pixel position
 --   to another.  Does nothing when the two points coincide.
 drawArrow
   :: MonadIO m
-  => Renderer
+  => RenderFun
   -> Point V2 CInt  -- ^ from
   -> Point V2 CInt  -- ^ to
   -> Color
   -> m ()
-drawArrow renderer (P (V2 fx fy)) (P (V2 tx ty)) color
+drawArrow rf (P (V2 fx fy)) (P (V2 tx ty)) color
   | fx == tx && fy == ty = pure ()
   | otherwise = do
-      thickLine renderer (V2 fx fy) (V2 tx ty) 3 color
-      fillTriangle renderer tip wing1 wing2 color
+      rf_thickLine rf (V2 fx fy) (V2 tx ty) 3 color
+      rf_fillTriangle rf tip wing1 wing2 color
   where
     dx, dy, len, ux, uy :: Double
     dx  = fromIntegral (tx - fx)
@@ -49,17 +50,17 @@ drawArrow renderer (P (V2 fx fy)) (P (V2 tx ty)) color
 --   @src@ is the starting tile; @waypoints@ is the path (excluding src).
 drawPathArrows
   :: MonadIO m
-  => Renderer
+  => RenderFun
   -> (a -> Point V2 CInt)  -- ^ convert a coordinate to pixel position
   -> a                     -- ^ source coordinate
   -> [a]                   -- ^ path waypoints (excluding source)
   -> Color
   -> m ()
-drawPathArrows renderer toPixel src waypoints color =
+drawPathArrows rf toPixel src waypoints color =
   go (toPixel src) waypoints
   where
     go _ []     = pure ()
     go from (w:ws) = do
       let to = toPixel w
-      drawArrow renderer from to color
+      drawArrow rf from to color
       go to ws

@@ -7,7 +7,8 @@ module Plunder.Guest(guest) where
 
 import           Control.Lens
 import           Control.Monad                   (forM_, void)
-import           Control.Monad.Reader            (MonadReader (..))
+import           Control.Monad.Reader            (MonadReader)
+import           Plunder.Render.RenderFun       (RenderFun)
 import           Data.Word                       (Word8)
 import           Foreign.C.Types                 (CInt)
 import           Control.Monad.Trans.Random.Lazy
@@ -31,7 +32,7 @@ import Control.Concurrent (forkIO, threadDelay)
 guest
   :: forall t m
    . ReflexSDL2 t m
-  => DynamicWriter t [Layer m] m => MonadReader Renderer m => GameState -> m ()
+  => DynamicWriter t [Layer m] m => MonadReader RenderFun m => GameState -> m ()
 guest initGS = mdo
   -- Print some stuff after the network is built.
   evPB           <- getPostBuild

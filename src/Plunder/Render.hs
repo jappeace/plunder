@@ -8,7 +8,9 @@ import Plunder.Render.Text
 import           Plunder.Combat
 import           Control.Lens
 import           Control.Monad
-import           Control.Monad.Reader (MonadReader (..))
+import           Control.Monad.Reader (MonadReader (..)
+                                     )
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Foreign.C.Types      (CInt)
 import qualified Data.Map.Strict      as Map
 import qualified Data.Text            as T
@@ -25,19 +27,18 @@ import           Plunder.Render.Image
 import           Plunder.Render.Layer
 import           Plunder.Render.Terrain
 import           Plunder.State
-import           Plunder.Render.Color
 import           Plunder.Render.Font
 
 renderState :: ReflexSDL2 t m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => DynamicWriter t [Layer m] m
   => Font ->  Dynamic t GameState -> m ()
 renderState font state = do
-  renderer <- ask
+  rf <- ask
 
   -- Terrain fill is the very first (lowest) layer: coloured hexagons for
   -- every coordinate in range, with Water used for anything outside the grid.
-  renderTerrain renderer (view game_board <$> state)
+  renderTerrain rf (view game_board <$> state)
 
   vikingF <- renderImage <$> loadViking
   enemyF <- renderImage <$> loadEnemy
@@ -77,18 +78,18 @@ renderState font state = do
   -- Draw planned-move arrows on top of units
   commitLayer $ ffor (view game_planned_moves <$> state) $ \plans ->
     for_ (Map.toList plans) $ \(src, path) ->
-      drawPathArrows renderer axialToPixel src path (V4 255 165 0 255)
+      drawPathArrows rf axialToPixel src path (V4 255 165 0 255)
 
   -- Fog of war overlay (covers terrain, sprites and arrows, but not HUD)
-  renderFogOverlay renderer state
+  renderFogOverlay rf state
 
   let moneyStyle :: Style
       moneyStyle = defaultStyle & styleColorLens .~ V4 255 215 0 255
       moneyBgRect :: Rectangle CInt
       moneyBgRect = Rectangle (P $ V2 492 4) (V2 142 28)
   commitLayer $ pure $ do
-    setDrawColor renderer (V4 0 0 0 200)
-    fillRect renderer (Just moneyBgRect)
+    rf_setDrawColor rf (V4 0 0 0 200)
+    rf_fillRect rf (Just moneyBgRect)
   void $ imageEvt =<< dynView (state <&>
     \state' ->
       renderText font moneyStyle (P $ V2 500 10)
@@ -112,7 +113,7 @@ renderState font state = do
 
 applyImage ::
   DynamicWriter t [Performable m ()] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => ReflexSDL2 t m
   => (Axial -> ImageSettings)
   -> Getting Any Tile a -- ^ condition on the tile for rendering

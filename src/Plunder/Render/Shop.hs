@@ -13,10 +13,10 @@ import Foreign.C.Types(CInt)
 import Data.Word(Word8, Word64)
 import Plunder.Shop
 import Plunder.Render.Text
-import Plunder.Render.Color
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Reflex
 import           Reflex.SDL2
 import           Plunder.Render.Image
@@ -33,12 +33,12 @@ initialState = MkShopState mempty
 
 renderShop :: ReflexSDL2 t m
     => DynamicWriter t [Layer m] m
-    => MonadReader Renderer m
+    => MonadReader RenderFun m
     => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t Word64 -> Dynamic t Bool -> m (Event t ShopAction)
 renderShop font shopContent playerMoney hasRoomForFriend = mdo
-  renderer <- ask
+  rf <- ask
 
-  commitLayer $ renderShopBackground renderer <$> shopContent
+  commitLayer $ renderShopBackground rf <$> shopContent
   shopSurface <- allocateText font shopStyle "Shop"
   void $ image $ shopContent & mapped._Just .~ surfaceToSettings shopSurface (shopPosition 0)
 
@@ -72,7 +72,7 @@ data PurchaseError = ShopClosed
                    | NoItemsSelected
                    | NoRoomForFriend
 
-renderErrorText :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Maybe PurchaseError -> Maybe (m ImageSettings)
+renderErrorText :: (ReflexSDL2 t m, MonadReader RenderFun m) => Font -> Maybe PurchaseError -> Maybe (m ImageSettings)
 renderErrorText _ Nothing = Nothing
 renderErrorText small (Just err) = Just $ renderText small shopStyle (shopPosition 5) $ renderError err
 
@@ -109,14 +109,14 @@ purchaseAction playerMoney hasRoom state = \case
               , haulNewMoney = playerMoney - price
             }
 
-renderSlot :: (MonadReader Renderer m, ReflexSDL2 t m, DynamicWriter t [Layer m] m) => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t ShopState -> Int -> (ShopContent -> Maybe ShopItem) -> m (Event t (Word8, (ShopContent -> Maybe ShopItem)))
+renderSlot :: (MonadReader RenderFun m, ReflexSDL2 t m, DynamicWriter t [Layer m] m) => Font -> Dynamic t (Maybe ShopContent) -> Dynamic t ShopState -> Int -> (ShopContent -> Maybe ShopItem) -> m (Event t (Word8, (ShopContent -> Maybe ShopItem)))
 renderSlot font shopContent shopState idx' slot =
   fmap ((idx, slot) <$) $
     image =<< holdDyn Nothing =<< dynView (renderItem font idx . fmap slot <$> shopContent <*> shopState)
   where
      idx = fromIntegral idx'
 
-renderItem :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Word8 -> Maybe (Maybe ShopItem) -> ShopState -> m (Maybe ImageSettings)
+renderItem :: (ReflexSDL2 t m, MonadReader RenderFun m) => Font -> Word8 -> Maybe (Maybe ShopItem) -> ShopState -> m (Maybe ImageSettings)
 renderItem font idx content state =
   traverse (renderShopItem font style (idx + 2)) content
 
@@ -141,18 +141,18 @@ shopSelectedStyle :: Style
 shopSelectedStyle = shopStyle & styleColorLens .~ (V4 200 30 30 255)
 
 renderShopBackground :: MonadIO m
-    => Renderer -> Maybe ShopContent -> m ()
-renderShopBackground renderer mshop = do
-  setDrawColor renderer $ V4 200 200 200 255
+    => RenderFun -> Maybe ShopContent -> m ()
+renderShopBackground rf mshop = do
+  rf_setDrawColor rf $ V4 200 200 200 255
   void $ forM_ mshop $ \_content -> do
-    fillRect renderer (Just (Rectangle (P $ V2 20 20) (V2 200 200)))
+    rf_fillRect rf (Just (Rectangle (P $ V2 20 20) (V2 200 200)))
 
 shopPosition :: Word8 -> Point V2 CInt
 shopPosition offset = P $ V2 30 (20 + fromIntegral offset * 20)
 
 renderShopItem ::
   (ReflexSDL2 t m
-  , MonadReader Renderer m) =>
+  , MonadReader RenderFun m) =>
   Font -> Style -> Word8 -> Maybe ShopItem -> m ImageSettings
 renderShopItem font style offset = \case
   Nothing ->
