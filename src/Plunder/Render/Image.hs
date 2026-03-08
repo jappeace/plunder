@@ -28,6 +28,7 @@ import Control.Monad
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.ByteString        hiding (copy)
 import           Data.FileEmbed
 import           Foreign.C.Types        (CInt)
@@ -38,38 +39,49 @@ import           Reflex.SDL2
 import           SDL.Image
 import Plunder.Mouse
 
-loadAxe :: MonadIO m => MonadReader Renderer m => m Texture
-loadAxe = flip decodeTexture imgFile =<< ask
+loadAxe :: MonadIO m => MonadReader RenderFun m => m Texture
+loadAxe = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgFile
   where
   imgFile :: ByteString
   imgFile = $(embedFile "assets/img/axe.png")
 
-loadSword :: MonadIO m => MonadReader Renderer m => m Texture
-loadSword = flip decodeTexture imgFile =<< ask
+loadSword :: MonadIO m => MonadReader RenderFun m => m Texture
+loadSword = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgFile
   where
   imgFile :: ByteString
   imgFile = $(embedFile "assets/img/sword.png")
 
-loadBow :: MonadIO m => MonadReader Renderer m => m Texture
-loadBow = flip decodeTexture imgFile =<< ask
+loadBow :: MonadIO m => MonadReader RenderFun m => m Texture
+loadBow = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgFile
   where
   imgFile :: ByteString
   imgFile = $(embedFile "assets/img/bow.png")
 
-loadViking :: MonadIO m => MonadReader Renderer m => m Texture
-loadViking = flip decodeTexture imgFile =<< ask
+loadViking :: MonadIO m => MonadReader RenderFun m => m Texture
+loadViking = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgFile
   where
   imgFile :: ByteString
   imgFile = $(embedFile "assets/img/viking.png")
 
-loadBlood :: MonadIO m => MonadReader Renderer m => m Texture
-loadBlood = flip decodeTexture imgFile =<< ask
+loadBlood :: MonadIO m => MonadReader RenderFun m => m Texture
+loadBlood = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgFile
   where
   imgFile :: ByteString
   imgFile = $(embedFile "assets/img/blood.png")
 
-burndedHouse :: MonadIO m => MonadReader Renderer m => m Texture
+burndedHouse :: MonadIO m => MonadReader RenderFun m => m Texture
 burndedHouse = do
+  MkRenderFun{rf_createTexture} <- ask
   fire <- decode imgFireFile
   dimsFire <- surfaceDimensions fire
   house <- decode imgHouseFile
@@ -80,8 +92,7 @@ burndedHouse = do
     ry <- liftIO $ randomRIO (-(dimsFire ^. _y), (dims ^. _y) - (dimsFire ^. _y))
     surfaceBlit fire Nothing house (Just $ P $ V2 rx ry)
 
-  r1 <- ask
-  text <- createTextureFromSurface r1 house
+  text <- rf_createTexture house
 
   freeSurface house
   freeSurface fire
@@ -91,20 +102,26 @@ burndedHouse = do
 imgFireFile :: ByteString
 imgFireFile = $(embedFile "assets/img/fire.png")
 
-loadHouse :: MonadIO m => MonadReader Renderer m => m Texture
-loadHouse = flip decodeTexture imgHouseFile =<< ask
+loadHouse :: MonadIO m => MonadReader RenderFun m => m Texture
+loadHouse = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgHouseFile
 
 imgHouseFile :: ByteString
 imgHouseFile = $(embedFile "assets/img/house.png")
 
-loadShop :: MonadIO m => MonadReader Renderer m => m Texture
-loadShop = flip decodeTexture imgShopFile =<< ask
+loadShop :: MonadIO m => MonadReader RenderFun m => m Texture
+loadShop = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgShopFile
 
 imgShopFile :: ByteString
 imgShopFile = $(embedFile "assets/img/shop.png")
 
-loadEnemy :: MonadIO m => MonadReader Renderer m => m Texture
-loadEnemy = flip decodeTexture imgFile =<< ask
+loadEnemy :: MonadIO m => MonadReader RenderFun m => m Texture
+loadEnemy = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgFile
   where
   imgFile :: ByteString
   imgFile = $(embedFile "assets/img/male_adventurer_idle.png")
@@ -116,7 +133,7 @@ data ImageSettings = ImageSettings
 makeLenses ''ImageSettings
 
 imageEvt :: ReflexSDL2 t m
-    => MonadReader Renderer m
+    => MonadReader RenderFun m
     => DynamicWriter t [Layer m] m
     =>
   Event t ImageSettings -> m (Event t ImageActions)
@@ -127,15 +144,15 @@ data ImageActions = LeftClick
   deriving Show
 
 image :: forall t m . ReflexSDL2 t m
-    => MonadReader Renderer m
+    => MonadReader RenderFun m
     => DynamicWriter t [Layer m] m
     => Dynamic t (Maybe ImageSettings) -> m (Event t ImageActions)
 image settingsDyn = do
-  renderer    <- ask
+  MkRenderFun{rf_copy} <- ask
 
   commitLayer $ ffor settingsDyn $ \msettings ->
     flip (maybe (pure ())) msettings $ \settings -> do
-      copy renderer (settings ^. image_content) Nothing $
+      rf_copy (settings ^. image_content) Nothing $
         settings ^? image_position
 
 

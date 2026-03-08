@@ -16,6 +16,7 @@ module Plunder.Render.Text(
 import Plunder.Lens
 import           Control.Lens
 import           Control.Monad.Reader   (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Text              (Text)
 import           Foreign.C.Types        (CInt)
 import           Reflex.SDL2
@@ -44,12 +45,12 @@ data TextSurface = MkTextSurface
 
 -- | Create a 'TextSurface' from a font, style, and text string.
 --   This only allocates the SDL texture; it does not draw anything on screen.
-allocateText :: (ReflexSDL2 t m, MonadReader Renderer m) => Font -> Style -> Text -> m TextSurface
+allocateText :: (ReflexSDL2 t m, MonadReader RenderFun m) => Font -> Style -> Text -> m TextSurface
 allocateText font style text = do
-      r    <- ask
+      MkRenderFun{rf_createTexture} <- ask
       textSurface <- Font.solid font color text
       fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
-      textTexture <- createTextureFromSurface r textSurface -- I think textures are cleaned automatically
+      textTexture <- rf_createTexture textSurface
       freeSurface textSurface
       pure $ MkTextSurface
           { textSurfaceFontHexSize = fontHexSize
@@ -87,7 +88,7 @@ textSurfaceSize = textSurfaceFontHexSize
 --   For a convenience wrapper that renders /and/ displays in one step, see
 --   @panelText@ in "Plunder.Render.ContextPanel".
 renderText :: ReflexSDL2 t m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Style -> Point V2 CInt -> Text -> m ImageSettings
 renderText font style position text =
       flip surfaceToSettings position <$> allocateText font style text

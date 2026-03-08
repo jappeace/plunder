@@ -36,6 +36,7 @@ library
       Plunder.Render
       Plunder.Render.ContextPanel
       Plunder.Render.Color
+      Plunder.Render.RenderFun
       Plunder.Render.Font
       Plunder.Render.Health
       Plunder.Render.Help

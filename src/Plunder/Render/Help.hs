@@ -5,10 +5,10 @@ module Plunder.Render.Help(renderHelp) where
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.List            (foldl')
 import           Data.Text            (Text)
 import           Foreign.C.Types      (CInt)
-import           Plunder.Render.Color
 import           Plunder.Render.Font
 import           Plunder.Render.Image (ImageSettings (..), image, image_position)
 import           Plunder.Render.Layer
@@ -65,7 +65,7 @@ data RenderedLine
   | RenderedBlank
 
 allocateLine
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
+  :: (ReflexSDL2 t m, MonadReader RenderFun m)
   => Font -> HelpLine -> m RenderedLine
 allocateLine font (HelpHeader t) = RenderedSingle <$> allocateText font (toStyle Header) t <*> pure Header
 allocateLine font (HelpRow k d)  = RenderedPair <$> allocateText font (toStyle Body) k
@@ -90,10 +90,10 @@ keyColumnWidth = foldl' maxKey 0
 renderHelp
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Dynamic t Bool -> Dynamic t (V2 CInt) -> m (Event t ())
 renderHelp font isOpen winSizeDyn = do
-  renderer <- ask
+  MkRenderFun{rf_setDrawColor, rf_fillRect, rf_drawRect, rf_copy} <- ask
   rendered <- forM helpLines $ allocateLine font
   okSurface <- allocateText font (toStyle Body) "[ OK ]"
   let V2 okW okH = textSurfaceSize okSurface
@@ -112,19 +112,19 @@ renderHelp font isOpen winSizeDyn = do
         bgY = (h - bgH) `div` 2
         textX = bgX + textPadX
         textY idx = bgY + textPadY + fromIntegral idx * lineH
-    setDrawColor renderer (V4 210 210 210 245)
-    fillRect renderer $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
-    setDrawColor renderer (V4 0 0 0 255)
-    drawRect renderer $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
+    rf_setDrawColor (V4 210 210 210 245)
+    rf_fillRect $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
+    rf_setDrawColor (V4 0 0 0 255)
+    rf_drawRect $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
     forM_ (zip [(0 :: Int) ..] rendered) $ \(idx, rl) -> case rl of
       RenderedSingle surf _ -> do
         let img = surfaceToSettings surf (P $ V2 textX (textY idx))
-        copy renderer (_image_content img) Nothing (Just $ img ^. image_position)
+        rf_copy (_image_content img) Nothing (Just $ img ^. image_position)
       RenderedPair keySurf descSurf -> do
         let kImg = surfaceToSettings keySurf (P $ V2 textX (textY idx))
             dImg = surfaceToSettings descSurf (P $ V2 (bgX + descX) (textY idx))
-        copy renderer (_image_content kImg) Nothing (Just $ kImg ^. image_position)
-        copy renderer (_image_content dImg) Nothing (Just $ dImg ^. image_position)
+        rf_copy (_image_content kImg) Nothing (Just $ kImg ^. image_position)
+        rf_copy (_image_content dImg) Nothing (Just $ dImg ^. image_position)
       RenderedBlank -> pure ()
   okClicks <- image okImgDyn
   pure (() <$ okClicks)

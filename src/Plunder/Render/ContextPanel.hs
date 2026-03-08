@@ -10,6 +10,7 @@ module Plunder.Render.ContextPanel(
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Text (Text)
 import qualified Data.Map as Map
 import           Data.Map (Map)
@@ -19,7 +20,6 @@ import           Data.Word (Word8, Word64)
 import           Foreign.C.Types (CInt)
 import           Plunder.Combat
 import           Plunder.Grid (Terrain(..))
-import           Plunder.Render.Color
 import           Plunder.Render.Font
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
@@ -48,22 +48,22 @@ shopSelectedStyle = panelStyle & styleColorLens .~ V4 200 30 30 255
 renderContextPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Dynamic t GameState -> Dynamic t (V2 CInt) -> m (Event t ShopAction)
 renderContextPanel font gameState winSizeDyn = do
   let contextDyn = selectedTileInfo <$> gameState
       moneyDyn   = view (game_player_inventory . inventory_money) <$> gameState
       hasRoomDyn = isJust . findFreeAdjacent <$> gameState
 
-  renderer <- ask
+  MkRenderFun{rf_setDrawColor, rf_fillRect} <- ask
 
   -- Draw dark panel background
   commitLayer $ ffor2 contextDyn winSizeDyn $ \ctx (V2 w h) ->
     case ctx of
       ContextNone -> pure ()
       _           -> do
-        setDrawColor renderer (V4 30 30 30 220)
-        fillRect renderer (Just (Rectangle (P $ V2 0 (h - panelHeight)) (V2 w panelHeight)))
+        rf_setDrawColor (V4 30 30 30 220)
+        rf_fillRect (Just (Rectangle (P $ V2 0 (h - panelHeight)) (V2 w panelHeight)))
 
   -- Render content using dynView; switchHold flattens the shop events
   shopEvtEvt <- dynView $ renderPanelContent font winSizeDyn moneyDyn hasRoomDyn <$> contextDyn
@@ -78,7 +78,7 @@ panelPos (V2 _ h) xOff lineIdx =
 panelText
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Style -> Point V2 CInt -> Text -> m ()
 panelText font style pos txt = do
   imgSettings <- renderText font style pos txt
@@ -87,7 +87,7 @@ panelText font style pos txt = do
 renderPanelContent
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Dynamic t (V2 CInt) -> Dynamic t Word64 -> Dynamic t Bool -> ContextInfo -> m (Event t ShopAction)
 renderPanelContent _ _ _ _ ContextNone = pure never
 renderPanelContent font winSizeDyn _ _ (ContextEmpty terrain) = do
@@ -127,7 +127,7 @@ contentXOff = 120
 renderEmptyPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Terrain -> V2 CInt -> m ()
 renderEmptyPanel font terrain winSize = do
   panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
@@ -136,7 +136,7 @@ renderEmptyPanel font terrain winSize = do
 renderFogPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Terrain -> V2 CInt -> m ()
 renderFogPanel font terrain winSize = do
   panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
@@ -145,7 +145,7 @@ renderFogPanel font terrain winSize = do
 renderPlayerPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Terrain -> Unit -> PlayerInventory -> V2 CInt -> m ()
 renderPlayerPanel font terrain unit' inv winSize = do
   panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
@@ -164,7 +164,7 @@ renderPlayerPanel font terrain unit' inv winSize = do
 renderEnemyPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Terrain -> Unit -> V2 CInt -> m ()
 renderEnemyPanel font terrain unit' winSize = do
   panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
@@ -179,7 +179,7 @@ renderEnemyPanel font terrain unit' winSize = do
 renderHousePanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Terrain -> Unit -> V2 CInt -> m ()
 renderHousePanel font terrain unit' winSize = do
   panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
@@ -190,7 +190,7 @@ renderHousePanel font terrain unit' winSize = do
 renderShopFarPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Terrain -> V2 CInt -> m ()
 renderShopFarPanel font terrain winSize = do
   panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
@@ -246,7 +246,7 @@ purchaseAction playerMoney hasRoom sel content =
 renderShopPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => Font -> Terrain -> Dynamic t (V2 CInt) -> Dynamic t Word64 -> Dynamic t Bool -> ShopContent -> m (Event t ShopAction)
 renderShopPanel font terrain winSizeDyn moneyDyn hasRoomDyn content = mdo
   -- Terrain (left) and header (right)
@@ -290,13 +290,13 @@ renderShopPanel font terrain winSizeDyn moneyDyn hasRoomDyn content = mdo
   pure $ leftmost [MkBought <$> purchaseSuccess, MkExited <$ exitClick]
 
 renderErrorText
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
+  :: (ReflexSDL2 t m, MonadReader RenderFun m)
   => Font -> Maybe PurchaseError -> Maybe (m ImageSettings)
 renderErrorText _ Nothing = Nothing
 renderErrorText small (Just err) = Just $ renderText small panelStyle (P $ V2 300 10) (renderPurchaseError err)
 
 renderShopSlot
-  :: (ReflexSDL2 t m, MonadReader Renderer m)
+  :: (ReflexSDL2 t m, MonadReader RenderFun m)
   => Font -> ShopContent -> Word8 -> (ShopContent -> Maybe ShopItem) -> V2 CInt -> ShopSelection -> m (Maybe ImageSettings)
 renderShopSlot font content idx slotAccessor winSize sel = do
   let style = if Map.member idx (selectedSlots sel) then shopSelectedStyle else panelStyle

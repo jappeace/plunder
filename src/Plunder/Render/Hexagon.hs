@@ -22,6 +22,7 @@ import           SDL.Font(Font)
 import           Plunder.Render.Text
 import           Control.Lens
 import           Control.Monad.Reader (MonadReader (..))
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Foldable
 import           Data.Int
 import           Data.Text            (Text)
@@ -33,7 +34,7 @@ import           Reflex
 import           Reflex.SDL2
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
-import           SDL.Primitive (polygon, fillPolygon, Color)
+import           SDL.Primitive (Color)
 import           Text.Printf
 
 data HexagonSettings = HexagonSettings
@@ -105,13 +106,15 @@ calcPoints settings =
 -- 3. detect click. https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 hexagon
   :: ReflexSDL2 t m
-  => MonadReader Renderer m
+  => MonadReader RenderFun m
   => DynamicWriter t [Layer m] m => HexagonSettings -> m ()
 hexagon settings = do
-  r    <- ask
+  MkRenderFun{rf_fillPolygon, rf_polygon} <- ask
+  let polgyonF = if settings ^. hexagon_is_filled then rf_fillPolygon else rf_polygon
+      (xPoints, yPoints) = calcPoints settings
   evPB <- holdDyn () =<< getPostBuild
   commitLayer $ ffor evPB $ const $ do
-    polgyonF r xPoints yPoints $ settings ^. hexagon_color
+    polgyonF xPoints yPoints $ settings ^. hexagon_color
   for_ (settings ^. hexagon_label) $ \text -> do
       imageSettings <- renderText (settings ^. hexagon_font) (MkStyle
                                                                 { styleHorizontalAlign = Center
@@ -119,9 +122,6 @@ hexagon settings = do
                                                                 }) (settings ^. hexagon_position) text
       image $ pure $ Just imageSettings
   pure ()
-  where
-    (xPoints, yPoints) = calcPoints settings
-    polgyonF = if settings ^. hexagon_is_filled then fillPolygon else polygon
 
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 renderHex :: Font -> Axial -> HexagonSettings

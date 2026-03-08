@@ -14,9 +14,10 @@ import           Foreign.C.Types      (CInt)
 import           Plunder.Grid
 import           Plunder.State (GameState, Visibility(Visible, Fog, Unexplored), tileVisibility)
 import           Plunder.Render.Layer
+import           Plunder.Render.RenderFun (RenderFun(..))
 import           Reflex
 import           Reflex.SDL2
-import           SDL.Primitive        (fillPolygon, Color)
+import           SDL.Primitive        (Color)
 
 -- | RGBA colour for each terrain type.
 terrainToColor :: Terrain -> Color
@@ -52,29 +53,29 @@ hexPolyPoints axial = (S.fromList xs, S.fromList ys)
 --   the area beyond the map boundary looks like ocean.
 renderTerrain :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => Renderer
+  => RenderFun
   -> Dynamic t Grid
   -> m ()
-renderTerrain renderer boardDyn =
+renderTerrain rf boardDyn =
   commitLayer $ ffor boardDyn $ \board ->
     Foldable.for_ terrainCoords $ \axial ->
       let color = case Map.lookup axial board of
                     Nothing   -> terrainToColor Water
                     Just tile -> terrainToColor (tile ^. tile_terrain)
           (xs, ys) = hexPolyPoints axial
-      in fillPolygon renderer xs ys color
+      in rf_fillPolygon rf xs ys color
 
 -- | Render a fog-of-war overlay on top of terrain and sprites.
 --   Tiles close to a player are fully visible, farther tiles get a
 --   semi-transparent or fully opaque dark overlay.
 renderFogOverlay :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => Renderer -> Dynamic t GameState -> m ()
-renderFogOverlay renderer stateDyn =
+  => RenderFun -> Dynamic t GameState -> m ()
+renderFogOverlay rf stateDyn =
   commitLayer $ ffor stateDyn $ \gs ->
     Foldable.for_ terrainCoords $ \axial ->
       let (xs, ys) = hexPolyPoints axial
       in case tileVisibility gs axial of
         Visible -> pure ()
-        Fog     -> fillPolygon renderer xs ys (V4 0 0 0 128)
-        Unexplored -> fillPolygon renderer xs ys (V4 0 0 0 255)
+        Fog     -> rf_fillPolygon rf xs ys (V4 0 0 0 128)
+        Unexplored -> rf_fillPolygon rf xs ys (V4 0 0 0 255)
