@@ -739,3 +739,45 @@ spec = do
 
   it "click one pixel above boundary returns False" $
     isClickInPanel panelHeight (winSize 480) (mkClick 359) `shouldBe` False
+
+ describe "Shop exit" $ do
+  let shopOpen = playerAdjacentToShop
+        & game_shop .~ Just shopTileContent
+        & game_selected .~ Just shopAxial
+
+  it "MkExited clears game_shop" $
+    runEvt (ShopUpdates MkExited) shopOpen ^. game_shop
+      `shouldBe` Nothing
+
+  it "MkExited clears game_selected" $
+    runEvt (ShopUpdates MkExited) shopOpen ^. game_selected
+      `shouldBe` Nothing
+
+ describe "contextTerrain" $ do
+  it "ContextPlayer carries terrain" $
+    contextTerrain (ContextPlayer Land defUnit (MkInventory 0 Set.empty))
+      `shouldBe` Just Land
+
+  it "ContextEnemy carries terrain" $
+    contextTerrain (ContextEnemy Water defUnit)
+      `shouldBe` Just Water
+
+  it "ContextHouse carries terrain" $
+    contextTerrain (ContextHouse Mountains defUnit)
+      `shouldBe` Just Mountains
+
+  it "ContextShop carries terrain" $
+    contextTerrain (ContextShop Land shopTileContent)
+      `shouldBe` Just Land
+
+  it "ContextFog carries terrain" $
+    contextTerrain (ContextFog Water)
+      `shouldBe` Just Water
+
+  it "ContextEmpty carries terrain" $
+    contextTerrain (ContextEmpty Mountains)
+      `shouldBe` Just Mountains
+
+  it "ContextNone has no terrain" $
+    contextTerrain ContextNone
+      `shouldBe` Nothing

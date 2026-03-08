@@ -38,6 +38,7 @@ module Plunder.State(GameState(..)
             , tileVisibility
             , ContextInfo(..)
             , selectedTileInfo
+            , contextTerrain
             ) where
 
 import qualified Control.Monad.State.Class as SC
@@ -80,6 +81,16 @@ data ContextInfo
   | ContextEmpty Terrain
   | ContextNone
   deriving (Show, Eq)
+
+-- | Extract the terrain from a 'ContextInfo', if present.
+contextTerrain :: ContextInfo -> Maybe Terrain
+contextTerrain (ContextPlayer terrain _ _) = Just terrain
+contextTerrain (ContextEnemy terrain _)    = Just terrain
+contextTerrain (ContextHouse terrain _)    = Just terrain
+contextTerrain (ContextShop terrain _)     = Just terrain
+contextTerrain (ContextFog terrain)        = Just terrain
+contextTerrain (ContextEmpty terrain)      = Just terrain
+contextTerrain ContextNone                 = Nothing
 
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
@@ -479,7 +490,9 @@ spawnFriend = do
 
 applyShopUpdates :: MonadState GameState m => ShopAction -> m ()
 applyShopUpdates = \case
-    MkExited -> assign game_shop Nothing
+    MkExited -> do
+      assign game_shop Nothing
+      assign game_selected Nothing
     MkBought bought -> do
       assign game_shop Nothing
       game_pending_purchase .= Just bought
