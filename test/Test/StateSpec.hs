@@ -778,6 +778,31 @@ spec = do
     contextTerrain (ContextEmpty Mountains)
       `shouldBe` Just Mountains
 
+  it "ContextShopFar carries terrain" $
+    contextTerrain (ContextShopFar Water)
+      `shouldBe` Just Water
+
   it "ContextNone has no terrain" $
     contextTerrain ContextNone
       `shouldBe` Nothing
+
+ describe "Off-grid and shop distance" $ do
+  it "selecting an off-grid tile returns ContextNone" $ do
+    let gs = initialState & game_selected .~ Just (MkAxial 99 99)
+    selectedTileInfo gs `shouldBe` ContextNone
+
+  it "selecting a visible shop from far away returns ContextShopFar" $ do
+    -- Player at MkAxial 2 3, place shop at MkAxial 2 5 (distance 2: visible but not adjacent)
+    let farShopAxial = MkAxial 2 5
+        gs = initialState
+          & game_board . ix farShopAxial . tile_content ?~ Shop shopTileContent
+          & game_selected .~ Just farShopAxial
+    case selectedTileInfo gs of
+      ContextShopFar _ -> pure ()
+      other -> expectationFailure $ "Expected ContextShopFar, got: " <> show other
+
+  it "selecting a shop while adjacent returns ContextShop" $ do
+    let gs = playerAdjacentToShop & game_selected .~ Just shopAxial
+    case selectedTileInfo gs of
+      ContextShop _ _ -> pure ()
+      other -> expectationFailure $ "Expected ContextShop, got: " <> show other

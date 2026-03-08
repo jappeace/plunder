@@ -77,6 +77,7 @@ data ContextInfo
   | ContextEnemy Terrain Unit
   | ContextHouse Terrain Unit
   | ContextShop Terrain ShopContent
+  | ContextShopFar Terrain        -- ^ shop visible but too far to interact
   | ContextFog Terrain
   | ContextEmpty Terrain
   | ContextNone
@@ -88,6 +89,7 @@ contextTerrain (ContextPlayer terrain _ _) = Just terrain
 contextTerrain (ContextEnemy terrain _)    = Just terrain
 contextTerrain (ContextHouse terrain _)    = Just terrain
 contextTerrain (ContextShop terrain _)     = Just terrain
+contextTerrain (ContextShopFar terrain)    = Just terrain
 contextTerrain (ContextFog terrain)        = Just terrain
 contextTerrain (ContextEmpty terrain)      = Just terrain
 contextTerrain ContextNone                 = Nothing
@@ -148,7 +150,7 @@ selectedTileInfo :: GameState -> ContextInfo
 selectedTileInfo gs = case gs ^. game_selected of
   Nothing    -> ContextNone
   Just axial -> case gs ^. game_board . at axial of
-    Nothing   -> ContextEmpty Land          -- off-grid
+    Nothing   -> ContextNone                -- off-grid
     Just tile ->
       let terrain = tile ^. tile_terrain
       in case tileVisibility gs axial of
@@ -159,7 +161,10 @@ selectedTileInfo gs = case gs ^. game_selected of
           Just (Player unit) -> ContextPlayer terrain unit (gs ^. game_player_inventory)
           Just (Enemy unit)  -> ContextEnemy terrain unit
           Just (House unit)  -> ContextHouse terrain unit
-          Just (Shop content) -> ContextShop terrain content
+          Just (Shop content)
+            | any (`elem` neigbours axial) (playerPositions gs)
+                             -> ContextShop terrain content
+            | otherwise      -> ContextShopFar terrain
 
 -- | Compute the set of tiles currently within sight range (distance < 5).
 computeNewlyExplored :: GameState -> Set Axial
