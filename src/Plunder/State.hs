@@ -36,6 +36,9 @@ module Plunder.State(GameState(..)
             , findFreeAdjacent
             , playerPositions
             , tileVisibility
+            , ContextInfo(..)
+            , selectedTileInfo
+            , contextTerrain
             ) where
 
 import qualified Control.Monad.State.Class as SC
@@ -68,13 +71,36 @@ data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
 data Visibility = Visible | Fog | Unexplored deriving (Show, Eq)
 
+-- | What the context panel shows for a selected tile.
+data ContextInfo
+  = ContextPlayer Terrain Unit PlayerInventory
+  | ContextEnemy Terrain Unit
+  | ContextHouse Terrain Unit
+  | ContextShop Terrain ShopContent
+  | ContextShopFar Terrain        -- ^ shop visible but too far to interact
+  | ContextFog Terrain
+  | ContextEmpty Terrain
+  | ContextNone
+  deriving (Show, Eq)
+
+-- | Extract the terrain from a 'ContextInfo', if present.
+contextTerrain :: ContextInfo -> Maybe Terrain
+contextTerrain (ContextPlayer terrain _ _) = Just terrain
+contextTerrain (ContextEnemy terrain _)    = Just terrain
+contextTerrain (ContextHouse terrain _)    = Just terrain
+contextTerrain (ContextShop terrain _)     = Just terrain
+contextTerrain (ContextShopFar terrain)    = Just terrain
+contextTerrain (ContextFog terrain)        = Just terrain
+contextTerrain (ContextEmpty terrain)      = Just terrain
+contextTerrain ContextNone                 = Nothing
+
 -- | inidicates the stuff in "pockets", so this doesn't mean equiped
 --   equiped is handled by tile content.
 data PlayerInventory = MkInventory {
    -- | indicating how much money a player has
     _inventory_money :: Word64
   , _inventroy_item  :: Set ShopItem
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data GameState = MkGameState
   { _game_selected          :: Maybe Axial
@@ -118,6 +144,27 @@ tileVisibility gs axial =
          else if minDist <= 4 then Fog
          else if Set.member axial (gs ^. game_explored) then Fog
          else Unexplored
+
+-- | Derive context-panel info for the currently selected tile.
+selectedTileInfo :: GameState -> ContextInfo
+selectedTileInfo gs = case gs ^. game_selected of
+  Nothing    -> ContextNone
+  Just axial -> case gs ^. game_board . at axial of
+    Nothing   -> ContextNone                -- off-grid
+    Just tile ->
+      let terrain = tile ^. tile_terrain
+      in case tileVisibility gs axial of
+        Unexplored -> ContextEmpty terrain
+        Fog        -> ContextFog terrain
+        Visible    -> case tile ^. tile_content of
+          Nothing            -> ContextEmpty terrain
+          Just (Player unit) -> ContextPlayer terrain unit (gs ^. game_player_inventory)
+          Just (Enemy unit)  -> ContextEnemy terrain unit
+          Just (House unit)  -> ContextHouse terrain unit
+          Just (Shop content)
+            | any (`elem` neigbours axial) (playerPositions gs)
+                             -> ContextShop terrain content
+            | otherwise      -> ContextShopFar terrain
 
 -- | Compute the set of tiles currently within sight range (distance < 5).
 computeNewlyExplored :: GameState -> Set Axial
@@ -413,6 +460,7 @@ updateLogic resetTo = \case
     let immediateAction = isShopping currentState towards
     case immediateAction of
       Just plan -> trace (show plan) $ do
+        game_selected .= Just towards
         mCombatRes <- applyAttack plan
         traverse_ (countLoot plan) mCombatRes
         modifying game_board (figureOutMove mCombatRes plan)
@@ -447,7 +495,9 @@ spawnFriend = do
 
 applyShopUpdates :: MonadState GameState m => ShopAction -> m ()
 applyShopUpdates = \case
-    MkExited -> assign game_shop Nothing
+    MkExited -> do
+      assign game_shop Nothing
+      assign game_selected Nothing
     MkBought bought -> do
       assign game_shop Nothing
       game_pending_purchase .= Just bought

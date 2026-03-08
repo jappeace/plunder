@@ -5,9 +5,14 @@ import           Control.Monad.Trans.Random.Lazy (runRandT)
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as Set
 import           Plunder.Combat (Weapon(..), isDead, unit_hp, unit_weapon, StatusEffect(..), unit_status, _DrinkingPotion, _Healing)
+import           Data.Int                        (Int32)
+import           Foreign.C.Types                 (CInt)
 import           Plunder.Grid
+import           Plunder.Mouse                   (isClickInPanel)
+import           Plunder.Render.ContextPanel      (panelHeight)
 import           Plunder.Shop
 import           Plunder.State
+import           SDL                             (MouseButtonEventData(..), InputMotion(..), MouseButton(..), MouseDevice(..), V2(..), Point(..))
 import           System.Random                   (mkStdGen)
 import           Test.Hspec
 import           Test.QuickCheck                 ()
@@ -615,3 +620,189 @@ spec = do
   it "ResetGame re-initializes explored set" $ do
     let result = runEvt ResetGame (initialState & game_phase .~ YouDied)
     Set.member playerAxial (result ^. game_explored) `shouldBe` True
+
+ describe "selectedTileInfo" $ do
+  let playerAxial = MkAxial 2 3
+
+  it "no selection returns ContextNone" $
+    selectedTileInfo initialState `shouldBe` ContextNone
+
+  it "selecting the player tile returns ContextPlayer with correct HP and terrain" $ do
+    let gs = initialState & game_selected .~ Just playerAxial
+    case selectedTileInfo gs of
+      ContextPlayer terrain unit' _inv -> do
+        unit' ^. unit_hp `shouldBe` 10
+        terrain `shouldBe` Land
+      other -> expectationFailure $ "Expected ContextPlayer, got: " <> show other
+
+  it "selecting a visible enemy returns ContextEnemy with correct HP" $ do
+    let enemyAxial = MkAxial 2 4
+        gs = initialState
+          & game_board . ix enemyAxial . tile_content ?~ Enemy defUnit
+          & game_selected .~ Just enemyAxial
+    case selectedTileInfo gs of
+      ContextEnemy _terrain unit' -> unit' ^. unit_hp `shouldBe` 10
+      other                       -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
+
+  it "fog tile returns ContextFog with terrain" $ do
+    -- MkAxial 5 3 is at distance 3 from player, which is Fog
+    let gs = initialState & game_selected .~ Just (MkAxial 5 3)
+    case selectedTileInfo gs of
+      ContextFog Land -> pure ()
+      other           -> expectationFailure $ "Expected ContextFog Land, got: " <> show other
+
+  it "visible shop tile returns ContextShop" $ do
+    -- Shop at MkAxial 2 6 is visible when player is adjacent at MkAxial 2 5
+    let gs = initialState
+          & game_board . at (MkAxial 2 5) . _Just . tile_content ?~ Player defUnit
+          & game_selected .~ Just shopAxial
+    case selectedTileInfo gs of
+      ContextShop _ _ -> pure ()
+      other           -> expectationFailure $ "Expected ContextShop, got: " <> show other
+
+  it "enemy in fog returns ContextFog not ContextEnemy" $ do
+    -- Place enemy at a foggy distance
+    let fogAxial = MkAxial 5 3  -- distance 3 from player = Fog
+        gs = initialState
+          & game_board . ix fogAxial . tile_content ?~ Enemy defUnit
+          & game_selected .~ Just fogAxial
+    case selectedTileInfo gs of
+      ContextFog _ -> pure ()
+      other        -> expectationFailure $ "Expected ContextFog, got: " <> show other
+
+  it "empty visible tile returns ContextEmpty with terrain" $ do
+    let emptyAxial = MkAxial 2 4  -- adjacent to player, empty
+        gs = initialState & game_selected .~ Just emptyAxial
+    selectedTileInfo gs `shouldBe` ContextEmpty Land
+
+  it "right-clicking adjacent shop sets game_selected to shop tile" $
+    runEvt (RightClick shopAxial) playerAdjacentToShop ^. game_selected
+      `shouldBe` Just shopAxial
+
+  it "selecting a visible house returns ContextHouse with HP and terrain" $ do
+    let houseAxial = MkAxial 3 3  -- adjacent house in initial layout
+        gs = initialState & game_selected .~ Just houseAxial
+    case selectedTileInfo gs of
+      ContextHouse terrain unit' -> do
+        terrain `shouldBe` Land
+        unit' ^. unit_hp `shouldBe` 10
+      other -> expectationFailure $ "Expected ContextHouse, got: " <> show other
+
+  it "ContextPlayer carries the player inventory" $ do
+    let item = MkShopItem 4 ShopHealthPotion
+        gs = initialState
+          & game_selected .~ Just playerAxial
+          & game_player_inventory . inventroy_item .~ Set.singleton item
+    case selectedTileInfo gs of
+      ContextPlayer _ _ inv -> inv ^. inventroy_item `shouldBe` Set.singleton item
+      other -> expectationFailure $ "Expected ContextPlayer, got: " <> show other
+
+  it "ContextEnemy carries the terrain type" $ do
+    let enemyAxial = MkAxial 2 4
+        gs = initialState
+          & game_board . ix enemyAxial . tile_content ?~ Enemy defUnit
+          & game_board . ix enemyAxial . tile_terrain .~ Water
+          & game_selected .~ Just enemyAxial
+    case selectedTileInfo gs of
+      ContextEnemy terrain _ -> terrain `shouldBe` Water
+      other -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
+
+  it "ContextEmpty carries terrain type for Water tiles" $ do
+    let emptyAxial = MkAxial 2 4
+        gs = initialState
+          & game_board . ix emptyAxial . tile_terrain .~ Water
+          & game_selected .~ Just emptyAxial
+    selectedTileInfo gs `shouldBe` ContextEmpty Water
+
+  it "ContextShop carries the shop content" $ do
+    let gs = initialState
+          & game_board . at (MkAxial 2 5) . _Just . tile_content ?~ Player defUnit
+          & game_selected .~ Just shopAxial
+    case selectedTileInfo gs of
+      ContextShop _ content -> content `shouldBe` shopTileContent
+      other -> expectationFailure $ "Expected ContextShop, got: " <> show other
+
+ describe "isClickInPanel" $ do
+  let mkClick :: Int32 -> MouseButtonEventData
+      mkClick y = MouseButtonEventData Nothing Pressed (Mouse 0) ButtonLeft 1 (P (V2 100 y))
+      winSize :: CInt -> V2 CInt
+      winSize h = V2 640 h
+
+  it "click inside panel area returns True" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 400) `shouldBe` True
+
+  it "click above panel area returns False" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 300) `shouldBe` False
+
+  it "click at exact boundary returns True" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 360) `shouldBe` True
+
+  it "click one pixel above boundary returns False" $
+    isClickInPanel panelHeight (winSize 480) (mkClick 359) `shouldBe` False
+
+ describe "Shop exit" $ do
+  let shopOpen = playerAdjacentToShop
+        & game_shop .~ Just shopTileContent
+        & game_selected .~ Just shopAxial
+
+  it "MkExited clears game_shop" $
+    runEvt (ShopUpdates MkExited) shopOpen ^. game_shop
+      `shouldBe` Nothing
+
+  it "MkExited clears game_selected" $
+    runEvt (ShopUpdates MkExited) shopOpen ^. game_selected
+      `shouldBe` Nothing
+
+ describe "contextTerrain" $ do
+  it "ContextPlayer carries terrain" $
+    contextTerrain (ContextPlayer Land defUnit (MkInventory 0 Set.empty))
+      `shouldBe` Just Land
+
+  it "ContextEnemy carries terrain" $
+    contextTerrain (ContextEnemy Water defUnit)
+      `shouldBe` Just Water
+
+  it "ContextHouse carries terrain" $
+    contextTerrain (ContextHouse Mountains defUnit)
+      `shouldBe` Just Mountains
+
+  it "ContextShop carries terrain" $
+    contextTerrain (ContextShop Land shopTileContent)
+      `shouldBe` Just Land
+
+  it "ContextFog carries terrain" $
+    contextTerrain (ContextFog Water)
+      `shouldBe` Just Water
+
+  it "ContextEmpty carries terrain" $
+    contextTerrain (ContextEmpty Mountains)
+      `shouldBe` Just Mountains
+
+  it "ContextShopFar carries terrain" $
+    contextTerrain (ContextShopFar Water)
+      `shouldBe` Just Water
+
+  it "ContextNone has no terrain" $
+    contextTerrain ContextNone
+      `shouldBe` Nothing
+
+ describe "Off-grid and shop distance" $ do
+  it "selecting an off-grid tile returns ContextNone" $ do
+    let gs = initialState & game_selected .~ Just (MkAxial 99 99)
+    selectedTileInfo gs `shouldBe` ContextNone
+
+  it "selecting a visible shop from far away returns ContextShopFar" $ do
+    -- Player at MkAxial 2 3, place shop at MkAxial 2 5 (distance 2: visible but not adjacent)
+    let farShopAxial = MkAxial 2 5
+        gs = initialState
+          & game_board . ix farShopAxial . tile_content ?~ Shop shopTileContent
+          & game_selected .~ Just farShopAxial
+    case selectedTileInfo gs of
+      ContextShopFar _ -> pure ()
+      other -> expectationFailure $ "Expected ContextShopFar, got: " <> show other
+
+  it "selecting a shop while adjacent returns ContextShop" $ do
+    let gs = playerAdjacentToShop & game_selected .~ Just shopAxial
+    case selectedTileInfo gs of
+      ContextShop _ _ -> pure ()
+      other -> expectationFailure $ "Expected ContextShop, got: " <> show other
