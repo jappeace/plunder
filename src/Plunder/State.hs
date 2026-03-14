@@ -21,6 +21,7 @@ module Plunder.State(GameState(..)
             , game_planned_moves
             , game_pending_purchase
             , game_explored
+            , game_camera
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
@@ -55,7 +56,9 @@ import           Data.Functor.Compose
 import           Data.Monoid
 import           Data.Word
 import           Debug.Trace
+import           Foreign.C.Types                 (CInt)
 import           GHC.Generics                    (Generic)
+import           SDL.Vect                        (V2(..))
 import           Plunder.Grid
 import           Plunder.Pathfinding
 import           System.Random
@@ -112,6 +115,7 @@ data GameState = MkGameState
   , _game_planned_moves     :: Map Axial [Axial]  -- ^ from -> path (excluding src): queued player moves
   , _game_pending_purchase  :: Maybe Haul        -- ^ purchase queued, applied on EndTurn
   , _game_explored          :: Set Axial         -- ^ tiles that have been within visibility range
+  , _game_camera            :: V2 CInt           -- ^ pixel offset for camera panning
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -199,6 +203,7 @@ levelToGameState lvl =
         , _game_planned_moves    = Map.empty
         , _game_pending_purchase = Nothing
         , _game_explored         = Set.empty
+        , _game_camera           = V2 0 0
         }
   in gs0 & game_explored .~ computeNewlyExplored gs0
   where
@@ -366,6 +371,7 @@ data UpdateEvts = LeftClick Axial
                 | ResetGame -- ^ fired after the death/victory banner expires
                 | EndTurn   -- ^ execute all planned moves
                 | UseItem ShopItem
+                | CameraMove (V2 CInt) -- ^ pan the camera by a pixel delta
                 deriving (Show, Eq)
 
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
@@ -424,6 +430,7 @@ executePlannedMove gs src dst = do
 updateLogic :: MonadRandom m => MonadState GameState m => GameState -> UpdateEvts -> m ()
 updateLogic resetTo = \case
   Redraw -> pure ()
+  CameraMove delta -> game_camera %= (+ delta)
   ToggleInventory -> modifying game_inventory_open not
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)

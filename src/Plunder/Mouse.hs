@@ -11,6 +11,7 @@ module Plunder.Mouse
   , mouseMotion
   , _Pressed
   , calcMouseClickAxial
+  , calcMouseClickAxialCam
   , isClickInPanel
   ) where
 
@@ -43,6 +44,10 @@ _Pressed = _Ctor @"Pressed"
 
 calcMouseClickAxial :: MouseButtonEventData -> Axial
 calcMouseClickAxial = pixelToAxial . fmap fromIntegral . view mousePositions
+
+-- | Convert a mouse click to axial coordinates, accounting for camera offset.
+calcMouseClickAxialCam :: V2 CInt -> MouseButtonEventData -> Axial
+calcMouseClickAxialCam cam = pixelToAxialCam cam . fmap fromIntegral . view mousePositions
 
 -- | Returns 'True' when the click lands in the bottom panel area
 -- (Y coordinate >= windowHeight - panelH).

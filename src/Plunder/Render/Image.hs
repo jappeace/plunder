@@ -8,6 +8,7 @@ module Plunder.Render.Image(
             , image
             , imageEvt
             , renderImage
+            , renderImageCam
             , rectangle_pos
             , rectangle_size
             , image_position
@@ -193,8 +194,12 @@ renderWeapon =
   (image_position . rectangle_size . _y -~ 20)
 
 renderImage :: Texture -> Axial -> ImageSettings
-renderImage text coord = ImageSettings {
-        _image_position  = Rectangle (axialToPixel coord) (V2 50 50)
+renderImage = renderImageCam (V2 0 0)
+
+-- | Like 'renderImage' but with a camera pixel offset applied.
+renderImageCam :: V2 CInt -> Texture -> Axial -> ImageSettings
+renderImageCam cam text coord = ImageSettings {
+        _image_position  = Rectangle (axialToPixelCam cam coord) (V2 50 50)
       , _image_content  = text
       }
 

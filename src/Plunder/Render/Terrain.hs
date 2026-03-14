@@ -12,7 +12,7 @@ import           Control.Lens
 import           Data.Int             (Int16)
 import           Foreign.C.Types      (CInt)
 import           Plunder.Grid
-import           Plunder.State (GameState, Visibility(Visible, Fog, Unexplored), tileVisibility)
+import           Plunder.State (GameState, Visibility(Visible, Fog, Unexplored), tileVisibility, game_camera)
 import           Plunder.Render.Layer
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Reflex
@@ -31,11 +31,11 @@ terrainCoords :: [Axial]
 terrainCoords = [MkAxial q r | q <- [-1 .. 7], r <- [-1 .. 7]]
 
 -- | Compute the six polygon corners of a pointy-top hexagon at the given
---   axial coordinate.
-hexPolyPoints :: Axial -> (S.Vector Int16, S.Vector Int16)
-hexPolyPoints axial = (S.fromList xs, S.fromList ys)
+--   axial coordinate, with a camera pixel offset applied.
+hexPolyPoints :: V2 CInt -> Axial -> (S.Vector Int16, S.Vector Int16)
+hexPolyPoints cam axial = (S.fromList xs, S.fromList ys)
   where
-    P (V2 cx cy) = axialToPixel axial
+    P (V2 cx cy) = axialToPixelCam cam axial
     -- Pointy-top hexagon corners at 330°, 30°, 90°, 150°, 210°, 270°.
     cornerDegrees :: [Double]
     cornerDegrees = [330, 30, 90, 150, 210, 270]
@@ -54,15 +54,16 @@ hexPolyPoints axial = (S.fromList xs, S.fromList ys)
 renderTerrain :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => RenderFun
+  -> Dynamic t (V2 CInt)
   -> Dynamic t Grid
   -> m ()
-renderTerrain rf boardDyn =
-  commitLayer $ ffor boardDyn $ \board ->
+renderTerrain rf cameraDyn boardDyn =
+  commitLayer $ ffor2 cameraDyn boardDyn $ \cam board ->
     Foldable.for_ terrainCoords $ \axial ->
       let color = case Map.lookup axial board of
                     Nothing   -> terrainToColor Water
                     Just tile -> terrainToColor (tile ^. tile_terrain)
-          (xs, ys) = hexPolyPoints axial
+          (xs, ys) = hexPolyPoints cam axial
       in rf_fillPolygon rf xs ys color
 
 -- | Render a fog-of-war overlay on top of terrain and sprites.
@@ -73,8 +74,9 @@ renderFogOverlay :: ReflexSDL2 t m
   => RenderFun -> Dynamic t GameState -> m ()
 renderFogOverlay rf stateDyn =
   commitLayer $ ffor stateDyn $ \gs ->
-    Foldable.for_ terrainCoords $ \axial ->
-      let (xs, ys) = hexPolyPoints axial
+    let cam = gs ^. game_camera
+    in Foldable.for_ terrainCoords $ \axial ->
+      let (xs, ys) = hexPolyPoints cam axial
       in case tileVisibility gs axial of
         Visible -> pure ()
         Fog     -> rf_fillPolygon rf xs ys (V4 0 0 0 128)
