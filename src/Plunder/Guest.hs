@@ -125,10 +125,10 @@ mkGameState initGS helpOpen shopActions inventoryActions = mdo
         ) keyboardEvt
       cameraEvt :: Event t (V2 CInt)
       cameraEvt = leftmost
-        [ arrowKeyEvt KeycodeUp    (V2 0 (-camStep))
-        , arrowKeyEvt KeycodeDown  (V2 0 camStep)
-        , arrowKeyEvt KeycodeLeft  (V2 (-camStep) 0)
-        , arrowKeyEvt KeycodeRight (V2 camStep 0)
+        [ arrowKeyEvt KeycodeUp    (V2 0 camStep)
+        , arrowKeyEvt KeycodeDown  (V2 0 (-camStep))
+        , arrowKeyEvt KeycodeLeft  (V2 camStep 0)
+        , arrowKeyEvt KeycodeRight (V2 (-camStep) 0)
         ]
       helpClosed = not <$> current helpOpen
       events = leftmost [ gate helpClosed $ ShopUpdates <$> shopActions

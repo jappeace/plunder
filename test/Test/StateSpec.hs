@@ -786,6 +786,33 @@ spec = do
     contextTerrain ContextNone
       `shouldBe` Nothing
 
+ describe "Camera panning" $ do
+  it "camera starts at V2 0 0" $
+    initialState ^. game_camera `shouldBe` V2 0 0
+
+  it "CameraMove adds the delta to the camera offset" $
+    runEvt (CameraMove (V2 80 0)) initialState ^. game_camera
+      `shouldBe` V2 80 0
+
+  it "multiple CameraMove events accumulate" $ do
+    let result = runEvt (CameraMove (V2 0 (-80)))
+               $ runEvt (CameraMove (V2 80 0)) initialState
+    result ^. game_camera `shouldBe` V2 80 (-80)
+
+  it "CameraMove does not affect game_board" $ do
+    let result = runEvt (CameraMove (V2 80 80)) initialState
+    result ^. game_board `shouldBe` initialState ^. game_board
+
+  it "CameraMove does not affect game_selected" $ do
+    let selected = initialState & game_selected .~ Just (MkAxial 2 3)
+        result = runEvt (CameraMove (V2 80 0)) selected
+    result ^. game_selected `shouldBe` Just (MkAxial 2 3)
+
+  it "ResetGame resets camera to V2 0 0" $ do
+    let panned = initialState & game_camera .~ V2 160 (-80)
+        result = runEvt ResetGame panned
+    result ^. game_camera `shouldBe` V2 0 0
+
  describe "Off-grid and shop distance" $ do
   it "selecting an off-grid tile returns ContextNone" $ do
     let gs = initialState & game_selected .~ Just (MkAxial 99 99)
