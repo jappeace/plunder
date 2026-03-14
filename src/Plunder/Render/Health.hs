@@ -18,10 +18,10 @@ import SDL.Primitive(Color)
 healthBar :: DynamicWriter t [Layer m] m
         => ReflexSDL2 t m
         => MonadReader RenderFun m
-        => Dynamic t Tile -> m ()
-healthBar tileDyn = do
+        => Dynamic t (V2 CInt) -> Dynamic t Tile -> m ()
+healthBar cameraDyn tileDyn = do
   rf <- ask
-  commitLayer $ healthBar' rf <$> tileDyn
+  commitLayer $ healthBar' rf <$> cameraDyn <*> tileDyn
 
 barHeight :: Num a => a
 barHeight = 6
@@ -42,8 +42,8 @@ borderColor :: Color
 borderColor = V4 0 0 0 255
 
 healthBar' :: MonadIO m
-        => RenderFun -> Tile -> m ()
-healthBar' rf tile = unless isDead $ do
+        => RenderFun -> V2 CInt -> Tile -> m ()
+healthBar' rf cam tile = unless isDead $ do
     -- dark background (full max-health width)
     rf_setDrawColor rf bgColor
     rf_fillRect rf $ Just bgRect
@@ -60,7 +60,7 @@ healthBar' rf tile = unless isDead $ do
         pure $ Combat.isDead hp'
 
       origin :: Point V2 CInt
-      origin = axialToPixel coord - P (V2 (pixelsPerHealth * fromIntegral maxHealth `div` 2) 20)
+      origin = axialToPixelCam cam coord - P (V2 (pixelsPerHealth * fromIntegral maxHealth `div` 2) 20)
 
       coord :: Axial
       coord = tile ^. tile_coordinate

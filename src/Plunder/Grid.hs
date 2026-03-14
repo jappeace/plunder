@@ -11,6 +11,8 @@ module Plunder.Grid
   , roundAxial
   , axialToPixel
   , pixelToAxial
+  , axialToPixelCam
+  , pixelToAxialCam
   , hexSize
   , neigbours
   , tile_axial
@@ -157,6 +159,14 @@ axialToPixel coord = (P $ V2 x y)
         )
   y :: CInt
   y = floor $ fromIntegral hexSize * (3.0 / two * (fromIntegral $ coord ^. _r))
+
+-- | Convert axial coordinate to pixel position with a camera offset applied.
+axialToPixelCam :: V2 CInt -> Axial -> Point V2 CInt
+axialToPixelCam cam coord = axialToPixel coord + P cam
+
+-- | Convert pixel position to axial coordinate, undoing a camera offset first.
+pixelToAxialCam :: V2 CInt -> Point V2 CInt -> Axial
+pixelToAxialCam cam pixel = pixelToAxial (pixel - P cam)
 
 -- https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
 pixelToAxial :: Point V2 CInt -> Axial

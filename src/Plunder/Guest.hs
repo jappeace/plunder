@@ -20,6 +20,7 @@ import           Plunder.State
 import           System.Random
 import Plunder.Mouse
 import Plunder.Shop
+import Plunder.Grid (hexSize)
 import Plunder.Render.Font(defaultFont, bigFont)
 import Plunder.Render.ContextPanel
 import Plunder.Render.Inventory
@@ -72,7 +73,7 @@ makeRandomNT =
   newStdGen <&> \stdgen -> MkRandTNT (\inner -> fst <$> runRandT inner stdgen)
 
 mkGameState :: forall t m . ReflexSDL2 t m => GameState -> Dynamic t Bool -> Event t ShopAction -> Event t ShopItem -> m (Dynamic t GameState, Dynamic t Word8, Dynamic t (V2 CInt), () -> IO ())
-mkGameState initGS helpOpen shopActions inventoryActions = do
+mkGameState initGS helpOpen shopActions inventoryActions = mdo
 
   -- figured these out with getAnySDLEvent and see which needed to redraw
   windowExposedEvt <- getWindowExposedEvent
@@ -101,8 +102,8 @@ mkGameState initGS helpOpen shopActions inventoryActions = do
       boardLeftClicks  = attachWithMaybe onBoard (current winSizeDyn) leftClickEvts
       boardRightClicks :: Event t MouseButtonEventData
       boardRightClicks = attachWithMaybe onBoard (current winSizeDyn) rightClickEvts
-      leftClickAxial = calcMouseClickAxial <$> boardLeftClicks
-      rightClickAxialEvt = calcMouseClickAxial <$> boardRightClicks
+      leftClickAxial = attachWith calcMouseClickAxialCam (view game_camera <$> current state) boardLeftClicks
+      rightClickAxialEvt = attachWith calcMouseClickAxialCam (view game_camera <$> current state) boardRightClicks
       toggleInvEvt :: Event t ()
       toggleInvEvt = () <$ ffilter (\kd ->
           has _Pressed (keyboardEventKeyMotion kd) &&
@@ -115,6 +116,20 @@ mkGameState initGS helpOpen shopActions inventoryActions = do
           not (keyboardEventRepeat kd) &&
           keysymKeycode (keyboardEventKeysym kd) == KeycodeSpace
         ) keyboardEvt
+      camStep :: CInt
+      camStep = fromIntegral hexSize
+      arrowKeyEvt :: Keycode -> V2 CInt -> Event t (V2 CInt)
+      arrowKeyEvt kc delta = delta <$ ffilter (\kd ->
+          has _Pressed (keyboardEventKeyMotion kd) &&
+          keysymKeycode (keyboardEventKeysym kd) == kc
+        ) keyboardEvt
+      cameraEvt :: Event t (V2 CInt)
+      cameraEvt = leftmost
+        [ arrowKeyEvt KeycodeUp    (V2 0 (-camStep))
+        , arrowKeyEvt KeycodeDown  (V2 0 camStep)
+        , arrowKeyEvt KeycodeLeft  (V2 (-camStep) 0)
+        , arrowKeyEvt KeycodeRight (V2 camStep 0)
+        ]
       helpClosed = not <$> current helpOpen
       events = leftmost [ gate helpClosed $ ShopUpdates <$> shopActions
                         , gate helpClosed $ UseItem <$> inventoryActions
@@ -126,6 +141,7 @@ mkGameState initGS helpOpen shopActions inventoryActions = do
                         , ResetGame <$ resetEvt
                         , gate helpClosed $ EndTurn <$ endTurnEvt
                         , gate helpClosed $ EndTurn <$ spaceEvt
+                        , CameraMove <$> cameraEvt
                         ]
   performEvent_ $ ffor events $ liftIO . print
 

@@ -8,6 +8,7 @@
 
 module Plunder.Render.Hexagon
   ( hexagon
+  , hexagonDyn
   , HexagonSettings
   , defHex
   , hexagon_position
@@ -15,6 +16,7 @@ module Plunder.Render.Hexagon
   , hexagon_is_filled
   , hexagon_label
   , renderHex
+  , renderHexCam
   )
 where
 
@@ -123,9 +125,25 @@ hexagon settings = do
       image $ pure $ Just imageSettings
   pure ()
 
+-- | Like 'hexagon' but takes dynamic settings, so the outline moves with the camera.
+hexagonDyn
+  :: ReflexSDL2 t m
+  => MonadReader RenderFun m
+  => DynamicWriter t [Layer m] m => Dynamic t HexagonSettings -> m ()
+hexagonDyn settingsDyn = do
+  MkRenderFun{rf_fillPolygon, rf_polygon} <- ask
+  commitLayer $ ffor settingsDyn $ \settings -> do
+    let polgyonF = if settings ^. hexagon_is_filled then rf_fillPolygon else rf_polygon
+        (xPoints, yPoints) = calcPoints settings
+    polgyonF xPoints yPoints $ settings ^. hexagon_color
+
 -- https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
 renderHex :: Font -> Axial -> HexagonSettings
-renderHex font coord = hexagon_position .~ (axialToPixel coord)
+renderHex = renderHexCam (V2 0 0)
+
+-- | Like 'renderHex' but with a camera pixel offset applied.
+renderHexCam :: V2 CInt -> Font -> Axial -> HexagonSettings
+renderHexCam cam font coord = hexagon_position .~ (axialToPixelCam cam coord)
                 $ hexagon_label ?~ (Text.pack $ printf "%i,%i" (coord ^. _q) $ (coord ^. _r))
                 $ hexagon_font .~ font
                 $ defHex

@@ -14,7 +14,6 @@ import           Plunder.Render.RenderFun (RenderFun(..))
 import           Foreign.C.Types      (CInt)
 import qualified Data.Map.Strict      as Map
 import qualified Data.Text            as T
-import           Data.Bool
 import           Data.Foldable
 import           Data.Monoid
 import           Plunder.Grid
@@ -36,49 +35,52 @@ renderState :: ReflexSDL2 t m
 renderState font state = do
   rf <- ask
 
+  let cameraDyn = view game_camera <$> state
+
   -- Terrain fill is the very first (lowest) layer: coloured hexagons for
   -- every coordinate in range, with Water used for anything outside the grid.
-  renderTerrain rf (view game_board <$> state)
+  renderTerrain rf cameraDyn (view game_board <$> state)
 
-  vikingF <- renderImage <$> loadViking
-  enemyF <- renderImage <$> loadEnemy
-  loadBloodF <- renderImage <$> loadBlood
-  houseF <- renderImage <$> loadHouse
-  burnedHouseF <- renderImage <$> burndedHouse
-  loadShopF <- renderImage <$> loadShop
+  vikingTex <- loadViking
+  enemyTex <- loadEnemy
+  bloodTex <- loadBlood
+  houseTex <- loadHouse
+  burnedHouseTex <- burndedHouse
+  shopTex <- loadShop
 
-  axeF <- fmap renderWeapon . renderImage <$> loadAxe
-  swordF <- fmap renderWeapon . renderImage <$> loadSword
-  loadF <- fmap renderWeapon . renderImage <$> loadBow
+  axeTex <- loadAxe
+  swordTex <- loadSword
+  bowTex <- loadBow
 
   let renderOrduning =
-            [ applyImage loadBloodF $ tile_background . _Just . _Blood
-            , applyImage burnedHouseF $ tile_background . _Just . _BurnedHouse
-            , applyImage enemyF $ tile_content . _Just . _Enemy
-            , applyImage vikingF $ tile_content . _Just . _Player
-            , applyImage houseF $ tile_content . _Just . _House
-            , applyImage loadShopF $ tile_content . _Just . _Shop
-            , applyImage swordF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
-            , applyImage loadF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
-            , applyImage axeF $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe
+            [ applyImageCam cameraDyn (renderImageCam' bloodTex) $ tile_background . _Just . _Blood
+            , applyImageCam cameraDyn (renderImageCam' burnedHouseTex) $ tile_background . _Just . _BurnedHouse
+            , applyImageCam cameraDyn (renderImageCam' enemyTex) $ tile_content . _Just . _Enemy
+            , applyImageCam cameraDyn (renderImageCam' vikingTex) $ tile_content . _Just . _Player
+            , applyImageCam cameraDyn (renderImageCam' houseTex) $ tile_content . _Just . _House
+            , applyImageCam cameraDyn (renderImageCam' shopTex) $ tile_content . _Just . _Shop
+            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam swordTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
+            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam bowTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
+            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam axeTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe
             ]
 
   void $ listWithKey (view game_board <$> state) $ \axial _ -> do
-    hexagon $ renderHex font axial
+    hexagonDyn $ renderHexCam <$> cameraDyn <*> pure font <*> pure axial
 
   -- simple list doesn't cache on key change
   void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
     traverse_ (\fun -> fun axial tileDyn) renderOrduning
-    healthBar tileDyn
+    healthBar cameraDyn tileDyn
 
   -- Selection outline drawn last so it sits on top of unit sprites
   void $ holdView (pure ())
-       $ hexagon . renderSelected font <$> mapMaybe (view game_selected) (updated state)
+       $ (\axial -> hexagonDyn $ renderSelected <$> cameraDyn <*> pure font <*> pure axial)
+         <$> mapMaybe (view game_selected) (updated state)
 
   -- Draw planned-move arrows on top of units
-  commitLayer $ ffor (view game_planned_moves <$> state) $ \plans ->
+  commitLayer $ ffor2 cameraDyn (view game_planned_moves <$> state) $ \cam plans ->
     for_ (Map.toList plans) $ \(src, path) ->
-      drawPathArrows rf axialToPixel src path (V4 255 165 0 255)
+      drawPathArrows rf (axialToPixelCam cam) src path (V4 255 165 0 255)
 
   -- Fog of war overlay (covers terrain, sprites and arrows, but not HUD)
   renderFogOverlay rf state
@@ -105,32 +107,40 @@ renderState font state = do
                   . tile_coordinate of
           Nothing        -> pure Nothing
           Just playerPos ->
-            let P (V2 px py) = axialToPixel playerPos
+            let P (V2 px py) = axialToPixelCam (gs ^. game_camera) playerPos
             in Just <$> renderText font defaultStyle (P $ V2 px (py - 25))
                           (describePurchase haul))
   void $ image =<< holdDyn Nothing purchaseLabelEvt
 
+-- | Helper to flip argument order for renderImageCam.
+renderImageCam' :: Texture -> V2 CInt -> Axial -> ImageSettings
+renderImageCam' tex cam = renderImageCam cam tex
 
-applyImage ::
+-- | Camera-aware version of applyImage. The image position reacts to camera changes.
+applyImageCam ::
   DynamicWriter t [Performable m ()] m
   => MonadReader RenderFun m
   => ReflexSDL2 t m
-  => (Axial -> ImageSettings)
+  => Dynamic t (V2 CInt)
+  -> (V2 CInt -> Axial -> ImageSettings)
   -> Getting Any Tile a -- ^ condition on the tile for rendering
   -> Axial
   -> Dynamic t Tile
   ->  m ()
-applyImage textureF hashPath axial tileDyn =
-  void $ image $ fmap textureF <$> someSettings
+applyImageCam cameraDyn textureF hashPath axial tileDyn =
+  void $ image someSettings
   where
-    someSettings = bool Nothing (Just axial)
-                       . has hashPath <$> tileDyn
+    someSettings = (\cam tile ->
+        if has hashPath tile
+          then Just (textureF cam axial)
+          else Nothing
+      ) <$> cameraDyn <*> tileDyn
 
-renderSelected :: Font -> Axial -> HexagonSettings
-renderSelected font = (hexagon_color .~ V4 255 255 0 255)
+renderSelected :: V2 CInt -> Font -> Axial -> HexagonSettings
+renderSelected cam font = (hexagon_color .~ V4 255 255 0 255)
                . (hexagon_is_filled .~ False)
                . (hexagon_label .~ Nothing)
-               . renderHex font
+               . renderHexCam cam font
 
 describePurchase :: Haul -> T.Text
 describePurchase haul =
