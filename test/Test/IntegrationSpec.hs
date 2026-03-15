@@ -48,44 +48,49 @@ unexploredColor = V4 0 0 0 255
 spec :: Spec
 spec = beforeAll (withTestEnv $ \env -> do
     (handle, ref) <- bootApp env initialState
-    -- Dismiss the help screen by firing Enter, then trigger a redraw
     fireWindowExposed handle (WindowExposedEventData (teWindow env))
     pure (handle, ref, env)
   ) $ do
 
   describe "initial render after WindowExposed" $ do
 
-    it "renders terrain polygons with land colour" $ \(_, ref, _) -> do
+    -- 49 land tiles per render cycle × 3 cycles = 147
+    it "renders 147 terrain polygons with land colour" $ \(_, ref, _) -> do
       calls <- readIORef ref
       let landPolys = filter (isFillPolygonWithColor landColor) calls
-      length landPolys `shouldSatisfy` (> 0)
+      length landPolys `shouldBe` 147
 
-    it "renders terrain polygons with water colour" $ \(_, ref, _) -> do
+    -- 32 water tiles (out-of-grid + (0,0)) per cycle × 3 = 96
+    it "renders 96 terrain polygons with water colour" $ \(_, ref, _) -> do
       calls <- readIORef ref
       let waterPolys = filter (isFillPolygonWithColor waterColor) calls
-      length waterPolys `shouldSatisfy` (> 0)
+      length waterPolys `shouldBe` 96
 
-    it "renders fog overlay with unexplored colour" $ \(_, ref, _) -> do
+    -- 25 unexplored tiles per cycle × 3 = 75
+    it "renders 75 fog polygons with unexplored colour" $ \(_, ref, _) -> do
       calls <- readIORef ref
       let unexplored = filter (isFillPolygonWithColor unexploredColor) calls
-      length unexplored `shouldSatisfy` (> 0)
+      length unexplored `shouldBe` 75
 
-    it "renders fog overlay with semi-transparent colour" $ \(_, ref, _) -> do
+    -- 37 fog tiles per cycle × 3 = 111
+    it "renders 111 fog polygons with semi-transparent colour" $ \(_, ref, _) -> do
       calls <- readIORef ref
       let foggy = filter (isFillPolygonWithColor fogColor) calls
-      length foggy `shouldSatisfy` (> 0)
+      length foggy `shouldBe` 111
 
-    it "renders sprites via copy calls" $ \(_, ref, _) -> do
+    -- 29 copies per cycle × 3 = 87 (sprites + weapons + text labels)
+    it "renders 87 copy calls for sprites and text" $ \(_, ref, _) -> do
       calls <- readIORef ref
       let copies = filter isCopy calls
-      length copies `shouldSatisfy` (> 0)
+      length copies `shouldBe` 87
 
-    it "renders health bars via fillRect calls" $ \(_, ref, _) -> do
+    -- 14 fillRects per cycle × 3 = 42 (health bars bg+fill + money bg + help bg)
+    it "renders 42 fillRect calls for health bars and UI" $ \(_, ref, _) -> do
       calls <- readIORef ref
       let fills = filter isFillRect calls
-      length fills `shouldSatisfy` (> 0)
+      length fills `shouldBe` 42
 
-    it "includes a clear and present in the render cycle" $ \(_, ref, _) -> do
+    it "renders exactly 3 clear and 3 present calls" $ \(_, ref, _) -> do
       calls <- readIORef ref
-      filter isClear calls `shouldSatisfy` (not . null)
-      filter isPresent calls `shouldSatisfy` (not . null)
+      filter isClear calls `shouldBe` [RcClear, RcClear, RcClear]
+      filter isPresent calls `shouldBe` [RcPresent, RcPresent, RcPresent]
