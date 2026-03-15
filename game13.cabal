@@ -158,6 +158,7 @@ test-suite unit
   main-is: Spec.hs
   other-modules:
       Test.HexagonSpec
+      Test.IntegrationExpected
       Test.IntegrationSpec
       Test.LevelSpec
       Test.Orphanage

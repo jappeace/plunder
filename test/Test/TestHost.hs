@@ -46,9 +46,11 @@ import           Plunder.Render.RenderFun (RenderFun (..))
 import           Plunder.State            (GameState)
 
 -- | Sum type capturing each render operation for test assertions.
+--   Polygon vertex data is stored as plain lists (converted from
+--   'S.Vector') so that expected values can be written as list literals.
 data RenderCall
-  = RcFillPolygon (S.Vector Int16) (S.Vector Int16) (V4 Word8)
-  | RcPolygon     (S.Vector Int16) (S.Vector Int16) (V4 Word8)
+  = RcFillPolygon [Int16] [Int16] (V4 Word8)
+  | RcPolygon     [Int16] [Int16] (V4 Word8)
   | RcFillRect    (Maybe (Rectangle CInt))
   | RcDrawRect    (Maybe (Rectangle CInt))
   | RcSetDrawColor (V4 Word8)
@@ -106,8 +108,8 @@ mkMockRenderFun ref r = MkRenderFun
   , rf_drawRect      = \rect  -> liftIO $ modifyIORef' ref (++ [RcDrawRect rect])
   , rf_setDrawColor  = \c     -> liftIO $ modifyIORef' ref (++ [RcSetDrawColor c])
   , rf_copy          = \_ s d -> liftIO $ modifyIORef' ref (++ [RcCopy s d])
-  , rf_fillPolygon   = \xs ys c -> liftIO $ modifyIORef' ref (++ [RcFillPolygon xs ys c])
-  , rf_polygon       = \xs ys c -> liftIO $ modifyIORef' ref (++ [RcPolygon xs ys c])
+  , rf_fillPolygon   = \xs ys c -> liftIO $ modifyIORef' ref (++ [RcFillPolygon (S.toList xs) (S.toList ys) c])
+  , rf_polygon       = \xs ys c -> liftIO $ modifyIORef' ref (++ [RcPolygon (S.toList xs) (S.toList ys) c])
   , rf_thickLine     = \a b w c -> liftIO $ modifyIORef' ref (++ [RcThickLine a b w c])
   , rf_fillTriangle  = \a b c col -> liftIO $ modifyIORef' ref (++ [RcFillTriangle a b c col])
   , rf_createTexture = createTextureFromSurface r
