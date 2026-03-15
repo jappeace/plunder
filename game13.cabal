@@ -206,6 +206,7 @@ test-suite unit
     , random
     , ref-tf
     , reflex
+    , safe-exceptions
     , reflex-sdl2
     , sdl2
     , sdl2-gfx

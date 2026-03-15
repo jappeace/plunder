@@ -33,11 +33,12 @@ import           GHC.Conc                 (TVar, atomically, newTVar, readTVar,
                                            writeTVar)
 import           Reflex
 import           Reflex.Host.Class
-import           Reflex.SDL2              hiding (Event)
+import           Reflex.SDL2
 import           Reflex.SDL2.Base         (runReflexSDL2T)
 import           Reflex.SDL2.Internal     (SystemEvents (..))
 import qualified SDL.Font                 as Font
 import           SDL.Image                (decodeTexture)
+import           Control.Exception.Safe   (bracket)
 import           System.Environment       (setEnv)
 
 import           Plunder                  (app)
@@ -81,15 +82,21 @@ withTestEnv action = do
   setEnv "SDL_VIDEODRIVER" "dummy"
   initializeAll
   Font.initialize
-  w <- createWindow "test" defaultWindow
-  r <- createRenderer w (-1) defaultRenderer
-  rendererDrawBlendMode r $= BlendAlphaBlend
-  result <- action (TestEnv w r)
-  destroyRenderer r
-  destroyWindow w
-  Font.quit
-  quit
-  pure result
+  bracket acquire release $ \(w, r) -> do
+    rendererDrawBlendMode r $= BlendAlphaBlend
+    action (TestEnv w r)
+  where
+    acquire :: IO (Window, Renderer)
+    acquire = do
+      w <- createWindow "test" defaultWindow
+      r <- createRenderer w (-1) defaultRenderer
+      pure (w, r)
+    release :: (Window, Renderer) -> IO ()
+    release (w, r) = do
+      destroyRenderer r
+      destroyWindow w
+      Font.quit
+      quit
 
 -- | Build a mock 'RenderFun' that records draw calls to the given 'IORef'
 --   but delegates texture creation to the real renderer.
