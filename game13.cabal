@@ -158,10 +158,12 @@ test-suite unit
   main-is: Spec.hs
   other-modules:
       Test.HexagonSpec
+      Test.IntegrationSpec
       Test.LevelSpec
       Test.Orphanage
       Test.PathfindingSpec
       Test.StateSpec
+      Test.TestHost
       Paths_game13
   hs-source-dirs:
       test
@@ -189,9 +191,11 @@ test-suite unit
   build-depends:
       MonadRandom
     , QuickCheck
+    , async
     , base >=4.7 && <5
     , bytestring
     , containers
+    , dependent-sum
     , file-embed
     , game13
     , generic-lens
@@ -200,12 +204,14 @@ test-suite unit
     , lens
     , mtl
     , random
+    , ref-tf
     , reflex
     , reflex-sdl2
     , sdl2
     , sdl2-gfx
     , sdl2-image
     , sdl2-ttf
+    , stm
     , template-haskell
     , text
     , toml-reader
