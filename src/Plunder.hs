@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 -- | Contains all reflex-sdl boilerplate
-module Plunder(main) where
+module Plunder(main, app) where
 
 import Foreign.C.String
 import SDL.Raw.Error
