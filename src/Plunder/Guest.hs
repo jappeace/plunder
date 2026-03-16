@@ -33,7 +33,7 @@ import Control.Concurrent (forkIO, threadDelay)
 guest
   :: forall t m
    . ReflexSDL2 t m
-  => DynamicWriter t [Layer m] m => MonadReader RenderFun m => GameState -> m ()
+  => DynamicWriter t [Layer m] m => MonadReader RenderFun m => GameState -> m (Dynamic t GameState)
 guest initGS = mdo
   -- Print some stuff after the network is built.
   evPB           <- getPostBuild
@@ -64,7 +64,7 @@ guest initGS = mdo
         Just $ surfaceToSettings endTurnSurface (P $ V2 (w - btnW - 10) (h - panelHeight - btnH - 10))
   endTurnClicks <- image endTurnImgDyn
   performEvent_ $ ffor endTurnClicks $ \_ -> liftIO (fireEndTurn ())
-  pure ()
+  pure gameState
 
 
 

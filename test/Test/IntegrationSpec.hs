@@ -3,9 +3,13 @@
 
 module Test.IntegrationSpec (spec) where
 
+import           Control.Lens           (view)
+import           Control.Monad          (void)
 import           Data.IORef
 import           Data.Word              (Word8)
-import           Reflex.SDL2            (V4 (..), WindowExposedEventData (..))
+import           Reflex                 (ffor, performEvent_, updated)
+import           Reflex.SDL2            (V4 (..), WindowExposedEventData (..),
+                                         liftIO)
 import           SDL                    (InputMotion (..), KeyModifier (..),
                                          Keysym (..), KeyboardEventData (..))
 import           SDL.Input.Keyboard.Codes (pattern KeycodeReturn,
@@ -13,7 +17,9 @@ import           SDL.Input.Keyboard.Codes (pattern KeycodeReturn,
 import           Test.Hspec
 
 import           Plunder                (app)
-import           Plunder.State          (initialState)
+import           Plunder.State          (GamePhase (..), game_inventory_open,
+                                         game_phase, game_selected, game_shop,
+                                         initialState)
 import           Test.IntegrationExpected
 import           Test.TestHost
 
@@ -72,7 +78,7 @@ spec :: Spec
 spec = do
   describe "initial render after WindowExposed" $
     beforeAll (withTestEnv $ \env -> do
-      (handle, ref) <- bootApp env (app initialState)
+      (handle, ref) <- bootApp env (void $ app initialState)
       fireWindowExposed handle (WindowExposedEventData (teWindow env))
       pure (handle, ref, env)
     ) $ do
@@ -114,26 +120,36 @@ spec = do
 
   describe "after pressing Enter to dismiss help" $
     beforeAll (withTestEnv $ \env -> do
-      (handle, ref) <- bootApp env (app initialState)
+      stateRef <- newIORef initialState
+      (handle, ref) <- bootApp env $ do
+        dynGS <- app initialState
+        performEvent_ $ ffor (updated dynGS) $ liftIO . writeIORef stateRef
       fireWindowExposed handle (WindowExposedEventData (teWindow env))
       initialCalls <- readIORef ref
       -- Clear the log then press Enter to dismiss the help overlay
       writeIORef ref []
       fireKeyboard handle enterKeyPress
       afterCalls <- readIORef ref
-      pure (initialCalls, afterCalls)
+      gs <- readIORef stateRef
+      pure (initialCalls, afterCalls, gs)
     ) $ do
 
-      it "triggers a render cycle" $ \(_, afterCalls) -> do
+      it "triggers a render cycle" $ \(_, afterCalls, _) -> do
         filter isClear afterCalls `shouldSatisfy` (not . null)
         filter isPresent afterCalls `shouldSatisfy` (not . null)
 
-      it "no longer renders the help overlay border" $ \(initialCalls, afterCalls) -> do
+      it "no longer renders the help overlay border" $ \(initialCalls, afterCalls, _) -> do
         let initialDrawRects = length $ filter isDrawRect initialCalls
             afterDrawRects   = length $ filter isDrawRect afterCalls
         afterDrawRects `shouldSatisfy` (< initialDrawRects)
 
-      it "renders fewer copies without help text" $ \(initialCalls, afterCalls) -> do
+      it "renders fewer copies without help text" $ \(initialCalls, afterCalls, _) -> do
         let initialCopies = length $ filter isCopy initialCalls
             afterCopies   = length $ filter isCopy afterCalls
         afterCopies `shouldSatisfy` (< initialCopies)
+
+      it "game state is still Playing with no selection" $ \(_, _, gs) -> do
+        view game_phase gs `shouldBe` Playing
+        view game_selected gs `shouldBe` Nothing
+        view game_shop gs `shouldBe` Nothing
+        view game_inventory_open gs `shouldBe` False
