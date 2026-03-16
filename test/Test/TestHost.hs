@@ -21,7 +21,7 @@ import           Control.Concurrent       (Chan, newChan, newEmptyMVar, readChan
 import           Control.Concurrent.Async (async, cancel)
 import           Control.Monad            (forM_)
 import           Control.Monad.Identity   (Identity (..))
-import           Control.Monad.Reader     (runReaderT)
+import           Control.Monad.Reader     (MonadReader, runReaderT)
 import           Control.Monad.Ref        (readRef)
 import           Data.Dependent.Sum       (DSum ((:=>)))
 import           Data.IORef
@@ -41,9 +41,7 @@ import           SDL.Image                (decodeTexture)
 import           Control.Exception.Safe   (bracket)
 import           System.Environment       (setEnv)
 
-import           Plunder                  (app)
 import           Plunder.Render.RenderFun (RenderFun (..))
-import           Plunder.State            (GameState)
 
 -- | Sum type capturing each render operation for test assertions.
 --   Polygon vertex data is stored as plain lists (converted from
@@ -119,10 +117,14 @@ mkMockRenderFun ref r = MkRenderFun
   , rf_setRendererDrawColor = \c -> liftIO $ modifyIORef' ref (++ [RcSetRendererDrawColor c])
   }
 
--- | Boot the full app inside a reflex Spider host, returning handles
+-- | Boot a reflex widget inside a Spider host, returning handles
 --   for programmatic event injection and the render-call log.
-bootApp :: TestEnv -> GameState -> IO (TestHandle, IORef [RenderCall])
-bootApp TestEnv{teRenderer} initGS = do
+--   The widget parameter lets callers run the full @app@ or any
+--   individual component (e.g. just @renderHelp@) in isolation.
+bootApp :: TestEnv
+        -> (forall t m. (ReflexSDL2 t m, MonadReader RenderFun m) => m ())
+        -> IO (TestHandle, IORef [RenderCall])
+bootApp TestEnv{teRenderer} widget = do
   renderCalls <- newIORef []
   let rf = mkMockRenderFun renderCalls teRenderer
 
@@ -222,7 +224,7 @@ bootApp TestEnv{teRenderer} initGS = do
     ((), FireCommand fire) <-
       hostPerformEventT $ flip runPostBuildT sysPostBuildEvent
                         $ flip runTriggerEventT chan
-                        $ runReflexSDL2T (runReaderT (app initGS) rf) SystemEvents{..}
+                        $ runReflexSDL2T (runReaderT widget rf) SystemEvents{..}
 
     -- Fire the post-build event
     (readRef trPostBuildRef >>=) . mapM_ $ \tr ->
