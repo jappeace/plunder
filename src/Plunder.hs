@@ -19,17 +19,19 @@ import           Plunder.Render.RenderFun (RenderFun(..), mkRenderFun)
 import           Plunder.State (GameState, levelToGameState)
 import           qualified SDL.Font as Font
 
-app :: (ReflexSDL2 t m, MonadReader RenderFun m) => GameState -> m ()
+app :: (ReflexSDL2 t m, MonadReader RenderFun m) => GameState -> m (Dynamic t GameState)
 app initGS = do
-  (_, dynLayers) <- runDynamicWriterT $ do
-    guest initGS
+  (gameState, dynLayers) <- runDynamicWriterT $ do
+    gs <- guest initGS
     onQuit
+    pure gs
   MkRenderFun{rf_clear, rf_present, rf_setRendererDrawColor} <- ask
   performEvent_ $ ffor (updated dynLayers) $ \layers -> do
     rf_setRendererDrawColor (V4 0 0 0 255)
     rf_clear
     sequence_ layers
     rf_present
+  pure gameState
 
 main :: IO ()
 main = do
@@ -61,7 +63,7 @@ main = do
   rendererDrawBlendMode r $= BlendAlphaBlend
   -- Host the network with an example of how to embed your own effects.
   -- In this case it's a simple reader.
-  host $ runReaderT (app initGS) (mkRenderFun r)
+  host $ void $ runReaderT (app initGS) (mkRenderFun r)
   destroyRenderer r
   destroyWindow window
   quit
