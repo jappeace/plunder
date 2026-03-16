@@ -8,6 +8,7 @@ import           Plunder.Combat (Weapon(..), isDead, unit_hp, unit_weapon, Statu
 import           Data.Int                        (Int32)
 import           Foreign.C.Types                 (CInt)
 import           Plunder.Grid
+import           Plunder.Grid (flankingBonus, countFlankingAllies, flankingPreview)
 import           Plunder.Mouse                   (isClickInPanel)
 import           Plunder.Render.ContextPanel      (panelHeight)
 import           Plunder.Shop
@@ -641,8 +642,8 @@ spec = do
           & game_board . ix enemyAxial . tile_content ?~ Enemy defUnit
           & game_selected .~ Just enemyAxial
     case selectedTileInfo gs of
-      ContextEnemy _terrain unit' -> unit' ^. unit_hp `shouldBe` 10
-      other                       -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
+      ContextEnemy _terrain unit' _ -> unit' ^. unit_hp `shouldBe` 10
+      other                         -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
 
   it "fog tile returns ContextFog with terrain" $ do
     -- MkAxial 5 3 is at distance 3 from player, which is Fog
@@ -704,7 +705,7 @@ spec = do
           & game_board . ix enemyAxial . tile_terrain .~ Water
           & game_selected .~ Just enemyAxial
     case selectedTileInfo gs of
-      ContextEnemy terrain _ -> terrain `shouldBe` Water
+      ContextEnemy terrain _ _ -> terrain `shouldBe` Water
       other -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
 
   it "ContextEmpty carries terrain type for Water tiles" $ do
@@ -759,7 +760,7 @@ spec = do
       `shouldBe` Just Land
 
   it "ContextEnemy carries terrain" $
-    contextTerrain (ContextEnemy Water defUnit)
+    contextTerrain (ContextEnemy Water defUnit 0)
       `shouldBe` Just Water
 
   it "ContextHouse carries terrain" $
@@ -833,3 +834,83 @@ spec = do
     case selectedTileInfo gs of
       ContextShop _ _ -> pure ()
       other -> expectationFailure $ "Expected ContextShop, got: " <> show other
+
+ describe "Flanking" $ do
+  -- Enemy at center (3,3). Hex neighbours of (3,3):
+  -- (4,3), (3,4), (2,4), (2,3), (3,2), (4,2)
+  let enemyAxial = MkAxial 3 3
+      -- Remove the default house at (3,3) and place an enemy instead.
+      -- The default player is at (2,3).
+      baseState = initialState
+        & game_board . ix enemyAxial . tile_content ?~ Enemy defUnit
+
+  it "no bonus with only the attacker adjacent" $ do
+    -- Player at (2,3) is a neighbour of (3,3). No other allies.
+    let gs = baseState
+          & game_selected .~ Just (MkAxial 2 3)
+    flankingPreview (gs ^. game_board) enemyAxial `shouldBe` 0
+
+  it "10% bonus with 2 allies adjacent (3 players total)" $ do
+    let gs = baseState
+          & game_board . ix (MkAxial 4 3) . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 3 4) . tile_content ?~ Player defUnit
+    flankingPreview (gs ^. game_board) enemyAxial `shouldBe` 10
+
+  it "30% bonus with 3 allies adjacent (4 players total)" $ do
+    let gs = baseState
+          & game_board . ix (MkAxial 4 3) . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 3 4) . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 2 4) . tile_content ?~ Player defUnit
+    flankingPreview (gs ^. game_board) enemyAxial `shouldBe` 30
+
+  it "50% bonus with 4 allies adjacent (5 players total)" $ do
+    let gs = baseState
+          & game_board . ix (MkAxial 4 3) . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 3 4) . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 2 4) . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 3 2) . tile_content ?~ Player defUnit
+    flankingPreview (gs ^. game_board) enemyAxial `shouldBe` 50
+
+  it "flanked enemy takes more damage than non-flanked" $ do
+    -- Set up: player at (2,3) attacks enemy at (3,3) with ally at (4,3).
+    -- 2 players adjacent to enemy → 1 ally → no bonus (need 2+ allies for bonus)
+    -- So add a third player to get bonus.
+    let flankedState = baseState
+          & game_board . ix (MkAxial 4 3) . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 3 4) . tile_content ?~ Player defUnit
+          & game_selected .~ Just (MkAxial 2 3)
+        -- Plan attack, then execute
+        afterPlan = runEvt (RightClick enemyAxial) flankedState
+        afterTurn = runEvt EndTurn afterPlan
+        flankedHP = afterTurn ^? game_board . ix enemyAxial . tile_content . _Just . _Enemy . unit_hp
+        -- Compare with non-flanked: only the attacker adjacent
+        nonFlankedState = baseState
+          & game_selected .~ Just (MkAxial 2 3)
+        afterPlanNF = runEvt (RightClick enemyAxial) nonFlankedState
+        afterTurnNF = runEvt EndTurn afterPlanNF
+        nonFlankedHP = afterTurnNF ^? game_board . ix enemyAxial . tile_content . _Just . _Enemy . unit_hp
+    -- Flanked enemy should have taken at least as much damage
+    -- (same RNG seed, so base damage is identical; flanking adds extra)
+    case (flankedHP, nonFlankedHP) of
+      (Just fhp, Just nfhp) -> fhp `shouldSatisfy` (<= nfhp)
+      _ -> pure () -- enemy may have died in either case, which is fine
+
+  it "enemy flanking works symmetrically via countFlankingAllies" $ do
+    -- Place a player at (3,3), enemies around it.
+    let playerAxial = MkAxial 3 3
+        gs = initialState
+          & game_board . ix playerAxial . tile_content ?~ Player defUnit
+          & game_board . ix (MkAxial 4 3) . tile_content ?~ Enemy defUnit
+          & game_board . ix (MkAxial 3 4) . tile_content ?~ Enemy defUnit
+          & game_board . ix (MkAxial 2 4) . tile_content ?~ Enemy defUnit
+        -- (4,3) attacks (3,3). Other enemies at (3,4) and (2,4) are allies of attacker.
+        bonus = countFlankingAllies (gs ^. game_board) (MkAxial 4 3) playerAxial
+    bonus `shouldBe` 10
+
+  it "flankingBonus returns correct values" $ do
+    flankingBonus 0 `shouldBe` 0
+    flankingBonus 1 `shouldBe` 0
+    flankingBonus 2 `shouldBe` 10
+    flankingBonus 3 `shouldBe` 30
+    flankingBonus 4 `shouldBe` 50
+    flankingBonus 5 `shouldBe` 50

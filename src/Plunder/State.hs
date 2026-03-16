@@ -77,7 +77,7 @@ data Visibility = Visible | Fog | Unexplored deriving (Show, Eq)
 -- | What the context panel shows for a selected tile.
 data ContextInfo
   = ContextPlayer Terrain Unit PlayerInventory
-  | ContextEnemy Terrain Unit
+  | ContextEnemy Terrain Unit FlankingPercent
   | ContextHouse Terrain Unit
   | ContextShop Terrain ShopContent
   | ContextShopFar Terrain        -- ^ shop visible but too far to interact
@@ -89,7 +89,7 @@ data ContextInfo
 -- | Extract the terrain from a 'ContextInfo', if present.
 contextTerrain :: ContextInfo -> Maybe Terrain
 contextTerrain (ContextPlayer terrain _ _) = Just terrain
-contextTerrain (ContextEnemy terrain _)    = Just terrain
+contextTerrain (ContextEnemy terrain _ _)   = Just terrain
 contextTerrain (ContextHouse terrain _)    = Just terrain
 contextTerrain (ContextShop terrain _)     = Just terrain
 contextTerrain (ContextShopFar terrain)    = Just terrain
@@ -163,7 +163,7 @@ selectedTileInfo gs = case gs ^. game_selected of
         Visible    -> case tile ^. tile_content of
           Nothing            -> ContextEmpty terrain
           Just (Player unit) -> ContextPlayer terrain unit (gs ^. game_player_inventory)
-          Just (Enemy unit)  -> ContextEnemy terrain unit
+          Just (Enemy unit)  -> ContextEnemy terrain unit (flankingPreview (gs ^. game_board) axial)
           Just (House unit)  -> ContextHouse terrain unit
           Just (Shop content)
             | any (`elem` neigbours axial) (playerPositions gs)
@@ -374,17 +374,29 @@ data UpdateEvts = LeftClick Axial
                 | CameraMove (V2 CInt) -- ^ pan the camera by a pixel delta
                 deriving (Show, Eq)
 
+-- | Apply a flanking damage bonus to the defender in a combat result.
+applyFlankingToResult :: FlankingPercent -> Health -> Result -> Result
+applyFlankingToResult bonus originalDefHP result =
+  let baseDmg = originalDefHP - (result ^. res_right_unit . unit_hp)
+      extra   = (baseDmg * bonus) `div` 100
+  in result & res_right_unit . unit_hp -~ extra
+
 applyAttack :: MonadRandom m => MonadState GameState m =>  Action -> m (Maybe Result)
 applyAttack = \case
   MkAttack attack -> case attack ^? attack_to . tc_unit of
     Nothing -> pure Nothing  -- if tc has no unit, it's not attackable
     Just attacking -> do
+      board <- use game_board
+      let attackerPos = attack ^. attack_move . move_from
+          defenderPos = attack ^. attack_move . move_to
+          bonus = countFlankingAllies board attackerPos defenderPos
       result <- resolveCombat
                   (attack ^. attack_move . move_from_unit)
                   attacking
-      traverseBoard (attack ^. attack_move . move_from) . tc_unit .= (result ^. res_left_unit)
-      traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result ^. res_right_unit)
-      pure (Just result)
+      let result' = applyFlankingToResult bonus (attacking ^. unit_hp) result
+      traverseBoard (attack ^. attack_move . move_from) . tc_unit .= (result' ^. res_left_unit)
+      traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result' ^. res_right_unit)
+      pure (Just result')
   MkWalk _ -> pure Nothing
   OpenShop _ -> pure Nothing
 

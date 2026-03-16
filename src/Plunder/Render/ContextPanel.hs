@@ -19,7 +19,7 @@ import           Data.Set.Lens
 import           Data.Word (Word8, Word64)
 import           Foreign.C.Types (CInt)
 import           Plunder.Combat
-import           Plunder.Grid (Terrain(..))
+import           Plunder.Grid (Terrain(..), FlankingPercent)
 import           Plunder.Render.Font
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
@@ -99,8 +99,8 @@ renderPanelContent font winSizeDyn _ _ (ContextFog terrain) = do
 renderPanelContent font winSizeDyn _ _ (ContextPlayer terrain unit' inv) = do
   void $ dynView $ renderPlayerPanel font terrain unit' inv <$> winSizeDyn
   pure never
-renderPanelContent font winSizeDyn _ _ (ContextEnemy terrain unit') = do
-  void $ dynView $ renderEnemyPanel font terrain unit' <$> winSizeDyn
+renderPanelContent font winSizeDyn _ _ (ContextEnemy terrain unit' flanking) = do
+  void $ dynView $ renderEnemyPanel font terrain unit' flanking <$> winSizeDyn
   pure never
 renderPanelContent font winSizeDyn _ _ (ContextHouse terrain unit') = do
   void $ dynView $ renderHousePanel font terrain unit' <$> winSizeDyn
@@ -165,8 +165,8 @@ renderEnemyPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => MonadReader RenderFun m
-  => Font -> Terrain -> Unit -> V2 CInt -> m ()
-renderEnemyPanel font terrain unit' winSize = do
+  => Font -> Terrain -> Unit -> FlankingPercent -> V2 CInt -> m ()
+renderEnemyPanel font terrain unit' flanking winSize = do
   panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
   panelText font panelHeaderStyle (panelPos winSize contentXOff 0) "Enemy"
   panelText font panelStyle (panelPos winSize contentXOff 1)
@@ -175,6 +175,9 @@ renderEnemyPanel font terrain unit' winSize = do
     ("Weapon: " <> maybe "none" weaponDescription (unit' ^. unit_weapon))
   panelText font panelStyle (panelPos winSize contentXOff 3)
     (describeStatus (unit' ^. unit_status))
+  when (flanking > 0) $
+    panelText font panelStyle (panelPos winSize 320 0)
+      ("Flanked (+" <> tshow flanking <> "%)")
 
 renderHousePanel
   :: ReflexSDL2 t m
