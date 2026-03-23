@@ -47,6 +47,9 @@ import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
+import           Data.Maybe           (fromMaybe)
+import qualified Unwitch.Convert.Int as Int
+import qualified Unwitch.Convert.CInt as CInt
 import           Test.QuickCheck
 import Plunder.Combat
 import Plunder.Shop
@@ -133,9 +136,11 @@ roundAxial q r = MkAxial
   r_override :: Bool
   r_override = (not q_override) && y_diff <= z_diff
 
-  x_diff     = abs $ fromIntegral rx - x
-  y_diff     = abs $ fromIntegral ry - y
-  z_diff     = abs $ fromIntegral rz - z
+  x_diff     = abs $ intToDouble rx - x
+  y_diff     = abs $ intToDouble ry - y
+  z_diff     = abs $ intToDouble rz - z
+  intToDouble :: Int -> Double
+  intToDouble = either (error "intToDouble: Int out of Double range") id . Int.toDouble
 
   rx         = round x
   ry         = round y
@@ -152,13 +157,16 @@ axialToPixel coord = (P $ V2 x y)
  where
   x :: CInt
   x =
-    floor
-      $ fromIntegral hexSize
-      * ( (sqrt3 * (fromIntegral $ coord ^. _q))
-        + (sqrt3 / 2.0 * (fromIntegral $ coord ^. _r))
+    fromMaybe (error "axialToPixel: x overflow") $ Int.toCInt $ floor
+      $ intToDouble hexSize
+      * ( (sqrt3 * (intToDouble $ coord ^. _q))
+        + (sqrt3 / 2.0 * (intToDouble $ coord ^. _r))
         )
   y :: CInt
-  y = floor $ fromIntegral hexSize * (3.0 / two * (fromIntegral $ coord ^. _r))
+  y = fromMaybe (error "axialToPixel: y overflow") $ Int.toCInt $ floor
+      $ intToDouble hexSize * (3.0 / two * (intToDouble $ coord ^. _r))
+  intToDouble :: Int -> Double
+  intToDouble = either (error "intToDouble: Int out of Double range") id . Int.toDouble
 
 -- | Convert axial coordinate to pixel position with a camera offset applied.
 axialToPixelCam :: V2 CInt -> Axial -> Point V2 CInt
@@ -174,12 +182,14 @@ pixelToAxial (P vec) = roundAxial q r
  where
     -- TODO Implement hexSize properly, this math is crazy
   q :: Double
-  q = ((sqrt3 / 3) * fromIntegral x - (1 / 3) * fromIntegral y)
-    / fromIntegral hexSize
+  q = ((sqrt3 / 3) * CInt.toDouble x - (1 / 3) * CInt.toDouble y)
+    / intToDouble hexSize
   r :: Double
-  r = ((two / 3) * fromIntegral y) / fromIntegral hexSize
+  r = ((two / 3) * CInt.toDouble y) / intToDouble hexSize
   y = vec ^. _y
   x = vec ^. _x
+  intToDouble :: Int -> Double
+  intToDouble = either (error "intToDouble: Int out of Double range") id . Int.toDouble
 
 sqrt3 :: Double
 sqrt3 = sqrt 3.0

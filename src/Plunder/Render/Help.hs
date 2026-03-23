@@ -8,7 +8,9 @@ import           Control.Monad.Reader (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.List            (foldl')
 import           Data.Text            (Text)
+import           Data.Maybe           (fromMaybe)
 import           Foreign.C.Types      (CInt)
+import qualified Unwitch.Convert.Int as Int
 import           Plunder.Render.Font
 import           Plunder.Render.Image (ImageSettings (..), image, image_position)
 import           Plunder.Render.Layer
@@ -111,7 +113,8 @@ renderHelp font isOpen winSizeDyn = do
     let bgX = (w - bgW) `div` 2
         bgY = (h - bgH) `div` 2
         textX = bgX + textPadX
-        textY idx = bgY + textPadY + fromIntegral idx * lineH
+        toCInt' = fromMaybe (error "renderHelp: Int to CInt overflow") . Int.toCInt
+        textY idx = bgY + textPadY + toCInt' idx * lineH
     rf_setDrawColor (V4 210 210 210 245)
     rf_fillRect $ Just (Rectangle (P $ V2 bgX bgY) (V2 bgW bgH))
     rf_setDrawColor (V4 0 0 0 255)

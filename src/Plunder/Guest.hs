@@ -10,7 +10,10 @@ import           Control.Monad                   (forM_, void)
 import           Control.Monad.Reader            (MonadReader)
 import           Plunder.Render.RenderFun       (RenderFun)
 import           Data.Word                       (Word8)
+import           Data.Maybe                      (fromMaybe)
 import           Foreign.C.Types                 (CInt)
+import qualified Unwitch.Convert.Int32 as Int32
+import qualified Unwitch.Convert.Int as Int
 import           Control.Monad.Trans.Random.Lazy
 import           Plunder.Render.Layer
 import           Reflex
@@ -88,7 +91,7 @@ mkGameState initGS helpOpen shopActions inventoryActions = mdo
   (endTurnEvt, fireEndTurn) <- newTriggerEvent
 
   winSizeDyn <- holdDyn (V2 640 480) $
-    fmap (fromIntegral <$>) (windowSizeChangedEventSize <$> windowSizeChangedEvt)
+    fmap (Int32.toCInt <$>) (windowSizeChangedEventSize <$> windowSizeChangedEvt)
 
   let leftClickEvts :: Event t MouseButtonEventData
       leftClickEvts = ffilter (has (mouseButtons . leftClick)) mouseButtonEvt
@@ -117,7 +120,7 @@ mkGameState initGS helpOpen shopActions inventoryActions = mdo
           keysymKeycode (keyboardEventKeysym kd) == KeycodeSpace
         ) keyboardEvt
       camStep :: CInt
-      camStep = fromIntegral hexSize
+      camStep = fromMaybe (error "camStep: hexSize overflow CInt") $ Int.toCInt hexSize
       arrowKeyEvt :: Keycode -> V2 CInt -> Event t (V2 CInt)
       arrowKeyEvt kc delta = delta <$ ffilter (\kd ->
           has _Pressed (keyboardEventKeyMotion kd) &&
@@ -160,7 +163,7 @@ mkGameState initGS helpOpen shopActions inventoryActions = mdo
     liftIO $ void $ forkIO $ do
       forM_ [1..20 :: Int] $ \i -> do
         threadDelay 50000           -- 50 ms per step
-        fireAlpha (fromIntegral (i * 11) `min` 220)
+        fireAlpha (fromMaybe (error "fireAlpha: overflow") (Int.toWord8 (i * 11)) `min` 220)
       threadDelay 4000000           -- hold for 4 s then reset
       fireReset ResetGame
 

@@ -9,7 +9,9 @@ import           Control.Monad.Reader (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Set             (Set)
 import qualified Data.Set             as Set
+import           Data.Maybe           (fromMaybe)
 import           Foreign.C.Types      (CInt)
+import qualified Unwitch.Convert.Int as Int
 import           Plunder.Render.Font
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
@@ -62,7 +64,8 @@ inventoryStyle :: Style
 inventoryStyle = defaultStyle & styleColorLens .~ V4 0 0 0 255
 
 invPosition :: Int -> Point V2 CInt
-invPosition offset = P $ V2 250 (20 + fromIntegral offset * 20)
+invPosition offset = P $ V2 250 (20 + toCInt' offset * 20)
+  where toCInt' = fromMaybe (error "invPosition: Int to CInt overflow") . Int.toCInt
 
 renderInventoryBackground :: MonadIO m => RenderFun -> Bool -> m ()
 renderInventoryBackground rf open = do

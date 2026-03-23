@@ -9,6 +9,7 @@ import           Control.Monad.Reader   (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Maybe
 import           Foreign.C.Types        (CInt)
+import qualified Unwitch.Convert.Int as Int
 import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
@@ -60,7 +61,8 @@ healthBar' rf cam tile = unless isDead $ do
         pure $ Combat.isDead hp'
 
       origin :: Point V2 CInt
-      origin = axialToPixelCam cam coord - P (V2 (pixelsPerHealth * fromIntegral maxHealth `div` 2) 20)
+      toCInt' = fromMaybe (error "healthBar: Int to CInt overflow") . Int.toCInt
+      origin = axialToPixelCam cam coord - P (V2 (pixelsPerHealth * toCInt' maxHealth `div` 2) 20)
 
       coord :: Axial
       coord = tile ^. tile_coordinate
@@ -69,10 +71,10 @@ healthBar' rf cam tile = unless isDead $ do
       health = preview (tile_content . _Just . tc_unit . Combat.unit_hp) tile
 
       maxW :: CInt
-      maxW = pixelsPerHealth * fromIntegral maxHealth
+      maxW = pixelsPerHealth * toCInt' maxHealth
 
       fillW :: CInt
-      fillW = pixelsPerHealth * fromIntegral (fromMaybe 0 health)
+      fillW = pixelsPerHealth * toCInt' (fromMaybe 0 health)
 
       bgRect :: Rectangle CInt
       bgRect = Rectangle origin (V2 maxW barHeight)

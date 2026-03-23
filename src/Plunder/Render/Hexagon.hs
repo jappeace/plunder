@@ -27,10 +27,13 @@ import           Control.Monad.Reader (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Foldable
 import           Data.Int
+import           Data.Maybe           (fromMaybe)
 import           Data.Text            (Text)
 import qualified Data.Text            as Text
 import qualified Data.Vector.Storable as S
 import           Foreign.C.Types      (CInt)
+import qualified Unwitch.Convert.Int as Int
+import qualified Unwitch.Convert.CInt as CInt
 import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
@@ -82,12 +85,16 @@ cornerToDegree = \case
 -- https://www.redblobgames.com/grids/hexagons/#angles
 pointyHexCorner :: Point V2 CInt -> Int -> HexCorner -> Point V2 CInt
 pointyHexCorner (P (V2 x y)) hexSize' corner =
-  (P $ V2 (x + (floor $ fromIntegral hexSize' * cos rad))
-          (y + (floor $ fromIntegral hexSize' * sin rad))
+  (P $ V2 (x + toCInt' (floor $ intToDouble hexSize' * cos rad))
+          (y + toCInt' (floor $ intToDouble hexSize' * sin rad))
   )
  where
+  toCInt' :: Int -> CInt
+  toCInt' = fromMaybe (error "pointyHexCorner: overflow CInt") . Int.toCInt
+  intToDouble :: Int -> Double
+  intToDouble = either (error "pointyHexCorner: Int out of Double range") id . Int.toDouble
   degree :: Double
-  degree = fromIntegral $ cornerToDegree corner
+  degree = intToDouble $ cornerToDegree corner
   rad :: Double
   rad = pi / 180 * (degree)
 
@@ -95,10 +102,12 @@ pointyHexCorner (P (V2 x y)) hexSize' corner =
 --  https://www.redblobgames.com/grids/hexagons/#basics
 calcPoints :: HexagonSettings -> (S.Vector Int16, S.Vector Int16)
 calcPoints settings =
-  ( S.fromList $ fromIntegral . view _x <$> points
-  , S.fromList $ fromIntegral . view _y <$> points
+  ( S.fromList $ toInt16' . view _x <$> points
+  , S.fromList $ toInt16' . view _y <$> points
   )
  where
+  toInt16' :: CInt -> Int16
+  toInt16' = fromMaybe (error "calcPoints: CInt to Int16 overflow") . CInt.toInt16
   points :: [Point V2 CInt]
   points =  pointyHexCorner (settings ^. hexagon_position) hexSize <$> allCorners
   allCorners :: [HexCorner]

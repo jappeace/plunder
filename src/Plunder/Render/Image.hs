@@ -33,6 +33,7 @@ import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.ByteString        hiding (copy)
 import           Data.FileEmbed
 import           Foreign.C.Types        (CInt)
+import qualified Unwitch.Convert.Int32 as Int32
 import           Plunder.Grid
 import           Plunder.Render.Layer
 import           Reflex
@@ -180,7 +181,7 @@ calcIsClicked (Just settings) evtData =
   if isInside rect pos then Just LeftClick else Nothing
   where
     rect = settings ^. image_position
-    pos = fmap fromIntegral $ evtData ^. mousePositions
+    pos = fmap Int32.toCInt $ evtData ^. mousePositions
 
 
 renderWeapon :: ImageSettings -> ImageSettings

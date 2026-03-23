@@ -97,6 +97,7 @@ library
     , text
     , toml-reader
     , transformers
+    , unwitch
     , vector
     , witherable
   default-language: Haskell2010
