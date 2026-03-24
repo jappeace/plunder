@@ -30,13 +30,13 @@
       "type": "Git",
       "repository": {
         "type": "GitHub",
-        "owner": "jappeace-sloth",
+        "owner": "jappeace",
         "repo": "unwitch"
       },
-      "branch": "add-cint-conversions",
+      "branch": "master",
       "submodules": false,
-      "revision": "ff7330c22453894a07ae78b3b84d51efe0946629",
-      "url": "https://github.com/jappeace-sloth/unwitch/archive/ff7330c22453894a07ae78b3b84d51efe0946629.tar.gz",
+      "revision": "27cd41f455d21864c11b3f0382b95250a06e1d51",
+      "url": "https://github.com/jappeace/unwitch/archive/27cd41f455d21864c11b3f0382b95250a06e1d51.tar.gz",
       "hash": "sha256-LkzeN79vR0a4Lh4IDTlWhoSi1ciWyEvXwnyuCnyVVfA="
     }
   },
