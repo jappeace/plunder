@@ -35,9 +35,9 @@
       },
       "branch": "add-cint-conversions",
       "submodules": false,
-      "revision": "b4e8c844167df33455b02113fbf7377622b4af08",
-      "url": "https://github.com/jappeace-sloth/unwitch/archive/b4e8c844167df33455b02113fbf7377622b4af08.tar.gz",
-      "hash": "sha256-JsgaU5LmCf+sVXV60YcIh8I5T6G/f4Sblmmg0tTbGMQ="
+      "revision": "ff7330c22453894a07ae78b3b84d51efe0946629",
+      "url": "https://github.com/jappeace-sloth/unwitch/archive/ff7330c22453894a07ae78b3b84d51efe0946629.tar.gz",
+      "hash": "sha256-LkzeN79vR0a4Lh4IDTlWhoSi1ciWyEvXwnyuCnyVVfA="
     }
   },
   "version": 7
