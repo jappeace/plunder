@@ -10,9 +10,7 @@ import qualified Data.Map.Strict      as Map
 import qualified Data.Vector.Storable as S
 import           Control.Lens
 import           Data.Int             (Int16)
-import           Data.Maybe           (fromMaybe)
 import           Foreign.C.Types      (CInt)
-import qualified Unwitch.Convert.Int as Int
 import qualified Unwitch.Convert.CInt as CInt
 import           Plunder.Grid
 import           Plunder.State (GameState, Visibility(Visible, Fog, Unexplored), tileVisibility, game_camera)
@@ -42,14 +40,16 @@ hexPolyPoints cam axial = (S.fromList xs, S.fromList ys)
     -- Pointy-top hexagon corners at 330°, 30°, 90°, 150°, 210°, 270°.
     cornerDegrees :: [Double]
     cornerDegrees = [330, 30, 90, 150, 210, 270]
-    intToDouble = either (error "hexPolyPoints: Int out of Double range") id . Int.toDouble
-    toCInt' = fromMaybe (error "hexPolyPoints: overflow CInt") . Int.toCInt
-    toInt16' = fromMaybe (error "hexPolyPoints: CInt to Int16 overflow") . CInt.toInt16
+    -- | Clamp pixel coordinates to Int16 bounds for SDL polygon rendering.
+    cintToInt16Clamp :: CInt -> Int16
+    cintToInt16Clamp c = case CInt.toInt16 c of
+      Just i  -> i
+      Nothing -> if CInt.toInt c > 0 then maxBound else minBound
     toCoord deg =
       let rad = pi / 180.0 * deg
-          px  = cx + toCInt' (floor (intToDouble hexSize * cos rad))
-          py  = cy + toCInt' (floor (intToDouble hexSize * sin rad))
-      in (toInt16' px, toInt16' py)
+          px  = cx + floor (CInt.toDouble hexSize * cos rad)
+          py  = cy + floor (CInt.toDouble hexSize * sin rad)
+      in (cintToInt16Clamp px, cintToInt16Clamp py)
     corners = map toCoord cornerDegrees
     xs = map fst corners
     ys = map snd corners

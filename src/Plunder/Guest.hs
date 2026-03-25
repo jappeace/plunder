@@ -10,10 +10,8 @@ import           Control.Monad                   (forM_, void)
 import           Control.Monad.Reader            (MonadReader)
 import           Plunder.Render.RenderFun       (RenderFun)
 import           Data.Word                       (Word8)
-import           Data.Maybe                      (fromMaybe)
 import           Foreign.C.Types                 (CInt)
 import qualified Unwitch.Convert.Int32 as Int32
-import qualified Unwitch.Convert.Int as Int
 import           Control.Monad.Trans.Random.Lazy
 import           Plunder.Render.Layer
 import           Reflex
@@ -120,7 +118,7 @@ mkGameState initGS helpOpen shopActions inventoryActions = mdo
           keysymKeycode (keyboardEventKeysym kd) == KeycodeSpace
         ) keyboardEvt
       camStep :: CInt
-      camStep = fromMaybe (error "camStep: hexSize overflow CInt") $ Int.toCInt hexSize
+      camStep = hexSize
       arrowKeyEvt :: Keycode -> V2 CInt -> Event t (V2 CInt)
       arrowKeyEvt kc delta = delta <$ ffilter (\kd ->
           has _Pressed (keyboardEventKeyMotion kd) &&
@@ -161,9 +159,9 @@ mkGameState initGS helpOpen shopActions inventoryActions = mdo
   -- When the phase transitions into a game-over state, animate the fade then reset.
   performEvent_ $ ffor (ffilter (/= Playing) (updated phaseDyn)) $ \_ ->
     liftIO $ void $ forkIO $ do
-      forM_ [1..20 :: Int] $ \i -> do
+      forM_ [11, 22 .. 220 :: Word8] $ \alpha -> do
         threadDelay 50000           -- 50 ms per step
-        fireAlpha (fromMaybe (error "fireAlpha: overflow") (Int.toWord8 (i * 11)) `min` 220)
+        fireAlpha alpha
       threadDelay 4000000           -- hold for 4 s then reset
       fireReset ResetGame
 

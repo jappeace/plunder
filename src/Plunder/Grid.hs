@@ -47,14 +47,13 @@ import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
-import           Data.Maybe           (fromMaybe)
 import qualified Unwitch.Convert.Int as Int
 import qualified Unwitch.Convert.CInt as CInt
 import           Test.QuickCheck
 import Plunder.Combat
 import Plunder.Shop
 
-hexSize :: Int
+hexSize :: CInt
 hexSize = 80
 
 type Grid = Map Axial Tile
@@ -126,8 +125,8 @@ mkGrid begin end =
 -- https://www.redblobgames.com/grids/hexagons/#conversions
 roundAxial :: Double -> Double -> Axial
 roundAxial q r = MkAxial
-  { __q = if q_override then -ry - rz else rx
-  , __r = if r_override then -rx - ry else rz
+  { __q = CInt.toInt $ if q_override then -ry - rz else rx
+  , __r = CInt.toInt $ if r_override then -rx - ry else rz
   }
  where
   q_override :: Bool
@@ -136,12 +135,11 @@ roundAxial q r = MkAxial
   r_override :: Bool
   r_override = (not q_override) && y_diff <= z_diff
 
-  x_diff     = abs $ intToDouble rx - x
-  y_diff     = abs $ intToDouble ry - y
-  z_diff     = abs $ intToDouble rz - z
-  intToDouble :: Int -> Double
-  intToDouble = either (error "intToDouble: Int out of Double range") id . Int.toDouble
+  x_diff     = abs $ CInt.toDouble rx - x
+  y_diff     = abs $ CInt.toDouble ry - y
+  z_diff     = abs $ CInt.toDouble rz - z
 
+  rx, ry, rz :: CInt
   rx         = round x
   ry         = round y
   rz         = round z
@@ -157,16 +155,17 @@ axialToPixel coord = (P $ V2 x y)
  where
   x :: CInt
   x =
-    fromMaybe (error "axialToPixel: x overflow") $ Int.toCInt $ floor
-      $ intToDouble hexSize
+    floor
+      $ CInt.toDouble hexSize
       * ( (sqrt3 * (intToDouble $ coord ^. _q))
         + (sqrt3 / 2.0 * (intToDouble $ coord ^. _r))
         )
   y :: CInt
-  y = fromMaybe (error "axialToPixel: y overflow") $ Int.toCInt $ floor
-      $ intToDouble hexSize * (3.0 / two * (intToDouble $ coord ^. _r))
+  y = floor
+      $ CInt.toDouble hexSize * (3.0 / two * (intToDouble $ coord ^. _r))
+  -- | Grid coordinates (0–6) always fit in Double; const 0 is unreachable.
   intToDouble :: Int -> Double
-  intToDouble = either (error "intToDouble: Int out of Double range") id . Int.toDouble
+  intToDouble = either (const 0) id . Int.toDouble
 
 -- | Convert axial coordinate to pixel position with a camera offset applied.
 axialToPixelCam :: V2 CInt -> Axial -> Point V2 CInt
@@ -183,13 +182,11 @@ pixelToAxial (P vec) = roundAxial q r
     -- TODO Implement hexSize properly, this math is crazy
   q :: Double
   q = ((sqrt3 / 3) * CInt.toDouble x - (1 / 3) * CInt.toDouble y)
-    / intToDouble hexSize
+    / CInt.toDouble hexSize
   r :: Double
-  r = ((two / 3) * CInt.toDouble y) / intToDouble hexSize
+  r = ((two / 3) * CInt.toDouble y) / CInt.toDouble hexSize
   y = vec ^. _y
   x = vec ^. _x
-  intToDouble :: Int -> Double
-  intToDouble = either (error "intToDouble: Int out of Double range") id . Int.toDouble
 
 sqrt3 :: Double
 sqrt3 = sqrt 3.0

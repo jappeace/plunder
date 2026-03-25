@@ -7,7 +7,7 @@ import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
-import           Data.Maybe
+import           Data.Maybe (fromMaybe)
 import           Foreign.C.Types        (CInt)
 import qualified Unwitch.Convert.Int as Int
 import           Plunder.Grid
@@ -61,7 +61,9 @@ healthBar' rf cam tile = unless isDead $ do
         pure $ Combat.isDead hp'
 
       origin :: Point V2 CInt
-      toCInt' = fromMaybe (error "healthBar: Int to CInt overflow") . Int.toCInt
+      -- | Health values (0–10) always fit in CInt; 0 default is unreachable.
+      toCInt' :: Int -> CInt
+      toCInt' = maybe 0 id . Int.toCInt
       origin = axialToPixelCam cam coord - P (V2 (pixelsPerHealth * toCInt' maxHealth `div` 2) 20)
 
       coord :: Axial

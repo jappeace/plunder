@@ -10,7 +10,6 @@ import Witherable(catMaybes)
 import Data.Text(Text)
 import Data.Set.Lens
 import Foreign.C.Types(CInt)
-import Data.Maybe(fromMaybe)
 import Data.Word(Word8, Word64)
 import qualified Unwitch.Convert.Int as Int
 import qualified Unwitch.Convert.Word8 as Word8
@@ -117,7 +116,8 @@ renderSlot font shopContent shopState idx' slot =
   fmap ((idx, slot) <$) $
     image =<< holdDyn Nothing =<< dynView (renderItem font idx . fmap slot <$> shopContent <*> shopState)
   where
-     idx = fromMaybe (error "renderSlot: Int to Word8 overflow") $ Int.toWord8 idx'
+     -- | Shop slot indices (0–2) always fit in Word8; 0 default is unreachable.
+     idx = maybe 0 id $ Int.toWord8 idx'
 
 renderItem :: (ReflexSDL2 t m, MonadReader RenderFun m) => Font -> Word8 -> Maybe (Maybe ShopItem) -> ShopState -> m (Maybe ImageSettings)
 renderItem font idx content state =

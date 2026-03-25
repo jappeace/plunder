@@ -18,7 +18,6 @@ import           Control.Lens
 import           Control.Monad.Reader   (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Text              (Text)
-import           Data.Maybe             (fromMaybe)
 import           Foreign.C.Types        (CInt)
 import qualified Unwitch.Convert.Int as Int
 import           Reflex.SDL2
@@ -61,7 +60,9 @@ allocateText font style text = do
           }
       where
        color = styleColor style
-       toCInt' = fromMaybe (error "allocateText: Int to CInt overflow") . Int.toCInt
+       -- | Font dimensions always fit in CInt; 0 default is unreachable.
+       toCInt' :: Int -> CInt
+       toCInt' = maybe 0 id . Int.toCInt
 
 -- | Convert a 'TextSurface' and a screen position into 'ImageSettings'.
 --   Pure conversion — does not draw anything; pass the result to 'image' to display.

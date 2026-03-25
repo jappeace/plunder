@@ -1,10 +1,8 @@
 module Plunder.Render.Arrow (drawArrow, drawPathArrows) where
 
 import           Control.Monad.IO.Class (MonadIO)
-import           Data.Maybe             (fromMaybe)
 import           Foreign.C.Types        (CInt)
 import qualified Unwitch.Convert.CInt as CInt
-import qualified Unwitch.Convert.Int as Int
 import           Reflex.SDL2            (V2 (..), Point (..))
 import           SDL.Primitive          (Color)
 import           Plunder.Render.RenderFun (RenderFun(..))
@@ -46,9 +44,8 @@ drawArrow rf (P (V2 fx fy)) (P (V2 tx ty)) color
 
     tip, wing1, wing2 :: V2 CInt
     tip   = V2 tx ty
-    toCInt' = fromMaybe (error "drawArrow: round overflow CInt") . Int.toCInt
-    wing1 = V2 (toCInt' $ round (bx + wx)) (toCInt' $ round (by + wy))
-    wing2 = V2 (toCInt' $ round (bx - wx)) (toCInt' $ round (by - wy))
+    wing1 = V2 (round (bx + wx)) (round (by + wy))
+    wing2 = V2 (round (bx - wx)) (round (by - wy))
 
 -- | Draw chained arrows for each consecutive pair in the path.
 --   @src@ is the starting tile; @waypoints@ is the path (excluding src).
