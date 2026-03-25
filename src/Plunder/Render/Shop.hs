@@ -11,6 +11,8 @@ import Data.Text(Text)
 import Data.Set.Lens
 import Foreign.C.Types(CInt)
 import Data.Word(Word8, Word64)
+import qualified Unwitch.Convert.Int as Int
+import qualified Unwitch.Convert.Word8 as Word8
 import Plunder.Shop
 import Plunder.Render.Text
 import           Control.Lens
@@ -114,7 +116,8 @@ renderSlot font shopContent shopState idx' slot =
   fmap ((idx, slot) <$) $
     image =<< holdDyn Nothing =<< dynView (renderItem font idx . fmap slot <$> shopContent <*> shopState)
   where
-     idx = fromIntegral idx'
+     -- | Shop slot indices (0–2) always fit in Word8; 0 default is unreachable.
+     idx = maybe 0 id $ Int.toWord8 idx'
 
 renderItem :: (ReflexSDL2 t m, MonadReader RenderFun m) => Font -> Word8 -> Maybe (Maybe ShopItem) -> ShopState -> m (Maybe ImageSettings)
 renderItem font idx content state =
@@ -148,7 +151,7 @@ renderShopBackground rf mshop = do
     rf_fillRect rf (Just (Rectangle (P $ V2 20 20) (V2 200 200)))
 
 shopPosition :: Word8 -> Point V2 CInt
-shopPosition offset = P $ V2 30 (20 + fromIntegral offset * 20)
+shopPosition offset = P $ V2 30 (20 + Word8.toCInt offset * 20)
 
 renderShopItem ::
   (ReflexSDL2 t m

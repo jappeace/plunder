@@ -18,6 +18,7 @@ import           Data.Set (Set)
 import           Data.Set.Lens
 import           Data.Word (Word8, Word64)
 import           Foreign.C.Types (CInt)
+import qualified Unwitch.Convert.Word8 as Word8
 import           Plunder.Combat
 import           Plunder.Grid (Terrain(..))
 import           Plunder.Render.Font
@@ -300,7 +301,7 @@ renderShopSlot
   => Font -> ShopContent -> Word8 -> (ShopContent -> Maybe ShopItem) -> V2 CInt -> ShopSelection -> m (Maybe ImageSettings)
 renderShopSlot font content idx slotAccessor winSize sel = do
   let style = if Map.member idx (selectedSlots sel) then shopSelectedStyle else panelStyle
-      lineIdx = fromIntegral idx + 1
+      lineIdx = Word8.toCInt idx + 1
   case slotAccessor content of
     Nothing   -> Just <$> renderText font panelStyle (panelPos winSize contentXOff lineIdx) "-"
     Just item -> Just <$> renderText font style (panelPos winSize contentXOff lineIdx) (itemDescription item)

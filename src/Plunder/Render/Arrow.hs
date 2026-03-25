@@ -2,6 +2,7 @@ module Plunder.Render.Arrow (drawArrow, drawPathArrows) where
 
 import           Control.Monad.IO.Class (MonadIO)
 import           Foreign.C.Types        (CInt)
+import qualified Unwitch.Convert.CInt as CInt
 import           Reflex.SDL2            (V2 (..), Point (..))
 import           SDL.Primitive          (Color)
 import           Plunder.Render.RenderFun (RenderFun(..))
@@ -22,8 +23,8 @@ drawArrow rf (P (V2 fx fy)) (P (V2 tx ty)) color
       rf_fillTriangle rf tip wing1 wing2 color
   where
     dx, dy, len, ux, uy :: Double
-    dx  = fromIntegral (tx - fx)
-    dy  = fromIntegral (ty - fy)
+    dx  = CInt.toDouble (tx - fx)
+    dy  = CInt.toDouble (ty - fy)
     len = sqrt (dx * dx + dy * dy)
     ux  = dx / len
     uy  = dy / len
@@ -33,8 +34,8 @@ drawArrow rf (P (V2 fx fy)) (P (V2 tx ty)) color
 
     -- Base of the arrowhead, stepped back from the tip along the shaft.
     bx, by :: Double
-    bx = fromIntegral tx - ux * arrowSize
-    by = fromIntegral ty - uy * arrowSize
+    bx = CInt.toDouble tx - ux * arrowSize
+    by = CInt.toDouble ty - uy * arrowSize
 
     -- Wing offsets (perpendicular to shaft direction).
     wx, wy :: Double

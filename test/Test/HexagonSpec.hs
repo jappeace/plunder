@@ -116,7 +116,7 @@ isoAxial tile = counterexample (printf "actual result: %s" $ show other) $
 
 isoPoint :: Point V2 CInt -> Property
 isoPoint point' = counterexample (printf "actual result: %s" $ show other) $
-  other + (P $ V2 (fromIntegral hexSize) $ fromIntegral hexSize) > point' &&
-    other - (P $ V2 (fromIntegral hexSize) $ fromIntegral hexSize) < point'
+  other + (P $ V2 hexSize hexSize) > point' &&
+    other - (P $ V2 hexSize hexSize) < point'
   where
     other = axialToPixel $ pixelToAxial point'

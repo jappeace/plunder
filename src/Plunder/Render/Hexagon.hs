@@ -27,10 +27,13 @@ import           Control.Monad.Reader (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Foldable
 import           Data.Int
+
 import           Data.Text            (Text)
 import qualified Data.Text            as Text
 import qualified Data.Vector.Storable as S
 import           Foreign.C.Types      (CInt)
+import qualified Unwitch.Convert.Int as Int
+import qualified Unwitch.Convert.CInt as CInt
 import           Plunder.Grid
 import           Reflex
 import           Reflex.SDL2
@@ -80,14 +83,17 @@ cornerToDegree = \case
   TopPoint         -> 270
 
 -- https://www.redblobgames.com/grids/hexagons/#angles
-pointyHexCorner :: Point V2 CInt -> Int -> HexCorner -> Point V2 CInt
+pointyHexCorner :: Point V2 CInt -> CInt -> HexCorner -> Point V2 CInt
 pointyHexCorner (P (V2 x y)) hexSize' corner =
-  (P $ V2 (x + (floor $ fromIntegral hexSize' * cos rad))
-          (y + (floor $ fromIntegral hexSize' * sin rad))
+  (P $ V2 (x + floor (CInt.toDouble hexSize' * cos rad))
+          (y + floor (CInt.toDouble hexSize' * sin rad))
   )
  where
+  -- | Degrees (30–330) always fit in Double; const 0 is unreachable.
+  intToDouble :: Int -> Double
+  intToDouble = either (const 0) id . Int.toDouble
   degree :: Double
-  degree = fromIntegral $ cornerToDegree corner
+  degree = intToDouble $ cornerToDegree corner
   rad :: Double
   rad = pi / 180 * (degree)
 
@@ -95,10 +101,15 @@ pointyHexCorner (P (V2 x y)) hexSize' corner =
 --  https://www.redblobgames.com/grids/hexagons/#basics
 calcPoints :: HexagonSettings -> (S.Vector Int16, S.Vector Int16)
 calcPoints settings =
-  ( S.fromList $ fromIntegral . view _x <$> points
-  , S.fromList $ fromIntegral . view _y <$> points
+  ( S.fromList $ cintToInt16Clamp . view _x <$> points
+  , S.fromList $ cintToInt16Clamp . view _y <$> points
   )
  where
+  -- | Clamp pixel coordinates to Int16 bounds for SDL polygon rendering.
+  cintToInt16Clamp :: CInt -> Int16
+  cintToInt16Clamp c = case CInt.toInt16 c of
+    Just i  -> i
+    Nothing -> if CInt.toInt c > 0 then maxBound else minBound
   points :: [Point V2 CInt]
   points =  pointyHexCorner (settings ^. hexagon_position) hexSize <$> allCorners
   allCorners :: [HexCorner]

@@ -19,6 +19,7 @@ import           Control.Monad.Reader   (MonadReader (..))
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Data.Text              (Text)
 import           Foreign.C.Types        (CInt)
+import qualified Unwitch.Convert.Int as Int
 import           Reflex.SDL2
 import qualified Plunder.Render.Font            as Font
 import           Plunder.Render.Image
@@ -49,7 +50,7 @@ allocateText :: (ReflexSDL2 t m, MonadReader RenderFun m) => Font -> Style -> Te
 allocateText font style text = do
       MkRenderFun{rf_createTexture} <- ask
       textSurface <- Font.solid font color text
-      fontHexSize <- fmap fromIntegral . uncurry V2 <$> Font.size font text
+      fontHexSize <- fmap toCInt' . uncurry V2 <$> Font.size font text
       textTexture <- rf_createTexture textSurface
       freeSurface textSurface
       pure $ MkTextSurface
@@ -59,6 +60,9 @@ allocateText font style text = do
           }
       where
        color = styleColor style
+       -- | Font dimensions always fit in CInt; 0 default is unreachable.
+       toCInt' :: Int -> CInt
+       toCInt' = maybe 0 id . Int.toCInt
 
 -- | Convert a 'TextSurface' and a screen position into 'ImageSettings'.
 --   Pure conversion — does not draw anything; pass the result to 'image' to display.

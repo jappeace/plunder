@@ -47,11 +47,13 @@ import qualified Data.Map.Strict as SMap
 import           GHC.Generics    (Generic)
 import           Reflex.SDL2
 import           Foreign.C.Types      (CInt)
+import qualified Unwitch.Convert.Int as Int
+import qualified Unwitch.Convert.CInt as CInt
 import           Test.QuickCheck
 import Plunder.Combat
 import Plunder.Shop
 
-hexSize :: Int
+hexSize :: CInt
 hexSize = 80
 
 type Grid = Map Axial Tile
@@ -123,8 +125,8 @@ mkGrid begin end =
 -- https://www.redblobgames.com/grids/hexagons/#conversions
 roundAxial :: Double -> Double -> Axial
 roundAxial q r = MkAxial
-  { __q = if q_override then -ry - rz else rx
-  , __r = if r_override then -rx - ry else rz
+  { __q = CInt.toInt $ if q_override then -ry - rz else rx
+  , __r = CInt.toInt $ if r_override then -rx - ry else rz
   }
  where
   q_override :: Bool
@@ -133,10 +135,11 @@ roundAxial q r = MkAxial
   r_override :: Bool
   r_override = (not q_override) && y_diff <= z_diff
 
-  x_diff     = abs $ fromIntegral rx - x
-  y_diff     = abs $ fromIntegral ry - y
-  z_diff     = abs $ fromIntegral rz - z
+  x_diff     = abs $ CInt.toDouble rx - x
+  y_diff     = abs $ CInt.toDouble ry - y
+  z_diff     = abs $ CInt.toDouble rz - z
 
+  rx, ry, rz :: CInt
   rx         = round x
   ry         = round y
   rz         = round z
@@ -153,12 +156,16 @@ axialToPixel coord = (P $ V2 x y)
   x :: CInt
   x =
     floor
-      $ fromIntegral hexSize
-      * ( (sqrt3 * (fromIntegral $ coord ^. _q))
-        + (sqrt3 / 2.0 * (fromIntegral $ coord ^. _r))
+      $ CInt.toDouble hexSize
+      * ( (sqrt3 * (intToDouble $ coord ^. _q))
+        + (sqrt3 / 2.0 * (intToDouble $ coord ^. _r))
         )
   y :: CInt
-  y = floor $ fromIntegral hexSize * (3.0 / two * (fromIntegral $ coord ^. _r))
+  y = floor
+      $ CInt.toDouble hexSize * (3.0 / two * (intToDouble $ coord ^. _r))
+  -- | Grid coordinates (0–6) always fit in Double; const 0 is unreachable.
+  intToDouble :: Int -> Double
+  intToDouble = either (const 0) id . Int.toDouble
 
 -- | Convert axial coordinate to pixel position with a camera offset applied.
 axialToPixelCam :: V2 CInt -> Axial -> Point V2 CInt
@@ -174,10 +181,10 @@ pixelToAxial (P vec) = roundAxial q r
  where
     -- TODO Implement hexSize properly, this math is crazy
   q :: Double
-  q = ((sqrt3 / 3) * fromIntegral x - (1 / 3) * fromIntegral y)
-    / fromIntegral hexSize
+  q = ((sqrt3 / 3) * CInt.toDouble x - (1 / 3) * CInt.toDouble y)
+    / CInt.toDouble hexSize
   r :: Double
-  r = ((two / 3) * fromIntegral y) / fromIntegral hexSize
+  r = ((two / 3) * CInt.toDouble y) / CInt.toDouble hexSize
   y = vec ^. _y
   x = vec ^. _x
 
