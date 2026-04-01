@@ -3,7 +3,7 @@
 
 module Test.IntegrationSpec (spec) where
 
-import           Control.Lens           (view)
+import           Control.Lens           (view, (.~), (&))
 import           Control.Monad          (void)
 import           Data.IORef
 import           Data.Word              (Word8)
@@ -17,9 +17,14 @@ import           SDL.Input.Keyboard.Codes (pattern KeycodeReturn,
 import           Test.Hspec
 
 import           Plunder                (app)
-import           Plunder.State          (GamePhase (..), game_inventory_open,
+import           Plunder.State          (GamePhase (..), game_board,
+                                         game_inventory_open,
                                          game_phase, game_selected, game_shop,
-                                         initialState)
+                                         initialState, levelToGameState,
+                                         selectedTileInfo, ContextInfo(..))
+import           Plunder.Grid           (Axial(..), flankingPreview)
+import           Plunder.Level          (Level(..), TilePlacement(..),
+                                         TileContentDef(..))
 import           Test.IntegrationExpected
 import           Test.TestHost
 
@@ -153,3 +158,40 @@ spec = do
         view game_selected gs `shouldBe` Nothing
         view game_shop gs `shouldBe` Nothing
         view game_inventory_open gs `shouldBe` False
+
+  describe "flanking context panel" $ do
+    -- Build a custom level with 3 players adjacent to an enemy at (3,3).
+    let flankLevel = MkLevel
+          { _level_grid_begin = 0
+          , _level_grid_end   = 6
+          , _level_money      = 0
+          , _level_tiles =
+              [ MkTilePlacement 3 3 (Just (EnemyDef 10 Nothing)) Nothing Nothing
+              , MkTilePlacement 2 3 (Just (PlayerDef 10 Nothing)) Nothing Nothing
+              , MkTilePlacement 4 3 (Just (PlayerDef 10 Nothing)) Nothing Nothing
+              , MkTilePlacement 3 4 (Just (PlayerDef 10 Nothing)) Nothing Nothing
+              ]
+          }
+        flankGS = levelToGameState flankLevel
+
+    it "flanking preview is non-zero with multiple players adjacent" $ do
+      let board = view game_board flankGS
+      -- 3 players adjacent to enemy at (3,3); preview subtracts 1 → 2 allies → 10%
+      flankingPreview board (MkAxial 3 3) `shouldBe` 10
+
+    it "selecting the flanked enemy shows non-zero flanking in ContextInfo" $ do
+      let gs = flankGS & game_selected .~ Just (MkAxial 3 3)
+      case selectedTileInfo gs of
+        ContextEnemy _ _ flanking -> flanking `shouldBe` 10
+        other -> expectationFailure $ "Expected ContextEnemy, got: " <> show other
+
+    it "full app boots and enters Playing phase with flanking level" $
+      withTestEnv $ \env -> do
+        stateRef <- newIORef flankGS
+        (handle, _ref) <- bootApp env $ do
+          dynGS <- app flankGS
+          performEvent_ $ ffor (updated dynGS) $ liftIO . writeIORef stateRef
+        fireWindowExposed handle (WindowExposedEventData (teWindow env))
+        fireKeyboard handle enterKeyPress
+        gs <- readIORef stateRef
+        view game_phase gs `shouldBe` Playing

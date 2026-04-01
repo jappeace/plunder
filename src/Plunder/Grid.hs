@@ -38,6 +38,10 @@ module Plunder.Grid
   , defUnit
   , tc_unit
   , hexDistance
+  , FlankingPercent
+  , flankingBonus
+  , countFlankingAllies
+  , flankingPreview
   )
 where
 
@@ -215,6 +219,58 @@ neigbours parent = filter (\x -> SMap.member x initialGrid)
                 , _r -~ 1
                 , (_q +~ 1) . (_r -~ 1)
                 ]
+
+type FlankingPercent = Int
+
+-- | Raw hex neighbour offsets (no grid filtering).
+neighOffsets :: Axial -> [Axial]
+neighOffsets (MkAxial q r) =
+  [ MkAxial (q+1) r, MkAxial q (r+1), MkAxial (q-1) (r+1)
+  , MkAxial (q-1) r, MkAxial q (r-1), MkAxial (q+1) (r-1) ]
+
+-- | 2 allies → 10%, 3 → 30%, 4+ → 50%, else 0%.
+flankingBonus :: Int -> FlankingPercent
+flankingBonus n
+  | n >= 4    = 50
+  | n == 3    = 30
+  | n == 2    = 10
+  | otherwise = 0
+
+-- | Count allies of the attacker adjacent to the defender (excluding the
+--   attacker itself), then apply 'flankingBonus'.
+countFlankingAllies :: Grid -> Axial -> Axial -> FlankingPercent
+countFlankingAllies grid attackerPos defenderPos =
+  case SMap.lookup attackerPos grid >>= (^. tile_content) of
+    Nothing -> 0
+    Just attackerContent ->
+      let isAlly :: TileContent -> Bool
+          isAlly (Player _) = has _Player attackerContent
+          isAlly (Enemy _)  = has _Enemy  attackerContent
+          isAlly (House _)  = False
+          isAlly (Shop _)   = False
+          adjacents = filter (\ax -> ax /= attackerPos && SMap.member ax grid) (neighOffsets defenderPos)
+          allyCount = length
+            [ ()
+            | ax <- adjacents
+            , Just tile <- [SMap.lookup ax grid]
+            , Just tc   <- [tile ^. tile_content]
+            , isAlly tc
+            ]
+      in flankingBonus allyCount
+
+-- | Preview for context panel: count adjacent Player units around an enemy,
+--   subtract 1 (the would-be attacker), then apply 'flankingBonus'.
+flankingPreview :: Grid -> Axial -> FlankingPercent
+flankingPreview grid defenderPos =
+  let adjacents = filter (`SMap.member` grid) (neighOffsets defenderPos)
+      playerCount = length
+        [ ()
+        | ax <- adjacents
+        , Just tile <- [SMap.lookup ax grid]
+        , has (tile_content . _Just . _Player) tile
+        ]
+      allies = max 0 (playerCount - 1)
+  in flankingBonus allies
 
 -- this can be a traversal according to type system, but
 -- if we invalidate the target of the predicate (tile_content) it's invalid.
