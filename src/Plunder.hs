@@ -14,9 +14,10 @@ import           Control.Monad.Reader (MonadReader (..), runReaderT)
 import           Reflex
 import           Reflex.SDL2
 import           Plunder.Guest
-import           Plunder.Level (decodeLevelFile)
+import           Control.Lens ((.~), (&))
+import           Plunder.Level (decodeLevelFile, Level)
 import           Plunder.Render.RenderFun (RenderFun(..), mkRenderFun)
-import           Plunder.State (GameState, levelToGameState)
+import           Plunder.State (GameState, levelToGameState, game_levels, game_level_index)
 import           qualified SDL.Font as Font
 
 app :: (ReflexSDL2 t m, MonadReader RenderFun m) => GameState -> m (Dynamic t GameState)
@@ -39,11 +40,16 @@ main = do
   putStrLn "initializing"
   Font.initialize
 
-  putStrLn "loading level..."
-  levelResult <- decodeLevelFile "assets/levels/level1.toml"
-  let initGS = case levelResult of
-        Left err -> error $ "Failed to load level: " <> show err
-        Right lvl -> levelToGameState lvl
+  putStrLn "loading levels..."
+  level1Result <- decodeLevelFile "assets/levels/level1.toml"
+  level2Result <- decodeLevelFile "assets/levels/level2.toml"
+  let loadLevel :: Show e => Either e Level -> Level
+      loadLevel (Right lvl) = lvl
+      loadLevel (Left err)  = error $ "Failed to load level: " <> show err
+      levels = [loadLevel level1Result, loadLevel level2Result]
+      initGS = levelToGameState (head levels)
+             & game_levels .~ levels
+             & game_level_index .~ 0
 
   let ogl = defaultOpenGL{ glProfile = Compatibility Debug 4 6 }
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl

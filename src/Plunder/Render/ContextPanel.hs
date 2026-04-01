@@ -106,6 +106,9 @@ renderPanelContent font winSizeDyn _ _ (ContextEnemy terrain unit' flanking) = d
 renderPanelContent font winSizeDyn _ _ (ContextHouse terrain unit') = do
   void $ dynView $ renderHousePanel font terrain unit' <$> winSizeDyn
   pure never
+renderPanelContent font winSizeDyn _ _ (ContextBoat terrain) = do
+  void $ dynView $ renderBoatPanel font terrain <$> winSizeDyn
+  pure never
 renderPanelContent font winSizeDyn _ _ (ContextShopFar terrain) = do
   void $ dynView $ renderShopFarPanel font terrain <$> winSizeDyn
   pure never
@@ -190,6 +193,16 @@ renderHousePanel font terrain unit' winSize = do
   panelText font panelHeaderStyle (panelPos winSize contentXOff 0) "House"
   panelText font panelStyle (panelPos winSize contentXOff 1)
     ("HP: " <> tshow (unit' ^. unit_hp) <> "/" <> tshow maxHealth)
+
+renderBoatPanel
+  :: ReflexSDL2 t m
+  => DynamicWriter t [Layer m] m
+  => MonadReader RenderFun m
+  => Font -> Terrain -> V2 CInt -> m ()
+renderBoatPanel font terrain winSize = do
+  panelText font panelHeaderStyle (panelPos winSize 0 0) (terrainLabel terrain)
+  panelText font panelHeaderStyle (panelPos winSize contentXOff 0) "Boat"
+  panelText font panelStyle (panelPos winSize contentXOff 1) "Board to escape!"
 
 renderShopFarPanel
   :: ReflexSDL2 t m

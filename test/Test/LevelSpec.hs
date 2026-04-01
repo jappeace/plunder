@@ -46,6 +46,7 @@ genTileContentDef = oneof
   , EnemyDef  <$> choose (1, 100) <*> arbitrary
   , HouseDef  <$> choose (1, 100)
   , ShopDef   <$> genShopContent
+  , pure BoatDef
   ]
 
 genTilePlacement :: Gen TilePlacement
@@ -127,3 +128,9 @@ spec = do
 
     it "arbitrary levels roundtrip through TOML encode/decode" $
       property prop_tomlRoundtrip
+
+    it "boat tile roundtrips through TOML" $ do
+      let boatLevel = MkLevel 0 6 0
+            [MkTilePlacement 3 3 (Just BoatDef) Nothing Nothing]
+          toml = levelToToml boatLevel
+      decodeLevel toml `shouldBe` Right boatLevel

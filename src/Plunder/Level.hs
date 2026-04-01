@@ -41,6 +41,7 @@ data TileContentDef
   | EnemyDef  { _tcd_hp :: Health, _tcd_weapon :: Maybe Weapon }
   | HouseDef  { _tcd_hp :: Health }
   | ShopDef   ShopContent
+  | BoatDef
   deriving (Show, Eq)
 
 -- | A single tile placement in a level.
@@ -72,12 +73,14 @@ tileContentDefToContent (PlayerDef hp w) = Player (MkUnit hp w Nothing)
 tileContentDefToContent (EnemyDef hp w)  = Enemy (MkUnit hp w Nothing)
 tileContentDefToContent (HouseDef hp)    = House (MkUnit hp Nothing Nothing)
 tileContentDefToContent (ShopDef sc)     = Shop sc
+tileContentDefToContent BoatDef          = Boat
 
 tileContentToDef :: TileContent -> TileContentDef
 tileContentToDef (Player u) = PlayerDef (u ^. unit_hp) (u ^. unit_weapon)
 tileContentToDef (Enemy u)  = EnemyDef (u ^. unit_hp) (u ^. unit_weapon)
 tileContentToDef (House u)  = HouseDef (u ^. unit_hp)
 tileContentToDef (Shop sc)  = ShopDef sc
+tileContentToDef Boat       = BoatDef
 
 --------------------------------------------------------------------------------
 -- TOML Decoding
@@ -176,6 +179,7 @@ instance DecodeTOML TilePlacement where
         "shop" -> do
           sc <- decodeShopContent
           pure $ Just $ ShopDef sc
+        "boat" -> pure $ Just BoatDef
         _ -> fail $ "Unknown content type: " <> T.unpack tag
     _tp_background <- getFieldOptWith decodeBackground "background"
     _tp_terrain    <- getFieldOptWith decodeTerrain "terrain"
@@ -251,6 +255,7 @@ tilePlacementToToml tp = T.unlines $
         <> maybe [] (\s -> [shopItemToToml "slot1" s]) s1
         <> maybe [] (\s -> [shopItemToToml "slot2" s]) s2
         <> maybe [] (\s -> [shopItemToToml "slot3" s]) s3
+      Just BoatDef -> ["content = \"boat\""]
     backgroundLines :: [Text]
     backgroundLines = case _tp_background tp of
       Nothing -> []
