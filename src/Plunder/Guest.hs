@@ -18,6 +18,7 @@ import           Reflex
 import           Reflex.SDL2 hiding (Playing) -- avoid clash with SDL.Audio.Playing
 import           Plunder.Render
 import           Plunder.State
+import           Plunder.RenderState
 import           System.Random
 import Plunder.Mouse
 import Plunder.Shop
@@ -53,10 +54,22 @@ guest initGS = mdo
   helpOpenDyn <- holdDyn True $ False <$ leftmost [enterEvt, okClickEvt]
 
   (gameState, alphaDyn, winSizeDyn, fireEndTurn) <- mkGameState initGS helpOpenDyn shopEvt inventoryClickEvt
-  renderState font gameState
-  shopEvt <- renderContextPanel font gameState winSizeDyn
-  inventoryClickEvt <- renderInventory font (view game_inventory_open <$> gameState) (view (game_player_inventory . inventroy_item) <$> gameState)
-  renderBanner bannerFont (view game_phase <$> gameState) alphaDyn winSizeDyn
+
+  -- Construct the RenderState from GameState + external dynamics
+  let renderStateDyn = gameStateToRenderState <$> alphaDyn <*> helpOpenDyn <*> gameState
+
+  renderState font renderStateDyn
+
+  -- Extract fields from RenderState for context panel, inventory, banner
+  let contextDyn = view (render_hud . hud_contextPanel) <$> renderStateDyn
+      moneyDyn   = view (render_hud . hud_money . money_amount) <$> renderStateDyn
+      hasRoomDyn = view (render_hud . hud_hasRoom) <$> renderStateDyn
+      bannerDyn  = view (render_hud . hud_banner) <$> renderStateDyn
+      invInfoDyn = view (render_hud . hud_inventory) <$> renderStateDyn
+
+  shopEvt <- renderContextPanel font contextDyn moneyDyn hasRoomDyn winSizeDyn
+  inventoryClickEvt <- renderInventory font (view invInfo_isOpen <$> invInfoDyn) (view invInfo_items <$> invInfoDyn)
+  renderBanner bannerFont bannerDyn winSizeDyn
   okClickEvt <- renderHelp font helpOpenDyn winSizeDyn
   -- End Turn button: bottom-right corner, position tracks window size
   endTurnSurface <- allocateText font defaultStyle "[ End Turn ]"

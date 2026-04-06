@@ -5,18 +5,15 @@ module Plunder.Render(renderState) where
 
 import Plunder.Shop
 import Plunder.Render.Text
-import           Plunder.Combat
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Reader (MonadReader (..)
                                      )
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Foreign.C.Types      (CInt)
-import qualified Data.Map.Strict      as Map
-import qualified Data.Text            as T
 import           Data.Foldable
 import           Data.Monoid
-import           Plunder.Grid
+import           Plunder.Grid (Axial, axialToPixelCam)
 import           Reflex
 import           Reflex.SDL2
 import           Plunder.Render.Arrow
@@ -25,21 +22,22 @@ import           Plunder.Render.Hexagon
 import           Plunder.Render.Image
 import           Plunder.Render.Layer
 import           Plunder.Render.Terrain
-import           Plunder.State
+import           Plunder.RenderState
 import           Plunder.Render.Font
 
 renderState :: ReflexSDL2 t m
   => MonadReader RenderFun m
   => DynamicWriter t [Layer m] m
-  => Font ->  Dynamic t GameState -> m ()
-renderState font state = do
+  => Font -> Dynamic t RenderState -> m ()
+renderState font rstate = do
   rf <- ask
 
-  let cameraDyn = view game_camera <$> state
+  let cameraDyn = view render_camera <$> rstate
+      tilesDyn  = view render_tiles <$> rstate
 
   -- Terrain fill is the very first (lowest) layer: coloured hexagons for
   -- every coordinate in range, with Water used for anything outside the grid.
-  renderTerrain rf cameraDyn (view game_board <$> state)
+  renderTerrain rf cameraDyn tilesDyn
 
   vikingTex <- loadViking
   enemyTex <- loadEnemy
@@ -54,38 +52,40 @@ renderState font state = do
   bowTex <- loadBow
 
   let renderOrduning =
-            [ applyImageCam cameraDyn (renderImageCam' bloodTex) $ tile_background . _Just . _Blood
-            , applyImageCam cameraDyn (renderImageCam' burnedHouseTex) $ tile_background . _Just . _BurnedHouse
-            , applyImageCam cameraDyn (renderImageCam' enemyTex) $ tile_content . _Just . _Enemy
-            , applyImageCam cameraDyn (renderImageCam' vikingTex) $ tile_content . _Just . _Player
-            , applyImageCam cameraDyn (renderImageCam' houseTex) $ tile_content . _Just . _House
-            , applyImageCam cameraDyn (renderImageCam' shopTex) $ tile_content . _Just . _Shop
-            , applyImageCam cameraDyn (renderImageCam' boatTex) $ tile_content . _Just . _Boat
-            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam swordTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
-            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam bowTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
-            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam axeTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe
+            [ applyImageCam cameraDyn (renderImageCam' bloodTex) $ rtile_background . _Just . only BloodSplash
+            , applyImageCam cameraDyn (renderImageCam' burnedHouseTex) $ rtile_background . _Just . only BurnedHouseBg
+            , applyImageCam cameraDyn (renderImageCam' burnedHouseTex) $ rtile_background . _Just . only BurnedShopBg
+            , applyImageCam cameraDyn (renderImageCam' enemyTex) $ rtile_sprite . _Just . only EnemySprite
+            , applyImageCam cameraDyn (renderImageCam' vikingTex) $ rtile_sprite . _Just . only PlayerSprite
+            , applyImageCam cameraDyn (renderImageCam' houseTex) $ rtile_sprite . _Just . only HouseSprite
+            , applyImageCam cameraDyn (renderImageCam' shopTex) $ rtile_sprite . _Just . only ShopSprite
+            , applyImageCam cameraDyn (renderImageCam' boatTex) $ rtile_sprite . _Just . only BoatSprite
+            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam swordTex) $ rtile_weapon . _Just . only SwordSprite
+            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam bowTex) $ rtile_weapon . _Just . only BowSprite
+            , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam axeTex) $ rtile_weapon . _Just . only AxeSprite
             ]
 
-  void $ listWithKey (view game_board <$> state) $ \axial _ -> do
+  void $ listWithKey tilesDyn $ \axial _ -> do
     hexagonDyn $ renderHexCam <$> cameraDyn <*> pure font <*> pure axial
 
   -- simple list doesn't cache on key change
-  void $ listWithKey (view game_board <$> state) $ \axial tileDyn -> do
+  void $ listWithKey tilesDyn $ \axial tileDyn -> do
     traverse_ (\fun -> fun axial tileDyn) renderOrduning
     healthBar cameraDyn tileDyn
 
   -- Selection outline drawn last so it sits on top of unit sprites
   void $ holdView (pure ())
        $ (\axial -> hexagonDyn $ renderSelected <$> cameraDyn <*> pure font <*> pure axial)
-         <$> mapMaybe (view game_selected) (updated state)
+         <$> mapMaybe (view render_selectedTile) (updated rstate)
 
   -- Draw planned-move arrows on top of units
-  commitLayer $ ffor2 cameraDyn (view game_planned_moves <$> state) $ \cam plans ->
-    for_ (Map.toList plans) $ \(src, path) ->
-      drawPathArrows rf (axialToPixelCam cam) src path (V4 255 165 0 255)
+  commitLayer $ ffor2 cameraDyn (view render_plannedArrows <$> rstate) $ \cam arrows ->
+    for_ arrows $ \arrow ->
+      drawPathArrows rf (axialToPixelCam cam)
+        (arrow ^. arrow_source) (arrow ^. arrow_waypoints) (V4 255 165 0 255)
 
   -- Fog of war overlay (covers terrain, sprites and arrows, but not HUD)
-  renderFogOverlay rf state
+  renderFogOverlay rf cameraDyn tilesDyn
 
   let moneyStyle :: Style
       moneyStyle = defaultStyle & styleColorLens .~ V4 255 215 0 255
@@ -94,24 +94,19 @@ renderState font state = do
   commitLayer $ pure $ do
     rf_setDrawColor rf (V4 0 0 0 200)
     rf_fillRect rf (Just moneyBgRect)
-  void $ imageEvt =<< dynView (state <&>
-    \state' ->
+  void $ imageEvt =<< dynView (rstate <&>
+    \rs ->
       renderText font moneyStyle (P $ V2 500 10)
-          ("$ " <> tshow (state' ^. game_player_inventory . inventory_money)))
+          ("$ " <> tshow (rs ^. render_hud . hud_money . money_amount)))
 
   -- "Purchasing: <item>" label above the player tile when a purchase is queued
-  purchaseLabelEvt <- dynView (state <&> \gs ->
-    case gs ^. game_pending_purchase of
-      Nothing   -> pure Nothing
-      Just haul ->
-        case gs ^? game_board . traversed
-                  . filtered (has (tile_content . _Just . _Player))
-                  . tile_coordinate of
-          Nothing        -> pure Nothing
-          Just playerPos ->
-            let P (V2 px py) = axialToPixelCam (gs ^. game_camera) playerPos
-            in Just <$> renderText font defaultStyle (P $ V2 px (py - 25))
-                          (describePurchase haul))
+  purchaseLabelEvt <- dynView (rstate <&> \rs ->
+    case rs ^. render_hud . hud_purchaseLabel of
+      Nothing    -> pure Nothing
+      Just plabel ->
+        let P (V2 px py) = axialToPixelCam (rs ^. render_camera) (plabel ^. plabel_playerPos)
+        in Just <$> renderText font defaultStyle (P $ V2 px (py - 25))
+                      (plabel ^. plabel_text))
   void $ image =<< holdDyn Nothing purchaseLabelEvt
 
 -- | Helper to flip argument order for renderImageCam.
@@ -125,9 +120,9 @@ applyImageCam ::
   => ReflexSDL2 t m
   => Dynamic t (V2 CInt)
   -> (V2 CInt -> Axial -> ImageSettings)
-  -> Getting Any Tile a -- ^ condition on the tile for rendering
+  -> Getting Any RenderTile a -- ^ condition on the tile for rendering
   -> Axial
-  -> Dynamic t Tile
+  -> Dynamic t RenderTile
   ->  m ()
 applyImageCam cameraDyn textureF hashPath axial tileDyn =
   void $ image someSettings
@@ -143,7 +138,3 @@ renderSelected cam font = (hexagon_color .~ V4 255 255 0 255)
                . (hexagon_is_filled .~ False)
                . (hexagon_label .~ Nothing)
                . renderHexCam cam font
-
-describePurchase :: Haul -> T.Text
-describePurchase haul =
-  "Purchasing " <> T.intercalate ", " (itemTypeDescription . si_type <$> toList (haulItems haul))

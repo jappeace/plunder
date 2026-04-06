@@ -12,8 +12,8 @@ import           Control.Lens
 import           Data.Int             (Int16)
 import           Foreign.C.Types      (CInt)
 import qualified Unwitch.Convert.CInt as CInt
-import           Plunder.Grid
-import           Plunder.State (GameState, Visibility(Visible, Fog, Unexplored), tileVisibility, game_camera)
+import           Plunder.Grid (Axial(..), Terrain(..), hexSize, axialToPixelCam)
+import           Plunder.RenderState (RenderTile, Visibility(..), rtile_terrain, rtile_visibility)
 import           Plunder.Render.Layer
 import           Plunder.Render.RenderFun (RenderFun(..))
 import           Reflex
@@ -55,20 +55,20 @@ hexPolyPoints cam axial = (S.fromList xs, S.fromList ys)
     ys = map snd corners
 
 -- | Render terrain-filled hexagons for all coordinates in 'terrainCoords'.
---   Coordinates absent from the grid are drawn with the Water colour so that
+--   Coordinates absent from the tile map are drawn with the Water colour so that
 --   the area beyond the map boundary looks like ocean.
 renderTerrain :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => RenderFun
   -> Dynamic t (V2 CInt)
-  -> Dynamic t Grid
+  -> Dynamic t (Map.Map Axial RenderTile)
   -> m ()
-renderTerrain rf cameraDyn boardDyn =
-  commitLayer $ ffor2 cameraDyn boardDyn $ \cam board ->
+renderTerrain rf cameraDyn tilesDyn =
+  commitLayer $ ffor2 cameraDyn tilesDyn $ \cam tiles ->
     Foldable.for_ terrainCoords $ \axial ->
-      let color = case Map.lookup axial board of
+      let color = case Map.lookup axial tiles of
                     Nothing   -> terrainToColor Water
-                    Just tile -> terrainToColor (tile ^. tile_terrain)
+                    Just tile -> terrainToColor (tile ^. rtile_terrain)
           (xs, ys) = hexPolyPoints cam axial
       in rf_fillPolygon rf xs ys color
 
@@ -77,13 +77,18 @@ renderTerrain rf cameraDyn boardDyn =
 --   semi-transparent or fully opaque dark overlay.
 renderFogOverlay :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
-  => RenderFun -> Dynamic t GameState -> m ()
-renderFogOverlay rf stateDyn =
-  commitLayer $ ffor stateDyn $ \gs ->
-    let cam = gs ^. game_camera
-    in Foldable.for_ terrainCoords $ \axial ->
+  => RenderFun
+  -> Dynamic t (V2 CInt)
+  -> Dynamic t (Map.Map Axial RenderTile)
+  -> m ()
+renderFogOverlay rf cameraDyn tilesDyn =
+  commitLayer $ ffor2 cameraDyn tilesDyn $ \cam tiles ->
+    Foldable.for_ terrainCoords $ \axial ->
       let (xs, ys) = hexPolyPoints cam axial
-      in case tileVisibility gs axial of
-        Visible -> pure ()
-        Fog     -> rf_fillPolygon rf xs ys (V4 0 0 0 128)
+          vis = case Map.lookup axial tiles of
+                  Nothing   -> Unexplored
+                  Just tile -> tile ^. rtile_visibility
+      in case vis of
+        Visible    -> pure ()
+        Fog        -> rf_fillPolygon rf xs ys (V4 0 0 0 128)
         Unexplored -> rf_fillPolygon rf xs ys (V4 0 0 0 255)
