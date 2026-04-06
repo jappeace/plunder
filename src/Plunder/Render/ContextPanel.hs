@@ -26,7 +26,7 @@ import           Plunder.Render.Image
 import           Plunder.Render.Layer
 import           Plunder.Render.Text
 import           Plunder.Shop
-import           Plunder.State
+import           Plunder.State (ContextInfo(..), PlayerInventory(..), inventory_money, inventroy_item)
 import           Reflex
 import           Reflex.SDL2
 
@@ -50,11 +50,9 @@ renderContextPanel
   :: ReflexSDL2 t m
   => DynamicWriter t [Layer m] m
   => MonadReader RenderFun m
-  => Font -> Dynamic t GameState -> Dynamic t (V2 CInt) -> m (Event t ShopAction)
-renderContextPanel font gameState winSizeDyn = do
-  let contextDyn = selectedTileInfo <$> gameState
-      moneyDyn   = view (game_player_inventory . inventory_money) <$> gameState
-      hasRoomDyn = isJust . findFreeAdjacent <$> gameState
+  => Font -> Dynamic t ContextInfo -> Dynamic t Word64 -> Dynamic t Bool
+  -> Dynamic t (V2 CInt) -> m (Event t ShopAction)
+renderContextPanel font contextDyn moneyDyn hasRoomDyn winSizeDyn = do
 
   MkRenderFun{rf_setDrawColor, rf_fillRect} <- ask
 

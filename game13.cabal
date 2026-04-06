@@ -49,6 +49,7 @@ library
       Plunder.Render.Layer
       Plunder.Render.Shop
       Plunder.Render.Text
+      Plunder.RenderState
       Plunder.Shop
       Plunder.State
   other-modules:
@@ -159,11 +160,11 @@ test-suite unit
   main-is: Spec.hs
   other-modules:
       Test.HexagonSpec
-      Test.IntegrationExpected
       Test.IntegrationSpec
       Test.LevelSpec
       Test.Orphanage
       Test.PathfindingSpec
+      Test.RenderStateSpec
       Test.StateSpec
       Test.TestHost
       Paths_game13
