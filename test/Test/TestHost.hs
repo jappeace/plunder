@@ -15,6 +15,7 @@ module Test.TestHost
   , TestHandle(..)
   , withTestEnv
   , bootApp
+  , bootAppWithState
   ) where
 
 import           Control.Concurrent       (Chan, newChan, newEmptyMVar, readChan)
@@ -41,7 +42,9 @@ import           SDL.Image                (decodeTexture)
 import           Control.Exception.Safe   (bracket)
 import           System.Environment       (setEnv)
 
+import           Plunder                  (app)
 import           Plunder.Render.RenderFun (RenderFun (..))
+import           Plunder.State            (GameState)
 
 -- | Sum type capturing each render operation for test assertions.
 --   Polygon vertex data is stored as plain lists (converted from
@@ -282,3 +285,15 @@ drainTriggersOnce triggersVar = do
     writeTVar triggersVar []
     return trigs
   forM_ triggers $ \(_ :=> TriggerInvocation _a cb) -> cb
+
+-- | Boot the app and return a handle for event injection plus an IORef
+--   holding the latest GameState.  The render-call log is still created
+--   (the mock RenderFun needs it) but callers don't need to inspect it.
+bootAppWithState :: TestEnv -> GameState
+                 -> IO (TestHandle, IORef GameState)
+bootAppWithState env initGS = do
+  stateRef <- newIORef initGS
+  (handle, _renderCalls) <- bootApp env $ do
+    dynGS <- app initGS
+    performEvent_ $ ffor (updated dynGS) $ liftIO . writeIORef stateRef
+  pure (handle, stateRef)
