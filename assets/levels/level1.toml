@@ -6,64 +6,73 @@ end = 6
 money = 0
 
 [[tiles]]
-q = 2
-r = 3
+q = 1
+r = 1
 content = "player"
 hp = 10
 weapon = "axe"
 
 [[tiles]]
 q = 3
+r = 2
+content = "enemy"
+hp = 8
+weapon = "sword"
+
+[[tiles]]
+q = 4
+r = 3
+content = "enemy"
+hp = 8
+weapon = "bow"
+
+[[tiles]]
+q = 2
 r = 3
 content = "house"
 hp = 10
 
 [[tiles]]
-q = 2
-r = 6
-content = "shop"
-slot1 = { price = 4, type = "health-potion" }
-slot2 = { price = 8, type = "unit" }
-slot3 = { price = 5, type = "sword" }
-
-[[tiles]]
-q = 4
+q = 5
 r = 5
-content = "enemy"
-hp = 10
-weapon = "axe"
+content = "boat"
 
 [[tiles]]
-q = 4
-r = 4
-content = "enemy"
-hp = 10
-weapon = "bow"
+q = 0
+r = 5
+terrain = "water"
 
 [[tiles]]
-q = 4
-r = 3
-content = "enemy"
-hp = 10
-weapon = "sword"
+q = 1
+r = 5
+terrain = "water"
 
 [[tiles]]
 q = 0
 r = 6
-content = "enemy"
-hp = 10
+terrain = "water"
 
 [[tiles]]
 q = 1
 r = 6
-background = "blood"
+terrain = "water"
 
 [[tiles]]
-q = 0
-r = 0
+q = 2
+r = 6
+terrain = "water"
+
+[[tiles]]
+q = 6
+r = 5
 terrain = "water"
 
 [[tiles]]
 q = 6
 r = 6
-terrain = "mountains"
+terrain = "water"
+
+[[tiles]]
+q = 5
+r = 6
+terrain = "water"

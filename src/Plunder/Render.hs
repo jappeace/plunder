@@ -47,6 +47,7 @@ renderState font state = do
   houseTex <- loadHouse
   burnedHouseTex <- burndedHouse
   shopTex <- loadShop
+  boatTex <- loadBoat
 
   axeTex <- loadAxe
   swordTex <- loadSword
@@ -59,6 +60,7 @@ renderState font state = do
             , applyImageCam cameraDyn (renderImageCam' vikingTex) $ tile_content . _Just . _Player
             , applyImageCam cameraDyn (renderImageCam' houseTex) $ tile_content . _Just . _House
             , applyImageCam cameraDyn (renderImageCam' shopTex) $ tile_content . _Just . _Shop
+            , applyImageCam cameraDyn (renderImageCam' boatTex) $ tile_content . _Just . _Boat
             , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam swordTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Sword
             , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam bowTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Bow
             , applyImageCam cameraDyn (\cam -> renderWeapon . renderImageCam cam axeTex) $ tile_content . _Just . tc_unit . unit_weapon . _Just . _Axe

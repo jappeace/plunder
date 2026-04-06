@@ -29,6 +29,7 @@ module Plunder.Grid
   , _Blood
   , _House
   , _Shop
+  , _Boat
   , _BurnedHouse
   , _Land
   , _Water
@@ -73,6 +74,7 @@ data TileContent
   | Enemy  { _tc_unit :: Unit }
   | House  { _tc_unit :: Unit }
   | Shop   ShopContent
+  | Boat
   deriving (Show, Generic, Eq)
 
 data Background = Blood
@@ -248,6 +250,7 @@ countFlankingAllies grid attackerPos defenderPos =
           isAlly (Enemy _)  = has _Enemy  attackerContent
           isAlly (House _)  = False
           isAlly (Shop _)   = False
+          isAlly Boat       = False
           adjacents = filter (\ax -> ax /= attackerPos && SMap.member ax grid) (neighOffsets defenderPos)
           allyCount = length
             [ ()

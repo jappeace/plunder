@@ -147,7 +147,7 @@ mkGameState initGS helpOpen shopActions inventoryActions = mdo
   performEvent_ $ ffor events $ liftIO . print
 
   ntDyn <- holdView makeRandomNT $ makeRandomNT <$ events
-  state <- accumDyn (updateState initGS) initGS ((,) <$> current ntDyn <@> events)
+  state <- accumDyn updateState initGS ((,) <$> current ntDyn <@> events)
 
   phaseDyn <- holdUniqDyn (view game_phase <$> state)
 

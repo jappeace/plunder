@@ -18,6 +18,7 @@ module Plunder.Render.Image(
             , loadBow
             , loadHouse
             , loadShop
+            , loadBoat
             , renderWeapon
             , burndedHouse
             ) where
@@ -119,6 +120,14 @@ loadShop = do
 
 imgShopFile :: ByteString
 imgShopFile = $(embedFile "assets/img/shop.png")
+
+loadBoat :: MonadIO m => MonadReader RenderFun m => m Texture
+loadBoat = do
+  MkRenderFun{rf_decodeTexture} <- ask
+  rf_decodeTexture imgBoatFile
+
+imgBoatFile :: ByteString
+imgBoatFile = $(embedFile "assets/img/boat.png")
 
 loadEnemy :: MonadIO m => MonadReader RenderFun m => m Texture
 loadEnemy = do

@@ -9,6 +9,7 @@ import           Data.Int                        (Int32)
 import           Foreign.C.Types                 (CInt)
 import           Plunder.Grid
 import           Plunder.Grid (flankingBonus, countFlankingAllies, flankingPreview)
+import           Plunder.Level (defaultLevel)
 import           Plunder.Mouse                   (isClickInPanel)
 import           Plunder.Render.ContextPanel      (panelHeight)
 import           Plunder.Shop
@@ -20,7 +21,7 @@ import           Test.QuickCheck                 ()
 
 -- | Run a single update event against a game state (ignoring randomness)
 runEvt :: UpdateEvts -> GameState -> GameState
-runEvt evt gs = updateState initialState gs (rng, evt)
+runEvt evt gs = updateState gs (rng, evt)
   where
     rng = MkRandTNT (\inner -> fst <$> runRandT inner (mkStdGen 42))
 
@@ -914,3 +915,76 @@ spec = do
     flankingBonus 3 `shouldBe` 30
     flankingBonus 4 `shouldBe` 50
     flankingBonus 5 `shouldBe` 50
+
+ describe "Boat escape" $ do
+  let playerAxial = MkAxial 2 3
+      boatAxial   = MkAxial 2 4  -- adjacent to player
+      boatState   = initialState
+        & game_board . ix boatAxial . tile_content ?~ Boat
+        & game_selected .~ Just playerAxial
+
+  it "right-clicking an adjacent boat records a planned path" $ do
+    let result = runEvt (RightClick boatAxial) boatState
+    result ^. game_planned_moves `shouldBe` Map.singleton playerAxial [boatAxial]
+
+  it "EndTurn on a queued boat step triggers YouVictorious" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick boatAxial) boatState
+    result ^. game_phase `shouldBe` YouVictorious
+
+  it "boarding the boat moves the player onto the boat tile" $ do
+    let result = runEvt EndTurn
+               $ runEvt (RightClick boatAxial) boatState
+    result ^? game_board . ix boatAxial . tile_content . _Just . _Player
+      `shouldNotBe` Nothing
+
+  it "enemies alive does not trigger victory when boat exists on board" $ do
+    -- Place an enemy but also a boat; killing all enemies should NOT win
+    -- because the boat escape is the win condition.
+    let withBothState = initialState
+          & game_board . ix (MkAxial 2 4) . tile_content ?~ Boat
+          -- Remove all default enemies
+          & game_board . traversed . tile_content %~ \case
+              Just (Enemy _) -> Nothing
+              x              -> x
+    let result = runEvt Redraw withBothState
+    result ^. game_phase `shouldBe` Playing
+
+  it "selecting a visible boat returns ContextBoat" $ do
+    let gs = boatState & game_selected .~ Just boatAxial
+    case selectedTileInfo gs of
+      ContextBoat _ -> pure ()
+      other         -> expectationFailure $ "Expected ContextBoat, got: " <> show other
+
+ describe "Multi-level progression" $ do
+  it "ResetGame after victory advances to next level" $ do
+    let twoLevels = initialState
+          & game_levels .~ [defaultLevel, defaultLevel]
+          & game_level_index .~ 0
+          & game_phase .~ YouVictorious
+        result = runEvt ResetGame twoLevels
+    result ^. game_level_index `shouldBe` 1
+    result ^. game_phase `shouldBe` Playing
+
+  it "ResetGame after death stays on same level" $ do
+    let twoLevels = initialState
+          & game_levels .~ [defaultLevel, defaultLevel]
+          & game_level_index .~ 0
+          & game_phase .~ YouDied
+        result = runEvt ResetGame twoLevels
+    result ^. game_level_index `shouldBe` 0
+    result ^. game_phase `shouldBe` Playing
+
+  it "ResetGame on last level stays on last level" $ do
+    let lastLevel = initialState
+          & game_levels .~ [defaultLevel, defaultLevel]
+          & game_level_index .~ 1
+          & game_phase .~ YouVictorious
+        result = runEvt ResetGame lastLevel
+    result ^. game_level_index `shouldBe` 1
+    result ^. game_phase `shouldBe` Playing
+
+ describe "contextTerrain ContextBoat" $ do
+  it "ContextBoat carries terrain" $
+    contextTerrain (ContextBoat Land)
+      `shouldBe` Just Land

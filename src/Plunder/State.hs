@@ -22,6 +22,8 @@ module Plunder.State(GameState(..)
             , game_pending_purchase
             , game_explored
             , game_camera
+            , game_level_index
+            , game_levels
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
@@ -81,6 +83,7 @@ data ContextInfo
   | ContextHouse Terrain Unit
   | ContextShop Terrain ShopContent
   | ContextShopFar Terrain        -- ^ shop visible but too far to interact
+  | ContextBoat Terrain           -- ^ boat escape point
   | ContextFog Terrain
   | ContextEmpty Terrain
   | ContextNone
@@ -93,6 +96,7 @@ contextTerrain (ContextEnemy terrain _ _)   = Just terrain
 contextTerrain (ContextHouse terrain _)    = Just terrain
 contextTerrain (ContextShop terrain _)     = Just terrain
 contextTerrain (ContextShopFar terrain)    = Just terrain
+contextTerrain (ContextBoat terrain)       = Just terrain
 contextTerrain (ContextFog terrain)        = Just terrain
 contextTerrain (ContextEmpty terrain)      = Just terrain
 contextTerrain ContextNone                 = Nothing
@@ -116,6 +120,8 @@ data GameState = MkGameState
   , _game_pending_purchase  :: Maybe Haul        -- ^ purchase queued, applied on EndTurn
   , _game_explored          :: Set Axial         -- ^ tiles that have been within visibility range
   , _game_camera            :: V2 CInt           -- ^ pixel offset for camera panning
+  , _game_level_index       :: Int               -- ^ which level we're currently on
+  , _game_levels            :: [Level]           -- ^ immutable reference to all levels
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -165,6 +171,7 @@ selectedTileInfo gs = case gs ^. game_selected of
           Just (Player unit) -> ContextPlayer terrain unit (gs ^. game_player_inventory)
           Just (Enemy unit)  -> ContextEnemy terrain unit (flankingPreview (gs ^. game_board) axial)
           Just (House unit)  -> ContextHouse terrain unit
+          Just Boat          -> ContextBoat terrain
           Just (Shop content)
             | any (`elem` neigbours axial) (playerPositions gs)
                              -> ContextShop terrain content
@@ -204,6 +211,8 @@ levelToGameState lvl =
         , _game_pending_purchase = Nothing
         , _game_explored         = Set.empty
         , _game_camera           = V2 0 0
+        , _game_level_index      = 0
+        , _game_levels           = []
         }
   in gs0 & game_explored .~ computeNewlyExplored gs0
   where
@@ -254,6 +263,8 @@ allEnemies = game_board . traversed . tile_content . _Just . _Enemy
 
 initialState :: GameState
 initialState = levelToGameState defaultLevel
+             & game_levels .~ [defaultLevel]
+             & game_level_index .~ 0
 
 data Attack = MkAttackMove
   { _attack_move :: Move
@@ -262,7 +273,8 @@ data Attack = MkAttackMove
 
 data Action = MkWalk Move -- ^ just go there (no additional events)
               | MkAttack Attack -- ^ play out combat resolution
-              | OpenShop ShopContent-- ^ Open shop screen
+              | OpenShop ShopContent -- ^ Open shop screen
+              | BoardBoat Move -- ^ board the boat to escape (win)
               deriving (Show, Eq)
 
 data Move = MkMove
@@ -345,9 +357,10 @@ move type' grid action =
       content' <- preview (_MkAttack . attack_to) type'
       pure $ case content' of
         Player _ -> Blood
-        Enemy _ -> Blood
-        House _ -> BurnedHouse
-        Shop  _ -> BurnedShop
+        Enemy _  -> Blood
+        House _  -> BurnedHouse
+        Shop  _  -> BurnedShop
+        Boat     -> BurnedHouse -- unreachable: Boat uses BoardBoat, not MkAttack
 
 figureOutMove :: Maybe Result -> Action -> Grid -> Grid
 figureOutMove res type' grid =
@@ -355,7 +368,8 @@ figureOutMove res type' grid =
   where
     action :: Maybe Move
     action = case type' of
-      MkWalk move'   ->  Just move'
+      MkWalk move'    -> Just move'
+      BoardBoat move' -> Just move'
       MkAttack attack ->
         if (isTargetDead <$> res) == Just True then
           Just (attack ^. attack_move)
@@ -398,6 +412,7 @@ applyAttack = \case
       traverseBoard (attack ^. attack_move . move_to) . tc_unit .= (result' ^. res_right_unit)
       pure (Just result')
   MkWalk _ -> pure Nothing
+  BoardBoat _ -> pure Nothing
   OpenShop _ -> pure Nothing
 
 newtype RandTNT a = MkRandTNT {
@@ -434,20 +449,27 @@ executePlannedMove gs src dst = do
   let baseMove = MkMove { _move_from = src, _move_to = dst, _move_from_unit = unit' }
   case isAttack gs dst of
     Just (Shop content) -> Just (OpenShop content)
+    Just Boat           -> Just (BoardBoat baseMove)
     Just target   -> Just $ MkAttack $ MkAttackMove
                        { _attack_move = baseMove, _attack_to = target }
     Nothing       -> if isMove gs dst then Just (MkWalk baseMove) else Nothing
 
--- | The first argument is the state to reset to on 'ResetGame'.
-updateLogic :: MonadRandom m => MonadState GameState m => GameState -> UpdateEvts -> m ()
-updateLogic resetTo = \case
+updateLogic :: MonadRandom m => MonadState GameState m => UpdateEvts -> m ()
+updateLogic = \case
   Redraw -> pure ()
   CameraMove delta -> game_camera %= (+ delta)
   ToggleInventory -> modifying game_inventory_open not
   ShopUpdates actions -> applyShopUpdates actions
   LeftClick axial -> assign game_selected (Just axial)
   ResetGame -> do
-    put resetTo
+    gs <- use id
+    let lvls = gs ^. game_levels
+        idx  = gs ^. game_level_index
+        nextIdx = if gs ^. game_phase == YouVictorious
+                  then min (idx + 1) (length lvls - 1)
+                  else idx
+        nextGS = levelToGameState (lvls !! nextIdx)
+    put (nextGS & game_levels .~ lvls & game_level_index .~ nextIdx)
     updateExplored
   UseItem item -> applyUseItem item
   EndTurn -> do
@@ -468,6 +490,9 @@ updateLogic resetTo = \case
               modifying game_board (figureOutMove mCombatRes plan)
               traverse_ applyShop (plan ^? _OpenShop)
               case plan of
+                BoardBoat _ -> do
+                  game_phase .= YouVictorious
+                  pure Nothing
                 MkWalk _  | not (null rest) -> pure (Just (dst, rest))
                 _                           -> pure Nothing
     game_planned_moves .= survivors
@@ -602,14 +627,14 @@ checkWon :: MonadState GameState m => m ()
 checkWon = do
   gs <- SC.get
   when (gs ^. game_phase == Playing) $
-    when (hasn't allEnemies gs) $
-      game_phase .= YouVictorious
+    unless (has (game_board . traversed . tile_content . _Just . _Boat) gs) $
+      when (hasn't allEnemies gs) $
+        game_phase .= YouVictorious
 
--- | The first argument is the state to reset to on 'ResetGame'.
-updateState :: GameState -> GameState -> (RandTNT (), UpdateEvts) -> GameState
-updateState resetTo gameState (resolveRng, evts) =
+updateState :: GameState -> (RandTNT (), UpdateEvts) -> GameState
+updateState gameState (resolveRng, evts) =
   execState (unRandNt resolveRng $ do
-                updateLogic resetTo evts
+                updateLogic evts
                 removeDeadFriends
                 checkPlayerLives
                 checkWon
