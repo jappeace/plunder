@@ -3,7 +3,6 @@
 }:
 hpkgs.shellFor {
   packages = ps: [ ps."game13" ];
-  withHoogle = true;
 
   buildInputs = [
     hpkgs.haskell-language-server
