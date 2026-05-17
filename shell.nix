@@ -5,9 +5,6 @@ hpkgs.shellFor {
   packages = ps: [ ps."game13" ];
 
   buildInputs = [
-    hpkgs.haskell-language-server
-    pkgs.ghcid
     pkgs.cabal-install
-    pkgs.haskellPackages.hasktags
   ];
 }
