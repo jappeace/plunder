@@ -24,6 +24,7 @@ module Plunder.State(GameState(..)
             , game_camera
             , game_level_index
             , game_levels
+            , game_enemy_minds
             , inventory_money
             , inventroy_item
             , PlayerInventory(..)
@@ -45,6 +46,7 @@ module Plunder.State(GameState(..)
             ) where
 
 import qualified Control.Monad.State.Class as SC
+import           Plunder.AI                      (EnemyMind, EnemyAction(..), defMind, decideEnemy)
 import           Plunder.Combat
 import           Plunder.Level
 import           Control.Lens hiding (Level)
@@ -55,6 +57,7 @@ import           Control.Monad.Trans.Random.Lazy
 import           Control.Monad.Trans.State.Lazy  hiding (put)
 import           Data.Foldable
 import           Data.Functor.Compose
+import           Data.List                       (sort)
 import           Data.Monoid
 import           Data.Word
 import           Debug.Trace
@@ -70,7 +73,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import Data.Set(Set)
-import Data.Maybe(listToMaybe, mapMaybe, catMaybes)
+import Data.Maybe(listToMaybe, mapMaybe, catMaybes, fromMaybe)
 
 data GamePhase = Playing | YouDied | YouVictorious deriving (Show, Eq)
 
@@ -122,6 +125,7 @@ data GameState = MkGameState
   , _game_camera            :: V2 CInt           -- ^ pixel offset for camera panning
   , _game_level_index       :: Int               -- ^ which level we're currently on
   , _game_levels            :: [Level]           -- ^ immutable reference to all levels
+  , _game_enemy_minds       :: Map Axial EnemyMind -- ^ per-enemy AI memory, keyed by current tile
   } deriving (Show)
 makeLenses ''GameState
 makeLenses ''PlayerInventory
@@ -213,6 +217,7 @@ levelToGameState lvl =
         , _game_camera           = V2 0 0
         , _game_level_index      = 0
         , _game_levels           = []
+        , _game_enemy_minds      = Map.empty
         }
   in gs0 & game_explored .~ computeNewlyExplored gs0
   where
@@ -425,6 +430,55 @@ countLoot plan res =
    when (has (_MkAttack . attack_to . _House) plan) $
          game_player_inventory . inventory_money += 10
 
+-- | Run each living enemy in deterministic 'Axial' order.  Snapshotting the
+--   list up-front means a single enemy never acts twice in one turn even if
+--   another action shifts it; the per-step 'Nothing' guard skips enemies
+--   that the player already killed.
+runEnemies :: MonadRandom m => MonadState GameState m => m ()
+runEnemies = do
+  gs <- use id
+  let livingEnemies :: Set Axial
+      livingEnemies = Set.fromList
+        [ axial
+        | (axial, tile) <- Map.toList (gs ^. game_board)
+        , has (tile_content . _Just . _Enemy) tile
+        ]
+  game_enemy_minds %= Map.filterWithKey (\k _ -> Set.member k livingEnemies)
+  traverse_ stepEnemy (sort (Set.toList livingEnemies))
+
+-- | Resolve one enemy's chosen action.  Reads board state freshly so each
+--   enemy sees the consequences of earlier enemies' moves this turn.
+stepEnemy :: MonadRandom m => MonadState GameState m => Axial -> m ()
+stepEnemy src = do
+  gs <- use id
+  case gs ^? game_board . ix src . tile_content . _Just . _Enemy of
+    Nothing      -> pure ()
+    Just enemyU  -> do
+      let oldMind = fromMaybe defMind (gs ^. game_enemy_minds . at src)
+      case decideEnemy (gs ^. game_board) src oldMind of
+        EIdle _ newMind ->
+          game_enemy_minds . at src ?= newMind
+        EStep _ dst newMind -> do
+          let mv  = MkMove { _move_from = src, _move_to = dst, _move_from_unit = enemyU }
+              act = MkWalk mv
+          modifying game_board (figureOutMove Nothing act)
+          game_enemy_minds . at src .= Nothing
+          game_enemy_minds . at dst ?= newMind
+        EAttack _ dst newMind ->
+          case gs ^? game_board . ix dst . tile_content . _Just of
+            Nothing -> pure ()
+            Just tc -> do
+              let mv   = MkMove { _move_from = src, _move_to = dst, _move_from_unit = enemyU }
+                  plan = MkAttack (MkAttackMove { _attack_move = mv, _attack_to = tc })
+              mRes <- applyAttack plan
+              modifying game_board (figureOutMove mRes plan)
+              case mRes of
+                Just r | isTargetDead r -> do
+                  game_enemy_minds . at src .= Nothing
+                  game_enemy_minds . at dst ?= newMind
+                _ ->
+                  game_enemy_minds . at src ?= newMind
+
 -- | If a Player is selected, compute a BFS path to @towards@ (or return an
 --   empty path when @towards == selectedAxial@ to signal cancellation).
 --   Adjacent shops are handled immediately by the RightClick handler before
@@ -496,6 +550,7 @@ updateLogic = \case
                 MkWalk _  | not (null rest) -> pure (Just (dst, rest))
                 _                           -> pure Nothing
     game_planned_moves .= survivors
+    runEnemies
     game_selected .= Nothing
     updateExplored
   RightClick towards -> do

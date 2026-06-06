@@ -1,6 +1,7 @@
 module Main (main) where
 
 import Test.Hspec
+import qualified Test.AISpec           as AISpec
 import qualified Test.HexagonSpec      as HexagonSpec
 import qualified Test.IntegrationSpec  as IntegrationSpec
 import qualified Test.LevelSpec        as LevelSpec
@@ -10,6 +11,7 @@ import qualified Test.StateSpec        as StateSpec
 
 main :: IO ()
 main = hspec $ do
+  describe "Test.AI"           AISpec.spec
   describe "Test.Hexagon"      HexagonSpec.spec
   describe "Test.Integration"  IntegrationSpec.spec
   describe "Test.Level"        LevelSpec.spec
